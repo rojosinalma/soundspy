@@ -1,5 +1,5 @@
 paho-mqtt==1.6.1
-requests==2.31.0
+requests==2.33.0
 flask==3.0.0
 flask-socketio==5.3.6
 python-socketio==5.11.1
