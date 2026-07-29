@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sudo mv mosquitto.conf mosquitto/config/mosquitto.conf)",
+      "Bash(sudo touch mosquitto/data/.gitkeep mosquitto/log/.gitkeep ntfy/cache/.gitkeep ntfy/etc/.gitkeep)",
+      "Bash(chmod +x *)",
+      "Bash(docker-compose down *)",
+      "Bash(docker-compose up *)",
+      "Bash(curl -s http://localhost:8090/)",
+      "Bash(sudo chmod 777 mosquitto/log)",
+      "Bash(docker restart soundspy_mosquitto *)",
+      "Bash(sudo apt update -qq)",
+      "Bash(sudo apt install -y mosquitto-clients)",
+      "Bash(sudo nala update)",
+      "Bash(sudo nala install -y mosquitto-clients)",
+      "Bash(docker restart *)",
+      "Bash(docker exec soundspy_monitor *)",
+      "Bash(docker-compose build *)",
+      "Bash(docker stop *)",
+      "Bash(docker rm *)",
+      "Bash(docker-compose stop *)",
+      "Bash(docker-compose rm *)",
+      "Bash(docker exec soundspy_mosquitto *)",
+      "Bash(git init *)",
+      "Bash(git add *)"
+    ]
+  }
+}
