@@ -1,0 +1,35 @@
+# Local config overrides
+docker-compose.override.yml
+.env
+
+# Mosquitto runtime data
+mosquitto/data/*
+mosquitto/log/*
+!mosquitto/data/.gitkeep
+!mosquitto/log/.gitkeep
+
+# ntfy runtime data
+ntfy/cache/*
+ntfy/etc/*
+!ntfy/cache/.gitkeep
+!ntfy/etc/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+
+# Compiled firmware binaries
+builds/*.bin
+*.bin
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
