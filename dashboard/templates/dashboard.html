@@ -506,6 +506,68 @@
             color: #f59e0b;
         }
 
+        .threshold-control {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .threshold-input-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .threshold-text-input {
+            width: 70px;
+            padding: 8px;
+            background: #0a0e27;
+            border: 2px solid #2a3552;
+            border-radius: 6px;
+            color: #f59e0b;
+            font-size: 1.2em;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .threshold-text-input:focus {
+            outline: none;
+            border-color: #f59e0b;
+        }
+
+        .threshold-slider {
+            width: 200px;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: linear-gradient(to right, #22c55e 0%, #f59e0b 50%, #ef4444 100%);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .threshold-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #f59e0b;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .threshold-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: #f59e0b;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
         .last-update {
             font-size: 0.8em;
             color: #666;
@@ -894,6 +956,36 @@
             document.addEventListener('mouseup', () => {
                 isDragging = false;
             });
+        }
+
+        function initThresholdControls(nodeId) {
+            const slider = document.getElementById(`threshold-slider-${nodeId}`);
+            const input = document.getElementById(`threshold-input-${nodeId}`);
+
+            if (!slider || !input) return;
+
+            // Sync slider to input
+            slider.addEventListener('input', (e) => {
+                const value = parseFloat(e.target.value);
+                input.value = value;
+                thresholdValue = value;
+            });
+
+            // Sync input to slider
+            input.addEventListener('input', (e) => {
+                const value = parseFloat(e.target.value);
+                // Clamp value to range
+                const clamped = Math.max(-80, Math.min(0, value));
+                if (value !== clamped) {
+                    input.value = clamped;
+                }
+                slider.value = clamped;
+                thresholdValue = clamped;
+            });
+
+            // Set initial values
+            slider.value = thresholdValue;
+            input.value = thresholdValue;
         }
 
         function toggleAudio(nodeId) {
@@ -1289,7 +1381,9 @@
                             <div class="node-name">
                                 ${nodeId}
                                 <span class="audio-indicator" id="audio-indicator-${nodeId}"></span>
-                                <div style="font-size: 0.65em; color: #666; font-weight: 400; margin-top: 2px;">Version: <span id="fw-version-${nodeId}">Unknown</span></div>
+                                <div style="font-size: 0.65em; color: #666; font-weight: 400; margin-top: 2px;">
+                                    <span id="fw-version-${nodeId}">Unknown</span> | <span id="node-ip-${nodeId}">--</span>
+                                </div>
                             </div>
                             <div class="node-status">
                                 <button class="audio-control" onclick="toggleAudio('${nodeId}')" id="audio-btn-${nodeId}">
@@ -1362,8 +1456,25 @@
                         <div class="controls-section" style="margin-top: 10px;">
                             <div class="control-box">
                                 <label>Alert Threshold</label>
-                                <div class="value"><span id="threshold-${nodeId}">-20</span></div>
-                                <div class="subtitle">dBFS</div>
+                                <div class="threshold-control">
+                                    <div class="threshold-input-group">
+                                        <input type="number"
+                                               id="threshold-input-${nodeId}"
+                                               class="threshold-text-input"
+                                               value="-20"
+                                               step="0.5"
+                                               min="-80"
+                                               max="0">
+                                        <span style="color: #8b92a8;">dBFS</span>
+                                    </div>
+                                    <input type="range"
+                                           id="threshold-slider-${nodeId}"
+                                           class="threshold-slider"
+                                           value="-20"
+                                           min="-80"
+                                           max="0"
+                                           step="0.5">
+                                </div>
                             </div>
                         </div>
                         <div class="spectrum-container" style="display:none;">
@@ -1438,6 +1549,7 @@
                     setTimeout(() => {
                         updateMicGain(nodeId, 20);  // Set initial mic gain to 20% (4x)
                         updateBrowserVolume(nodeId, 50);  // Set initial volume to 50%
+                        initThresholdControls(nodeId);  // Initialize threshold controls
                     }, 0);
                 }
 
@@ -1456,11 +1568,17 @@
                     statusText.textContent = 'Offline';
                 }
 
-                // Update firmware version
+                // Update firmware version and IP
                 if (data.firmware_version) {
                     const fwElem = document.getElementById(`fw-version-${nodeId}`);
                     if (fwElem) {
-                        fwElem.textContent = data.firmware_version;
+                        fwElem.textContent = `v${data.firmware_version}`;
+                    }
+                }
+                if (data.current.ip) {
+                    const ipElem = document.getElementById(`node-ip-${nodeId}`);
+                    if (ipElem) {
+                        ipElem.textContent = data.current.ip;
                     }
                 }
 

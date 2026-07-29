@@ -2,6 +2,9 @@
 docker-compose.override.yml
 .env
 
+# Claude Code local files
+.claude/
+
 # Mosquitto runtime data
 mosquitto/data/*
 mosquitto/log/*
@@ -20,9 +23,11 @@ __pycache__/
 *.pyo
 venv/
 
-# Compiled firmware binaries
-builds/*.bin
-*.bin
+# Compiled firmware binaries (all build outputs)
+builds/
+
+# Arduino CLI binary
+bin/
 
 # IDE
 .vscode/

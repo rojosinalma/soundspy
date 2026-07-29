@@ -103,7 +103,8 @@ def on_message(client, userdata, msg):
                 "bands": freq_data,
                 "seq": seq,
                 "ts": esp_ts,
-                "backend_recv_time": recv_time
+                "backend_recv_time": recv_time,
+                "ip": payload.get("ip", "unknown")
             }
             # Update firmware version if present in payload
             if firmware_version:
