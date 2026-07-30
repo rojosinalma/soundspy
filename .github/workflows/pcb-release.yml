@@ -5,41 +5,85 @@ on:
     branches:
       - main
     paths:
-      - pcb/**
+      - pcb/*/VERSION
 
 jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.changed.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect changed models
+        id: changed
+        run: |
+          # Find VERSION files that changed in this push
+          changed=$(git diff --name-only HEAD~1 HEAD | grep '^pcb/.*/VERSION$' || true)
+
+          models=()
+          for f in $changed; do
+            model=$(echo "$f" | cut -d'/' -f2)
+            models+=("$model")
+          done
+
+          if [ ${#models[@]} -eq 0 ]; then
+            echo "matrix={\"include\":[]}" >> $GITHUB_OUTPUT
+          else
+            json=$(printf '{"model":"%s"},' "${models[@]}")
+            json="[${json%,}]"
+            echo "matrix={\"include\":$json}" >> $GITHUB_OUTPUT
+          fi
+
   release:
+    needs: detect
+    if: ${{ fromJson(needs.detect.outputs.matrix).include[0] != null }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    strategy:
+      matrix: ${{ fromJson(needs.detect.outputs.matrix) }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Get short SHA
-        id: sha
-        run: echo "short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-
-      - name: Package PCB files
+      - name: Read version
+        id: version
         run: |
-          zip -r "soundspy-pcb-${{ steps.sha.outputs.short }}.zip" pcb/
-          echo "pcb_zip=soundspy-pcb-${{ steps.sha.outputs.short }}.zip" >> $GITHUB_ENV
+          VERSION=$(cat "pcb/${{ matrix.model }}/VERSION" | tr -d '[:space:]')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Delete existing pcb-latest release and tag
+      - name: Check tag does not already exist
+        id: check_tag
+        run: |
+          TAG="pcb-${{ matrix.model }}-v${{ steps.version.outputs.version }}"
+          if git ls-remote --tags origin "refs/tags/$TAG" | grep -q .; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Package model PCB files
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          MODEL="${{ matrix.model }}"
+          VERSION="${{ steps.version.outputs.version }}"
+          zip -r "soundspy-pcb-${MODEL}-v${VERSION}.zip" "pcb/${MODEL}/"
+          echo "pcb_zip=soundspy-pcb-${MODEL}-v${VERSION}.zip" >> $GITHUB_ENV
+
+      - name: Create release
+        if: steps.check_tag.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release delete pcb-latest --yes 2>/dev/null || true
-          git push origin :refs/tags/pcb-latest 2>/dev/null || true
-
-      - name: Create PCB release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git tag pcb-latest
-          git push origin pcb-latest
-          gh release create pcb-latest \
-            --title "PCB Files (latest)" \
-            --notes "Latest PCB files from commit ${{ steps.sha.outputs.short }}. Built automatically on every change to the \`pcb/\` folder." \
-            --prerelease \
+          MODEL="${{ matrix.model }}"
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="pcb-${MODEL}-v${VERSION}"
+          git tag "$TAG"
+          git push origin "$TAG"
+          gh release create "$TAG" \
+            --title "PCB: ${MODEL} v${VERSION}" \
+            --notes "PCB files for the **${MODEL}** mic carrier board, version ${VERSION}." \
             "${{ env.pcb_zip }}"
