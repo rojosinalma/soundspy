@@ -8,7 +8,6 @@ import os
 import json
 import time
 import math
-from datetime import datetime
 from collections import deque, defaultdict
 from threading import Thread, Lock
 import paho.mqtt.client as mqtt
@@ -16,8 +15,6 @@ from flask import Flask, render_template, Response, jsonify, request, send_from_
 from flask_socketio import SocketIO, emit
 from flask_sock import Sock
 from werkzeug.utils import secure_filename
-import base64
-import os as os_module
 
 MQTT_HOST = os.environ.get("MQTT_HOST", "localhost")
 MQTT_PORT = int(os.environ.get("MQTT_PORT", 1883))
@@ -84,7 +81,7 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 sock = Sock(app)
 
 # Create firmware directory if it doesn't exist
-os_module.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 
 def on_connect(client, userdata, flags, rc):
@@ -359,7 +356,7 @@ def ota_upload():
         return jsonify({"error": "Must be a .bin file"}), 400
 
     filename = secure_filename(file.filename)
-    filepath = os_module.path.join(app.config['UPLOAD_FOLDER'], filename)
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     file.save(filepath)
 
     print(f"Firmware uploaded: {filename}", flush=True)
@@ -399,42 +396,6 @@ def ota_trigger():
 def serve_firmware(filename):
     """Serve firmware files for ESP32 to download."""
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-
-
-@app.route("/stream")
-def stream():
-    """Server-sent events stream for real-time updates."""
-    def event_stream():
-        last_sent = {}
-        while True:
-            with data_lock:
-                for node_id, data in node_data.items():
-                    last_update = data["last_update"]
-                    if last_update and last_update != last_sent.get(node_id):
-                        last_sent[node_id] = last_update
-                        event_data = json.dumps({'node_id': node_id, 'data': data['current'], 'timestamp': last_update})
-                        yield f"data: {event_data}\n\n"
-
-            time.sleep(0.1)  # Reduced from 0.5s to 0.1s for lower latency
-
-    response = Response(event_stream(), mimetype="text/event-stream")
-    response.headers['Cache-Control'] = 'no-cache'
-    response.headers['X-Accel-Buffering'] = 'no'
-    return response
-
-
-# WebSocket handlers for audio streaming from ESP32 nodes
-@socketio.on('audio_stream')
-def handle_audio_stream(data):
-    """Receive audio data from ESP32 nodes and broadcast to web clients."""
-    node_id = data.get('node_id')
-    audio_chunk = data.get('audio')  # Base64 encoded PCM data
-
-    # Broadcast to all connected web clients
-    socketio.emit('audio_data', {
-        'node_id': node_id,
-        'audio': audio_chunk
-    }, broadcast=True)
 
 
 @socketio.on('connect')
