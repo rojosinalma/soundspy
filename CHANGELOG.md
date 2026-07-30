@@ -14,6 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.3] - 2026-07-30
+
+### Changed
+- Buttons now have a subtle border (`#2a4a34`) at rest; border brightens to `#44dd66` on hover
+- History selector buttons (node + time range) match button border style
+- Filter labels ("Node", "Range") larger (`0.8em`) and green (`#6b9e7a`), spaced from first selector
+- Node display names pre-populated on page load so selectors never flash the chip ID
+
 ## [1.4.2] - 2026-07-30
 
 ### Added
