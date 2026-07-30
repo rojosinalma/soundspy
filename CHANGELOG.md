@@ -14,6 +14,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.7] - 2026-07-30
+
+### Added
+- Alert LED: red dome indicator next to threshold box, lights up instantly on threshold breach using raw level (not EMA-smoothed)
+
+### Changed
+- Audio indicator and online dot styled as LEDs: radial gradient highlight, glow when active, dark recessed dome when off
+- Blink animation dimmer (35% opacity) for more visible pulse
+- Status pill gap increased to 8px
+- Node card no longer flashes border on alert — LED is the sole indicator
+- Band frequency labels aligned to 6-column grid matching bar positions
+- Spectrum canvas taller (160px), Y-axis narrower (30px)
+- eq-container: dark bg + border matching control boxes
+
 ## [1.4.6] - 2026-07-30
 
 ### Added

@@ -119,8 +119,6 @@
         }
 
         .node-card.alert {
-            border-color: #d64545;
-            animation: pulse 2s infinite;
         }
 
         @keyframes pulse {
@@ -169,7 +167,7 @@
         .status-pill {
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 8px;
             background: #080e0a;
             border: 1px solid #1a2e24;
             border-radius: 4px;
@@ -303,36 +301,43 @@
 
         .audio-indicator {
             display: inline-block;
-            width: 8px;
-            height: 8px;
+            width: 9px;
+            height: 9px;
             border-radius: 50%;
-            background: #2a4a34;
+            background: radial-gradient(circle at 35% 35%, #3a6a4a, #1a2e24);
+            border: 1px solid #1a3020;
+            box-shadow: inset 0 1px 1px rgba(0,0,0,0.5);
             margin-left: 5px;
         }
 
         .audio-indicator.streaming {
-            background: #48bb78;
-            animation: blink 1s infinite;
+            background: radial-gradient(circle at 35% 35%, #afffcc, #48bb78);
+            border-color: #2a8a50;
+            box-shadow: 0 0 5px rgba(72, 187, 120, 0.8), 0 0 10px rgba(72, 187, 120, 0.4), inset 0 1px 1px rgba(255,255,255,0.3);
+            animation: blink 2.5s ease-in-out infinite;
         }
 
         .status-dot {
             width: 10px;
             height: 10px;
             border-radius: 50%;
-            background: #4caf50;
-            box-shadow: 0 0 6px #4caf50, 0 0 12px rgba(76, 175, 80, 0.4);
-            animation: blink 2s infinite;
+            background: radial-gradient(circle at 35% 35%, #afffcc, #48bb78);
+            border: 1px solid #2a8a50;
+            box-shadow: 0 0 5px rgba(72, 187, 120, 0.8), 0 0 10px rgba(72, 187, 120, 0.4), inset 0 1px 1px rgba(255,255,255,0.3);
+            animation: blink 2s ease-in-out infinite;
         }
 
         .status-dot.offline {
-            background: #2a4a34;
+            background: radial-gradient(circle at 35% 35%, #3a6a4a, #1a2e24);
+            border: 1px solid #1a3020;
+            box-shadow: inset 0 1px 1px rgba(0,0,0,0.5);
             box-shadow: none;
             animation: none;
         }
 
         @keyframes blink {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
+            50% { opacity: 0.35; }
         }
 
         .controls-section {
@@ -616,6 +621,31 @@
         .chart-wrapper {
             position: relative;
             height: 300px;
+        }
+
+        .alert-led-box {
+            flex: 0 0 60px;
+            min-width: 60px;
+            height: auto;
+            min-height: 120px;
+            justify-content: center;
+            margin-right: -4px;
+        }
+
+        .alert-led {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, #6a1a1a, #2a0a0a);
+            border: 1px solid #4a1010;
+            box-shadow: inset 0 2px 2px rgba(0,0,0,0.6);
+            transition: all 0.2s;
+        }
+
+        .alert-led.on {
+            background: radial-gradient(circle at 35% 35%, #ffaaaa, #ef4444);
+            border-color: #cc2222;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.9), 0 0 20px rgba(239, 68, 68, 0.5), inset 0 2px 2px rgba(255,255,255,0.3);
         }
 
         .threshold-box {
@@ -1693,11 +1723,12 @@
             audioPlayers[nodeId].muted = !audioPlayers[nodeId].muted;
 
             const btn = document.getElementById(`audio-btn-${nodeId}`);
+            const label = btn.querySelector('.audio-btn-label');
             if (audioPlayers[nodeId].muted) {
-                btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:3px"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>Muted';
+                if (label) label.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:3px"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>Muted';
                 btn.classList.remove('active');
             } else {
-                btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:3px"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>Playing';
+                if (label) label.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:3px"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>Playing';
                 btn.classList.add('active');
                 // Resume audio context if suspended (browser autoplay policy)
                 if (audioContext.state === 'suspended') {
@@ -2178,7 +2209,7 @@
                             <div class="node-status">
                                 <span class="audio-indicator" id="audio-indicator-${nodeId}"></span>
                                 <button class="audio-control audio-toggle" onclick="toggleAudio('${nodeId}')" id="audio-btn-${nodeId}">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:3px"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>Muted
+                                    <span class="audio-btn-label"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:3px"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>Muted</span>
                                 </button>
                                 <div class="status-pill">
                                     <div class="status-dot"></div>
@@ -2215,6 +2246,9 @@
                             </div>
                         </div>
                         <div class="controls-section">
+                            <div class="control-box alert-led-box">
+                                <div class="alert-led" id="alert-led-${nodeId}"></div>
+                            </div>
                             <div class="control-box threshold-box">
                                 <label>Alert Threshold</label>
                                 <div class="threshold-control">
@@ -2342,6 +2376,8 @@
                     drawLevelMeter(nodeId, -80);
                     drawEQ(nodeId, [-80, -80, -80, -80, -80, -80]);
                     card.classList.remove('alert');
+                    const offLed = document.getElementById(`alert-led-${nodeId}`);
+                    if (offLed) offLed.classList.remove('on');
                     emaLevels[nodeId] = -80;
                 } else if (data.current.overall_dbfs !== null) {
                     // Compute level (use A-weighted sum of bands if dBA mode)
@@ -2364,12 +2400,11 @@
 
                         drawEQ(nodeId, bandValues);
 
-                        // Check smoothed level against threshold (both in display unit)
-                        if (displayDbfs > thresholdInDisplayUnit(nodeId)) {
-                            card.classList.add('alert');
-                        } else {
-                            card.classList.remove('alert');
-                        }
+                        // LED uses raw level for instant response; card class removed (LED handles it)
+                        const isAlert = rawLevels[nodeId] > thresholdInDisplayUnit(nodeId);
+                        card.classList.toggle('alert', isAlert);
+                        const led = document.getElementById(`alert-led-${nodeId}`);
+                        if (led) led.classList.toggle('on', isAlert);
                     }
                 }
 
