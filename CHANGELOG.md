@@ -14,6 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.9] - 2026-07-30
+
+### Added
+- Project wiki with full documentation (Architecture, Hardware Wiring, Firmware Setup, Dashboard, Adding Nodes, Troubleshooting)
+- Wiki links in README
+- AGPL-3.0 license
+- VERSION file as single source of truth; bump_version.sh script to update all version strings at once
+- GitHub Actions workflow to auto-tag and release when VERSION increases
+
 ## [1.4.8] - 2026-07-30
 
 ### Fixed

@@ -19,7 +19,7 @@ from werkzeug.utils import secure_filename
 MQTT_HOST = os.environ.get("MQTT_HOST", "localhost")
 MQTT_PORT = int(os.environ.get("MQTT_PORT", 1883))
 FREQ_THRESHOLD_DBFS = float(os.environ.get("FREQ_THRESHOLD_DBFS", -20))
-DASHBOARD_VERSION = "1.4.8"
+DASHBOARD_VERSION = "1.4.9"
 
 TOPIC_DATA = "soundspy/+/data"
 TOPIC_VERSION = "soundspy/+/version"

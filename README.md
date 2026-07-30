@@ -77,7 +77,16 @@ docker logs -f soundspy_dashboard   # Dashboard logs
 docker logs -f soundspy_monitor     # Alert service logs
 ```
 
-For detailed documentation see the [wiki](https://github.com/rojosinalma/soundspy/wiki).
+## Documentation
+
+Full documentation is available on the [project wiki](https://github.com/rojosinalma/soundspy/wiki):
+
+- [Architecture](https://github.com/rojosinalma/soundspy/wiki/Architecture)
+- [Hardware Wiring](https://github.com/rojosinalma/soundspy/wiki/Hardware-Wiring)
+- [Firmware Setup](https://github.com/rojosinalma/soundspy/wiki/Firmware-Setup)
+- [Dashboard](https://github.com/rojosinalma/soundspy/wiki/Dashboard)
+- [Adding Nodes](https://github.com/rojosinalma/soundspy/wiki/Adding-Nodes)
+- [Troubleshooting](https://github.com/rojosinalma/soundspy/wiki/Troubleshooting)
 
 ## Screenshot
 
