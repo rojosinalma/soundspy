@@ -14,6 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.4] - 2026-07-30
+
+### Added
+- Level History section is now collapsible (starts expanded, +/− toggle on left, hides filters when collapsed)
+
+### Changed
+- Level display: digits centered under label; minus sign absolutely positioned to the left without affecting layout
+- Threshold input: centered with hidden spacer balancing the unit label on the right
+- Button and selector text color shifted to #6b9e7a (muted green, was blue-grey)
+- Offline/muted status dot and audio indicator: dark green (#2a4a34) instead of grey
+
 ## [1.4.3] - 2026-07-30
 
 ### Changed
