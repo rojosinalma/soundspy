@@ -15,46 +15,62 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
-      - name: Read version
+      - name: Check version increased
         id: version
-        run: echo "version=$(cat VERSION | tr -d '[:space:]')" >> $GITHUB_OUTPUT
+        run: |
+          NEW=$(cat VERSION | tr -d '[:space:]')
+          OLD=$(git show HEAD~1:VERSION 2>/dev/null | tr -d '[:space:]' || echo "0.0.0")
+          echo "new=$NEW" >> $GITHUB_OUTPUT
+          echo "old=$OLD" >> $GITHUB_OUTPUT
+          if [ "$NEW" = "$OLD" ]; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            # Verify new > old using sort -V
+            HIGHER=$(printf '%s\n%s' "$OLD" "$NEW" | sort -V | tail -1)
+            if [ "$HIGHER" = "$NEW" ]; then
+              echo "changed=true" >> $GITHUB_OUTPUT
+            else
+              echo "changed=false" >> $GITHUB_OUTPUT
+            fi
+          fi
 
       - name: Check tag does not already exist
         id: check_tag
+        if: steps.version.outputs.changed == 'true'
         run: |
-          if git ls-remote --tags origin "refs/tags/v${{ steps.version.outputs.version }}" | grep -q .; then
+          if git ls-remote --tags origin "refs/tags/v${{ steps.version.outputs.new }}" | grep -q .; then
             echo "exists=true" >> $GITHUB_OUTPUT
           else
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Create tag
-        if: steps.check_tag.outputs.exists == 'false'
+        if: steps.version.outputs.changed == 'true' && steps.check_tag.outputs.exists == 'false'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "v${{ steps.version.outputs.version }}"
-          git push origin "v${{ steps.version.outputs.version }}"
+          git tag "v${{ steps.version.outputs.new }}"
+          git push origin "v${{ steps.version.outputs.new }}"
 
       - name: Extract changelog entry
         id: changelog
-        if: steps.check_tag.outputs.exists == 'false'
+        if: steps.version.outputs.changed == 'true' && steps.check_tag.outputs.exists == 'false'
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          # Extract the section for this version from CHANGELOG.md
+          VERSION="${{ steps.version.outputs.new }}"
           NOTES=$(awk "/^## \[$VERSION\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
           if [ -z "$NOTES" ]; then
             NOTES="Release v$VERSION"
           fi
-          # Write to file to avoid multiline env issues
           echo "$NOTES" > /tmp/release_notes.md
 
       - name: Create GitHub release
-        if: steps.check_tag.outputs.exists == 'false'
+        if: steps.version.outputs.changed == 'true' && steps.check_tag.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "v${{ steps.version.outputs.version }}" \
-            --title "v${{ steps.version.outputs.version }}" \
+          gh release create "v${{ steps.version.outputs.new }}" \
+            --title "v${{ steps.version.outputs.new }}" \
             --notes-file /tmp/release_notes.md
