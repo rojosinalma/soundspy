@@ -170,7 +170,7 @@
 
         .audio-control {
             background: #1a2e24;
-            border: none;
+            border: 1px solid #2a4a34;
             color: #8b92a8;
             padding: 6px 12px;
             border-radius: 4px;
@@ -185,6 +185,8 @@
 
         .audio-control:hover {
             background: #1a2e24;
+            border-color: #44dd66;
+            color: #a3e6b8;
         }
 
         .audio-control.active {
@@ -509,7 +511,7 @@
 
         .time-range-btn {
             background: #1a2e24;
-            border: none;
+            border: 1px solid #2a4a34;
             color: #8b92a8;
             padding: 6px 14px;
             border-radius: 4px;
@@ -520,10 +522,13 @@
 
         .time-range-btn:hover {
             background: #1a2e24;
+            border-color: #44dd66;
+            color: #a3e6b8;
         }
 
         .time-range-btn.active {
             background: #44dd66;
+            border-color: #44dd66;
             color: #fff;
         }
 
@@ -534,10 +539,11 @@
         }
 
         .filter-label {
-            font-size: 0.65em;
-            color: #8b92a8;
+            font-size: 0.8em;
+            color: #6b9e7a;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            margin-right: 4px;
         }
 
         .filter-separator {
@@ -2436,6 +2442,11 @@
 
                 nodesData = data.nodes;
                 thresholdValue = data.threshold;
+
+                // Pre-populate display names so selectors show names immediately on load
+                Object.entries(data.nodes).forEach(([nodeId, node]) => {
+                    if (node.display_name) nodeDisplayNames[nodeId] = node.display_name;
+                });
 
                 updateNodeCards(data.nodes);
             } catch (error) {
