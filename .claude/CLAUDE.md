@@ -105,6 +105,12 @@ The `docker-compose.override.yml` (gitignored) adds traefik labels for `soundspy
 
 Single source of truth: `VERSION` file in repo root. Use `./scripts/bump_version.sh <new-version>` to update VERSION, firmware, and dashboard in one step. GitHub Actions (`.github/workflows/release.yml`) auto-tags and creates a GitHub release when VERSION changes on main, pulling notes from CHANGELOG.md.
 
+## Git Rules
+
+- All commits must be GPG-signed: `git commit -S`
+- Never add Co-Authored-By or any Claude attribution to commit messages
+- Commits are authored solely in the user's name
+
 ## Network
 
 - Server: 10.10.10.20 (silver.local)
