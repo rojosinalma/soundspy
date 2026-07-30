@@ -7,6 +7,7 @@ Shows real-time and historical readings from all nodes.
 import os
 import json
 import time
+import math
 from datetime import datetime
 from collections import deque, defaultdict
 from threading import Thread, Lock
@@ -25,6 +26,7 @@ TOPIC_DATA = "soundspy/+/data"
 TOPIC_VERSION = "soundspy/+/version"
 TOPIC_LOG = "soundspy/+/log"
 TOPIC_BOOT = "soundspy/+/boot"
+TOPIC_HEARTBEAT = "soundspy/+/heartbeat"
 
 # Node name persistence
 NODE_NAMES_FILE = "/app/data/node_names.json"
@@ -65,10 +67,12 @@ def get_node_name(chip_id):
 HISTORY_SIZE = 3600
 node_data = defaultdict(lambda: {
     "last_update": None,
+    "last_heartbeat": None,
     "current": {"overall_dbfs": None, "freq_dbfs": None},
     "history": deque(maxlen=HISTORY_SIZE),
-    "history_acc": {"sum_dbfs": 0, "count": 0, "bands": {}, "last_sec": 0},
-    "firmware_version": "unknown"
+    "history_acc": {"sum_power": 0, "count": 0, "bands": {}, "last_sec": 0},
+    "firmware_version": "unknown",
+    "sleeping": False
 })
 data_lock = Lock()
 
@@ -89,6 +93,7 @@ def on_connect(client, userdata, flags, rc):
     client.subscribe(TOPIC_VERSION)
     client.subscribe(TOPIC_LOG)
     client.subscribe(TOPIC_BOOT)
+    client.subscribe(TOPIC_HEARTBEAT)
 
 
 def on_message(client, userdata, msg):
@@ -129,6 +134,13 @@ def on_message(client, userdata, msg):
             }, namespace='/')
             return
 
+        # Handle heartbeat messages
+        if msg.topic.endswith("/heartbeat"):
+            with data_lock:
+                node_data[node_id]["last_heartbeat"] = time.time()
+                node_data[node_id]["sleeping"] = payload.get("sleeping", False)
+            return
+
         # Handle data messages
         overall_dbfs = payload.get("overall_dbfs")
         bands = payload.get("bands", {})
@@ -154,6 +166,7 @@ def on_message(client, userdata, msg):
 
         with data_lock:
             node_data[node_id]["last_update"] = timestamp
+            node_data[node_id]["sleeping"] = False
             node_data[node_id]["current"] = {
                 "overall_dbfs": overall_dbfs,
                 "bands": freq_data,
@@ -165,32 +178,37 @@ def on_message(client, userdata, msg):
             # Update firmware version if present in payload
             if firmware_version:
                 node_data[node_id]["firmware_version"] = firmware_version
-            # Downsample to 1 point/second for history
+            # Downsample to 1 point/second for history (average in linear power domain)
             current_sec = int(timestamp)
             acc = node_data[node_id]["history_acc"]
             if current_sec != acc["last_sec"]:
                 if acc["count"] > 0:
-                    avg_dbfs = acc["sum_dbfs"] / acc["count"]
-                    avg_bands = {k: v / acc["count"] for k, v in acc["bands"].items()}
+                    avg_power = acc["sum_power"] / acc["count"]
+                    avg_dbfs = 10 * math.log10(avg_power + 1e-18)
+                    avg_bands = {}
+                    for k, v in acc["bands"].items():
+                        band_power = v / acc["count"]
+                        avg_bands[k] = 10 * math.log10(band_power + 1e-18)
                     node_data[node_id]["history"].append({
                         "timestamp": acc["last_sec"],
                         "overall_dbfs": round(avg_dbfs, 1),
                         "bands": {k: round(v, 1) for k, v in avg_bands.items()}
                     })
-                acc["sum_dbfs"] = overall_dbfs
+                acc["sum_power"] = 10 ** (overall_dbfs / 10)
                 acc["count"] = 1
-                acc["bands"] = dict(freq_data) if isinstance(freq_data, dict) else {}
+                acc["bands"] = {k: 10 ** (v / 10) for k, v in (freq_data.items() if isinstance(freq_data, dict) else [])}
                 acc["last_sec"] = current_sec
             else:
-                acc["sum_dbfs"] += overall_dbfs
+                acc["sum_power"] += 10 ** (overall_dbfs / 10)
                 acc["count"] += 1
                 for k, v in (freq_data.items() if isinstance(freq_data, dict) else []):
-                    acc["bands"][k] = acc["bands"].get(k, 0) + v
+                    acc["bands"][k] = acc["bands"].get(k, 0) + 10 ** (v / 10)
 
             # Broadcast real-time update via WebSocket (faster than SSE)
             socketio.emit('sensor_data', {
                 'node_id': node_id,
                 'display_name': get_node_name(node_id),
+                'firmware_version': node_data[node_id].get("firmware_version", "unknown"),
                 'data': node_data[node_id]["current"],
                 'timestamp': timestamp
             }, namespace='/')
@@ -222,10 +240,16 @@ def api_nodes():
         now = time.time()
         for node_id, data in node_data.items():
             last_update = data["last_update"]
-            is_online = last_update and (now - last_update) < 10  # offline if no data for 10s
+            last_heartbeat = data.get("last_heartbeat")
+            is_sleeping = data.get("sleeping", False)
+            if is_sleeping:
+                is_online = last_heartbeat and (now - last_heartbeat) < 60
+            else:
+                is_online = last_update and (now - last_update) < 10
 
             result[node_id] = {
                 "online": is_online,
+                "sleeping": is_sleeping,
                 "last_update": last_update,
                 "current": data["current"],
                 "firmware_version": data.get("firmware_version", "unknown"),
@@ -291,6 +315,13 @@ def api_control():
     control_client.connect(MQTT_HOST, MQTT_PORT, keepalive=60)
     control_client.publish(topic, payload)
     control_client.disconnect()
+
+    # Track sleep/wake state
+    with data_lock:
+        if command.get("sleep"):
+            node_data[node_id]["sleeping"] = True
+        elif command.get("wake"):
+            node_data[node_id]["sleeping"] = False
 
     print(f"Sent control to {node_id}: {payload}", flush=True)
 
