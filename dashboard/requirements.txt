@@ -5,3 +5,4 @@ flask-socketio==5.6.1
 python-socketio==5.16.3
 flask-sock==0.7.0
 simple-websocket==1.1.0
+watchdog==6.0.0

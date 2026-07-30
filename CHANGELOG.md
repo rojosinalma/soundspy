@@ -14,6 +14,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.6] - 2026-07-30
+
+### Added
+- Dashboard version in footer (bottom-left, monospace, served from DASHBOARD_VERSION constant)
+- watchdog hot-reload: template and Python changes now apply without container restart
+
+### Changed
+- Spectrum canvas renders at device pixel ratio — fixes blurry Y-axis text on HiDPI displays
+- Spectrum canvas taller (160px), Y-axis narrower (30px) for more bar width
+- Band frequency labels aligned to grid (6 equal columns) matching bar positions
+- Y-axis numbers, band labels, slider marks/notches: #9ecfb0 (brighter green)
+- Node info sub-text (chip ID, firmware, IP): #6b9e7a green
+- Online/Sleeping/Offline pill text: #a3e6b8
+- Button text: rgba(68, 221, 102, 0.9) phosphor green
+- Bars/Wave toggle: single border wrapping both buttons
+- eq-container: dark bg + border matching control boxes
+- Filter labels: bold + #8ec9a0
+- History chart axis labels: #6b9e7a
+
 ## [1.4.5] - 2026-07-30
 
 ### Changed
