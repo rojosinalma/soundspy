@@ -1220,13 +1220,77 @@
             high: -1.0
         };
 
-        let useAWeighting = false;
+        let useAWeighting = true;
+
+        // Convert a dBFS value to the active display unit using cached offset for nodeId
+        function dbfsToDisplay(dbfs, nodeId) {
+            if (!useAWeighting) return dbfs;
+            return dbfs + (aWeightOffsets[nodeId] || 0);
+        }
+
+        // Convert a display-unit value back to dBFS using cached offset for nodeId
+        function displayToDbfs(display, nodeId) {
+            if (!useAWeighting) return display;
+            return display - (aWeightOffsets[nodeId] || 0);
+        }
+
+        // Cached A-weighting offset per node — computed once when bands first arrive or threshold changes
+        const aWeightOffsets = {};
+
+        function computeAndCacheAWeightOffset(nodeId, bands) {
+            if (!bands) return;
+            const bandOrder = ['sub_bass', 'bass', 'low_mid', 'mid', 'high_mid', 'high'];
+            let rawPower = 0, weightedPower = 0;
+            for (const name of bandOrder) {
+                const v = bands[name] || -80;
+                rawPower += Math.pow(10, v / 10);
+                weightedPower += Math.pow(10, (v + (A_WEIGHT_OFFSETS[name] || 0)) / 10);
+            }
+            aWeightOffsets[nodeId] = 10 * Math.log10(weightedPower + 1e-18) - 10 * Math.log10(rawPower + 1e-18);
+        }
+
+        // Get threshold in display unit for a node (null = use effective/global threshold)
+        function thresholdInDisplayUnit(nodeId) {
+            if (!nodeId) {
+                const values = Object.values(nodeThresholds);
+                const dbfs = values.length > 0 ? Math.min(...values) : thresholdValue;
+                // Use average offset across all cached nodes
+                const offsets = Object.values(aWeightOffsets);
+                const offset = useAWeighting && offsets.length > 0
+                    ? offsets.reduce((a, b) => a + b, 0) / offsets.length : 0;
+                return dbfs + offset;
+            }
+            const dbfs = nodeThresholds[nodeId] ?? thresholdValue;
+            const offset = useAWeighting ? (aWeightOffsets[nodeId] || 0) : 0;
+            return dbfs + offset;
+        }
 
         function toggleWeighting() {
             useAWeighting = !useAWeighting;
+            const unit = useAWeighting ? 'dBA' : 'dBFS';
             document.querySelectorAll('.weighting-toggle').forEach(el => {
-                el.textContent = useAWeighting ? 'dBA' : 'dBFS';
+                el.textContent = unit;
             });
+            if (historyChart) {
+                historyChart.options.scales.y.title.text = unit;
+                historyChart.update();
+            }
+            // Re-render threshold controls in new unit for all nodes
+            for (const nodeId of Object.keys(nodesData)) {
+                refreshThresholdDisplay(nodeId);
+            }
+        }
+
+        // Update slider/input to show threshold in active display unit
+        function refreshThresholdDisplay(nodeId) {
+            const slider = document.getElementById(`threshold-slider-${nodeId}`);
+            const input = document.getElementById(`threshold-input-${nodeId}`);
+            if (!slider || !input) return;
+            const displayVal = Math.round(thresholdInDisplayUnit(nodeId) * 2) / 2;
+            slider.value = displayVal;
+            input.value = displayVal;
+            updateSliderGradient(slider, displayVal);
+            updateSliderMarks(nodeId, displayVal);
         }
 
         function applyAWeighting(bands) {
@@ -1250,19 +1314,24 @@
             return 10 * Math.log10(sumPower + 1e-18);
         }
 
+        // Raw (unsmoothed) level per node — for bar animation
+        const rawLevels = {};
+
         // Overall level meter peak tracking
         const meterPeaks = {};
         const meterPeakTimestamps = {};
         const METER_PEAK_HOLD = 3000;
         const METER_PEAK_FADE = 500;
 
-        function getBarColor(dbfs) {
-            if (dbfs >= thresholdValue) return '#ef4444';
-            if (dbfs >= thresholdValue - 10) return '#f59e0b';
+        function getBarColor(dbfs, thresh) {
+            const t = thresh !== undefined ? thresh : thresholdInDisplayUnit();
+            if (dbfs >= t) return '#ef4444';
+            if (dbfs >= t - 10) return '#f59e0b';
             return '#22c55e';
         }
 
-        function drawLevelMeter(nodeId, dbfs) {
+        function drawLevelMeter(nodeId, dbfsForPeak, dbfsForBar) {
+            const dbfs = dbfsForBar !== undefined ? dbfsForBar : dbfsForPeak;
             const canvas = document.getElementById(`level-meter-${nodeId}`);
             if (!canvas) return;
 
@@ -1284,11 +1353,12 @@
             const filledSegs = Math.round(normalized * segCount);
 
             // Zone backgrounds
-            const yellowStart = thresholdValue - 10;
+            const displayThresh = thresholdInDisplayUnit(nodeId);
+            const yellowStart = displayThresh - 10;
             const zones = [
                 { from: dbfsMin, to: yellowStart, color: 'rgba(34, 197, 94, 0.15)' },
-                { from: yellowStart, to: thresholdValue, color: 'rgba(245, 158, 11, 0.22)' },
-                { from: thresholdValue, to: dbfsMax, color: 'rgba(239, 68, 68, 0.25)' }
+                { from: yellowStart, to: displayThresh, color: 'rgba(245, 158, 11, 0.22)' },
+                { from: displayThresh, to: dbfsMax, color: 'rgba(239, 68, 68, 0.25)' }
             ];
             zones.forEach(zone => {
                 const yTop = height - ((Math.min(zone.to, dbfsMax) - dbfsMin) / (dbfsMax - dbfsMin)) * height;
@@ -1302,7 +1372,7 @@
                 const y = height - (i + 1) * segHeight - i * segGap;
                 const segDbfs = dbfsMin + ((i + 0.5) / segCount) * (dbfsMax - dbfsMin);
                 if (i < filledSegs) {
-                    ctx.fillStyle = getBarColor(segDbfs);
+                    ctx.fillStyle = getBarColor(segDbfs, displayThresh);
                     ctx.fillRect(2, y, width - 4, segHeight);
                 } else {
                     ctx.fillStyle = 'rgba(255,255,255,0.03)';
@@ -1329,7 +1399,7 @@
             const peakNorm = Math.max(0, Math.min(1, (meterPeaks[nodeId] - dbfsMin) / (dbfsMax - dbfsMin)));
             if (peakNorm > 0.02) {
                 const peakY = height - peakNorm * height;
-                const peakColor = getBarColor(meterPeaks[nodeId]);
+                const peakColor = getBarColor(meterPeaks[nodeId], displayThresh);
                 ctx.globalAlpha = peakAlpha;
                 ctx.fillStyle = peakColor;
                 ctx.fillRect(2, peakY, width - 4, 2);
@@ -1522,14 +1592,16 @@
                 const parsed = parseFloat(value);
                 const raw = isNaN(parsed) ? -20 : Math.round(parsed * 2) / 2;
                 const snapped = snapToMark(raw);
-                const clamped = Math.max(-80, Math.min(0, snapped));
-                input.value = clamped;
-                slider.value = clamped;
-                thresholdValue = clamped;
-                nodeThresholds[nodeId] = clamped;
-                updateSliderGradient(slider, clamped);
-                updateSliderMarks(nodeId, clamped);
-                return clamped;
+                const displayClamped = Math.max(-80, Math.min(0, snapped));
+                // Store internally as dBFS
+                const dbfsClamped = Math.max(-80, Math.min(0, displayToDbfs(displayClamped, nodeId)));
+                input.value = displayClamped;
+                slider.value = displayClamped;
+                thresholdValue = dbfsClamped;
+                nodeThresholds[nodeId] = dbfsClamped;
+                updateSliderGradient(slider, displayClamped);
+                updateSliderMarks(nodeId, displayClamped);
+                return dbfsClamped;
             };
 
             slider.addEventListener('input', (e) => {
@@ -1543,12 +1615,13 @@
             input.addEventListener('input', (e) => {
                 const value = parseFloat(e.target.value);
                 if (!isNaN(value)) {
-                    const clamped = Math.max(-80, Math.min(0, value));
-                    slider.value = clamped;
-                    thresholdValue = clamped;
-                    nodeThresholds[nodeId] = clamped;
-                    updateSliderGradient(slider, clamped);
-                    updateSliderMarks(nodeId, clamped);
+                    const displayClamped = Math.max(-80, Math.min(0, value));
+                    const dbfsClamped = Math.max(-80, Math.min(0, displayToDbfs(displayClamped, nodeId)));
+                    slider.value = displayClamped;
+                    thresholdValue = dbfsClamped;
+                    nodeThresholds[nodeId] = dbfsClamped;
+                    updateSliderGradient(slider, displayClamped);
+                    updateSliderMarks(nodeId, displayClamped);
                 }
             });
 
@@ -1687,7 +1760,7 @@
                             max: 0,
                             title: {
                                 display: true,
-                                text: 'dBFS',
+                                text: 'dBA',
                                 color: '#8b92a8'
                             },
                             grid: {
@@ -1742,7 +1815,7 @@
                     beforeDraw(chart) {
                         const {ctx, chartArea, scales: {y}} = chart;
                         if (!chartArea) return;
-                        const t = historySelectedNode === 'all' ? getEffectiveThreshold() : (nodeThresholds[historySelectedNode] || thresholdValue);
+                        const t = thresholdInDisplayUnit(historySelectedNode !== 'all' ? historySelectedNode : null);
                         const yellowStart = t - 10;
                         const zones = [
                             {from: -80, to: yellowStart, color: 'rgba(34, 197, 94, 0.15)'},
@@ -1822,7 +1895,8 @@
             const dbfsMin = -80;
             const dbfsMax = 0;
 
-            const yellowStart = thresholdValue - 10;
+            const eqDisplayThresh = thresholdInDisplayUnit(nodeId);
+            const yellowStart = eqDisplayThresh - 10;
 
             const drawZoneOffset = (fromDb, toDb, color) => {
                 const yFrom = height - ((Math.min(toDb, dbfsMax) - dbfsMin) / (dbfsMax - dbfsMin)) * height;
@@ -1834,8 +1908,8 @@
                 }
             };
 
-            drawZoneOffset(thresholdValue, 0, 'rgba(239, 68, 68, 0.25)');
-            drawZoneOffset(yellowStart, thresholdValue, 'rgba(245, 158, 11, 0.22)');
+            drawZoneOffset(eqDisplayThresh, 0, 'rgba(239, 68, 68, 0.25)');
+            drawZoneOffset(yellowStart, eqDisplayThresh, 'rgba(245, 158, 11, 0.22)');
             drawZoneOffset(-80, yellowStart, 'rgba(34, 197, 94, 0.15)');
 
             // Draw grid lines and Y-axis labels (0 to -80, every 10)
@@ -1857,7 +1931,7 @@
             }
 
             // Draw threshold line at alert threshold
-            const thresholdY = height - ((thresholdValue - dbfsMin) / (dbfsMax - dbfsMin)) * height;
+            const thresholdY = height - ((eqDisplayThresh - dbfsMin) / (dbfsMax - dbfsMin)) * height;
             ctx.strokeStyle = 'rgba(239, 68, 68, 0.5)';
             ctx.lineWidth = 2;
             ctx.setLineDash([5, 5]);
@@ -1900,7 +1974,7 @@
                     }
 
                     // Draw bar with level-based color
-                    const color = getBarColor(dbfsValue);
+                    const color = getBarColor(dbfsValue, eqDisplayThresh);
 
                     // Create vertical gradient from dark to bright
                     const gradient = ctx.createLinearGradient(x, height - barHeight, x, height);
@@ -1945,7 +2019,7 @@
                             }
                         }
 
-                        const peakColor = getBarColor(peakDbfs);
+                        const peakColor = getBarColor(peakDbfs, eqDisplayThresh);
 
                         // Extract RGB from hex color
                         const r = parseInt(peakColor.slice(1, 3), 16);
@@ -1966,8 +2040,8 @@
 
                 // Fill gradient matches zone colors (red top, yellow mid, green bottom)
                 const gradient = ctx.createLinearGradient(0, 0, 0, height);
-                const redLine = Math.max(0, Math.min(1, (dbfsMax - thresholdValue) / (dbfsMax - dbfsMin)));
-                const yellowLine = Math.max(0, Math.min(1, (dbfsMax - (thresholdValue - 10)) / (dbfsMax - dbfsMin)));
+                const redLine = Math.max(0, Math.min(1, (dbfsMax - eqDisplayThresh) / (dbfsMax - dbfsMin)));
+                const yellowLine = Math.max(0, Math.min(1, (dbfsMax - (eqDisplayThresh - 10)) / (dbfsMax - dbfsMin)));
                 gradient.addColorStop(0, 'rgba(239, 68, 68, 0.4)');
                 gradient.addColorStop(redLine, 'rgba(239, 68, 68, 0.35)');
                 gradient.addColorStop(yellowLine, 'rgba(245, 158, 11, 0.3)');
@@ -2021,6 +2095,7 @@
                 ctx.stroke();
             }
 
+
             ctx.restore();
         }
 
@@ -2060,7 +2135,7 @@
                             <div class="control-box overall-level">
                                 <label>Level</label>
                                 <div class="value"><span class="overall-value">--</span></div>
-                                <div class="subtitle weighting-toggle" onclick="toggleWeighting()" id="weighting-label">dBFS</div>
+                                <div class="subtitle weighting-toggle" onclick="toggleWeighting()" id="weighting-label">dBA</div>
                             </div>
                             <div class="level-meter-box">
                                 <canvas class="level-meter-canvas" id="level-meter-${nodeId}"></canvas>
@@ -2098,7 +2173,7 @@
                                                step="0.5"
                                                min="-80"
                                                max="0">
-                                        <span style="color: #8b92a8;">dBFS</span>
+                                        <span class="weighting-toggle" style="color: #8b92a8;">dBA</span>
                                     </div>
                                     <input type="range"
                                            id="threshold-slider-${nodeId}"
@@ -2257,6 +2332,13 @@
                     }
                 }
 
+                // Cache A-weight offset and refresh threshold display when bands first arrive
+                if (data.current.bands && !card.dataset.bandsReady) {
+                    card.dataset.bandsReady = '1';
+                    computeAndCacheAWeightOffset(nodeId, data.current.bands);
+                    refreshThresholdDisplay(nodeId);
+                }
+
                 // Drop level and spectrum to floor when offline/sleeping
                 if (!isOnline || isSleeping) {
                     card.querySelector('.overall-value').textContent = '-80';
@@ -2270,10 +2352,12 @@
                     if (useAWeighting && data.current.bands) {
                         rawLevel = computeWeightedOverall(data.current.bands);
                     }
+                    rawLevels[nodeId] = Math.max(-80, rawLevel);
                     const smoothed = getSmoothedLevel(nodeId, rawLevel);
                     const displayDbfs = Math.max(-80, smoothed);
                     card.querySelector('.overall-value').textContent = Math.round(displayDbfs);
-                    drawLevelMeter(nodeId, displayDbfs);
+                    // Peak tracks smoothed level; bar follows raw
+                    drawLevelMeter(nodeId, displayDbfs, rawLevels[nodeId]);
 
                     // Update EQ visualization
                     if (data.current.bands) {
@@ -2283,8 +2367,8 @@
 
                         drawEQ(nodeId, bandValues);
 
-                        // Check smoothed level against threshold
-                        if (displayDbfs > thresholdValue) {
+                        // Check smoothed level against threshold (both in display unit)
+                        if (displayDbfs > thresholdInDisplayUnit(nodeId)) {
                             card.classList.add('alert');
                         } else {
                             card.classList.remove('alert');
@@ -2311,8 +2395,9 @@
         }
 
         function getZoneColor(dbfs) {
-            if (dbfs >= thresholdValue) return '#ef4444';
-            if (dbfs >= thresholdValue - 10) return '#f59e0b';
+            const t = thresholdInDisplayUnit(historySelectedNode !== 'all' ? historySelectedNode : null);
+            if (dbfs >= t) return '#ef4444';
+            if (dbfs >= t - 10) return '#f59e0b';
             return '#22c55e';
         }
 
@@ -2386,7 +2471,7 @@
                     const avgLevel = Math.max(-80, avg);
 
                     datasets.push({
-                        label: `Avg: ${avgLevel.toFixed(1)} dBFS`,
+                        label: `Avg: ${avgLevel.toFixed(1)} ${useAWeighting ? 'dBA' : 'dBFS'}`,
                         stableKey: 'avg',
                         data: [{x: 0, y: avgLevel}, {x: 1, y: avgLevel}],
                         borderColor: getZoneColor(avgLevel),
