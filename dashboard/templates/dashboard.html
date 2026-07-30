@@ -1088,6 +1088,7 @@
         let nodesData = {};
         let thresholdValue = -20;
         const nodeThresholds = {};  // { nodeId: value }
+        const nodeDisplayNames = {};  // { chipId: displayName }
         let historySelectedNode = 'all';
 
         function getEffectiveThreshold() {
@@ -1116,7 +1117,7 @@
                     const btn = document.createElement('button');
                     btn.className = 'time-range-btn history-node-btn';
                     btn.dataset.node = nodeId;
-                    btn.textContent = nodeId;
+                    btn.textContent = nodeDisplayNames[nodeId] || nodeId;
                     btn.onclick = () => selectHistoryNode(nodeId);
                     container.appendChild(btn);
                 }
@@ -1902,13 +1903,14 @@
                     card = document.createElement('div');
                     card.id = `node-${nodeId}`;
                     card.className = 'node-card';
+                    const displayName = nodeDisplayNames[nodeId] || nodeId;
                     card.innerHTML = `
                         <div class="node-header">
                             <div class="node-name">
-                                ${nodeId}
+                                <span id="node-display-name-${nodeId}" ondblclick="renameNode('${nodeId}')" title="Double-click to rename">${displayName}</span>
                                 <span class="audio-indicator" id="audio-indicator-${nodeId}"></span>
                                 <div style="font-size: 0.65em; color: #666; font-weight: 400; margin-top: 2px;">
-                                    <span id="fw-version-${nodeId}">Unknown</span> | <span id="node-ip-${nodeId}">--</span>
+                                    <span style="color: #555;">${nodeId}</span> | <span id="fw-version-${nodeId}">Unknown</span> | <span id="node-ip-${nodeId}">--</span>
                                 </div>
                             </div>
                             <div class="node-status">
@@ -2484,6 +2486,10 @@
                 };
             }
 
+            if (update.display_name) {
+                nodeDisplayNames[update.node_id] = update.display_name;
+            }
+
             nodesData[update.node_id].current = update.data;
             nodesData[update.node_id].last_update = update.timestamp;
             nodesData[update.node_id].online = true;
@@ -2540,6 +2546,23 @@
                 delete nodesData[nodeId];
                 updateNodeCards(nodesData);
             }).catch(err => console.error('Disconnect failed:', err));
+        }
+
+        function renameNode(nodeId) {
+            const current = nodeDisplayNames[nodeId] || nodeId;
+            const newName = prompt('Rename node:', current);
+            if (!newName || newName.trim() === '' || newName.trim() === current) return;
+            fetch('/api/node/rename', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({chip_id: nodeId, name: newName.trim()})
+            }).then(res => res.json()).then(data => {
+                if (data.success) {
+                    nodeDisplayNames[nodeId] = newName.trim();
+                    const el = document.getElementById(`node-display-name-${nodeId}`);
+                    if (el) el.textContent = newName.trim();
+                }
+            }).catch(err => console.error('Rename failed:', err));
         }
 
         // OTA Update functions

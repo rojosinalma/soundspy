@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # Deploy firmware via OTA to a specific node
-# Usage: ./scripts/deploy_ota.sh <node_id> [firmware_bin]
-#   node_id: Node to update (e.g., wall1, node1)
-#   firmware_bin: Optional path to .bin file (auto-detects latest if not provided)
+# Usage: ./scripts/deploy_ota.sh <chip_id> [firmware_bin]
+#   chip_id: Node's chip ID (shown in dashboard or serial on boot)
+#   firmware_bin: Optional path to .bin file (uses latest if not provided)
 
 set -e
 
@@ -21,33 +21,33 @@ source .env
 
 # Parse arguments
 if [ -z "$1" ]; then
-    echo "Usage: $0 <node_id> [firmware_bin]"
+    echo "Usage: $0 <chip_id> [firmware_bin]"
     echo ""
     echo "Examples:"
-    echo "  $0 wall1                              # Auto-detect latest .bin"
-    echo "  $0 wall1 builds/soundspy_node1_v0.8.3.bin"
+    echo "  $0 a1b2c3                              # Deploy latest build"
+    echo "  $0 a1b2c3 builds/soundspy_v1.3.0.bin   # Deploy specific build"
+    echo ""
+    echo "The chip_id is shown in the dashboard or on serial during boot."
     exit 1
 fi
 
-NODE_ID="$1"
+CHIP_ID="$1"
 DASHBOARD_URL="http://${FIRMWARE_MQTT_HOST}:${DASHBOARD_PORT}"
 
 # Determine firmware binary
 if [ -n "$2" ]; then
     FIRMWARE_BIN="$2"
 else
-    # Try to use the latest symlink for this node
-    LATEST_LINK="builds/soundspy_${NODE_ID}.bin"
+    LATEST_LINK="builds/soundspy_latest.bin"
     if [ -L "$LATEST_LINK" ] && [ -f "$LATEST_LINK" ]; then
         FIRMWARE_BIN="$LATEST_LINK"
         REAL_FILE=$(readlink -f "$FIRMWARE_BIN")
         echo "Using latest firmware: $REAL_FILE"
     else
-        # Fallback: find any matching .bin for this node
-        FIRMWARE_BIN=$(ls -t builds/soundspy_${NODE_ID}_v*.bin 2>/dev/null | head -1)
+        FIRMWARE_BIN=$(ls -t builds/soundspy_v*.bin 2>/dev/null | head -1)
         if [ -z "$FIRMWARE_BIN" ]; then
-            echo "Error: No firmware found for node '$NODE_ID' in builds/"
-            echo "Run: ./scripts/build_firmware.sh $NODE_ID"
+            echo "Error: No firmware found in builds/"
+            echo "Run: ./scripts/build_firmware.sh"
             exit 1
         fi
         echo "Auto-detected firmware: $FIRMWARE_BIN"
@@ -63,7 +63,7 @@ FIRMWARE_SIZE=$(du -h "$FIRMWARE_BIN" | cut -f1)
 echo "=========================================="
 echo "OTA Deployment"
 echo "=========================================="
-echo "Node: $NODE_ID"
+echo "Node (chip ID): $CHIP_ID"
 echo "Firmware: $FIRMWARE_BIN ($FIRMWARE_SIZE)"
 echo "Dashboard: $DASHBOARD_URL"
 echo "=========================================="
@@ -86,10 +86,10 @@ echo "Firmware URL: $FIRMWARE_URL"
 echo ""
 
 # Step 2: Trigger OTA update
-echo "Triggering OTA update for $NODE_ID..."
+echo "Triggering OTA update for $CHIP_ID..."
 TRIGGER_RESPONSE=$(curl -s -X POST "$DASHBOARD_URL/api/ota/trigger" \
   -H "Content-Type: application/json" \
-  -d "{\"node_id\": \"$NODE_ID\", \"firmware_url\": \"$FIRMWARE_URL\"}")
+  -d "{\"node_id\": \"$CHIP_ID\", \"firmware_url\": \"$FIRMWARE_URL\"}")
 
 echo "Trigger response: $TRIGGER_RESPONSE"
 
@@ -111,9 +111,5 @@ echo "  2. Flash to memory (~10 seconds)"
 echo "  3. Reboot and reconnect (~10 seconds)"
 echo ""
 echo "Monitor progress:"
-echo "  Serial Monitor: 115200 baud (look for [IMPORTANT] messages)"
 echo "  Dashboard: $DASHBOARD_URL"
 echo "  Logs: docker logs -f soundspy_dashboard"
-echo ""
-echo "Check status in ~60 seconds:"
-echo "  curl -s $DASHBOARD_URL/api/nodes | python3 -m json.tool"
