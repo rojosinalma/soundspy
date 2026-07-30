@@ -2122,13 +2122,15 @@
                 // Draw as smooth wave
                 const segmentWidth = width / (numBands - 1);
 
-                // Fill gradient matches zone colors (red top, yellow mid, green bottom)
+                // Fill gradient — hard stops at zone boundaries (no interpolation between zones)
                 const gradient = ctx.createLinearGradient(0, 0, 0, height);
                 const redLine = Math.max(0, Math.min(1, (dbfsMax - eqDisplayThresh) / (dbfsMax - dbfsMin)));
                 const yellowLine = Math.max(0, Math.min(1, (dbfsMax - (eqDisplayThresh - 10)) / (dbfsMax - dbfsMin)));
                 gradient.addColorStop(0, 'rgba(239, 68, 68, 0.4)');
-                gradient.addColorStop(redLine, 'rgba(239, 68, 68, 0.35)');
+                gradient.addColorStop(redLine, 'rgba(239, 68, 68, 0.4)');
+                gradient.addColorStop(redLine, 'rgba(245, 158, 11, 0.3)');
                 gradient.addColorStop(yellowLine, 'rgba(245, 158, 11, 0.3)');
+                gradient.addColorStop(yellowLine, 'rgba(34, 197, 94, 0.25)');
                 gradient.addColorStop(1, 'rgba(34, 197, 94, 0.25)');
 
                 // Draw smooth curve through points
@@ -2155,11 +2157,13 @@
                 ctx.fillStyle = gradient;
                 ctx.fill();
 
-                // Stroke gradient matches zones (vertical)
+                // Stroke gradient — hard stops at zone boundaries
                 const strokeGradient = ctx.createLinearGradient(0, 0, 0, height);
                 strokeGradient.addColorStop(0, '#ef4444');
                 strokeGradient.addColorStop(redLine, '#ef4444');
+                strokeGradient.addColorStop(redLine, '#f59e0b');
                 strokeGradient.addColorStop(yellowLine, '#f59e0b');
+                strokeGradient.addColorStop(yellowLine, '#22c55e');
                 strokeGradient.addColorStop(1, '#22c55e');
 
                 ctx.beginPath();
