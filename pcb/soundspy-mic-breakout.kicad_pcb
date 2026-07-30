@@ -39,20 +39,16 @@
   (net 4 "I2S_SD")
   (net 5 "I2S_SCK")
 
-  ;; Board outline - 15mm x 12mm (compact breakout)
   (gr_line (start 0 0) (end 15 0) (layer "Edge.Cuts") (width 0.15) (uuid "cc000001"))
   (gr_line (start 15 0) (end 15 12) (layer "Edge.Cuts") (width 0.15) (uuid "cc000002"))
   (gr_line (start 15 12) (end 0 12) (layer "Edge.Cuts") (width 0.15) (uuid "cc000003"))
   (gr_line (start 0 12) (end 0 0) (layer "Edge.Cuts") (width 0.15) (uuid "cc000004"))
 
-  ;; Mounting hole (M2)
   (footprint "MountingHole:MountingHole_2.2mm_M2" (at 12.5 2.5) (layer "F.Cu")
     (uuid "dd000001")
     (pad "" np_thru_hole circle (at 0 0) (size 2.2 2.2) (drill 2.2) (layers "*.Cu" "*.Mask"))
   )
 
-  ;; J1 - 1x5 Pin Header (2.54mm pitch) - connects to ESP32 DevKit
-  ;; Pin 1: 3V3, Pin 2: GND, Pin 3: WS (GPIO25), Pin 4: SD (GPIO32), Pin 5: SCK (GPIO33)
   (footprint "Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical" (at 2.54 6.0 0) (layer "F.Cu")
     (uuid "dd000002")
     (fp_text reference "J1" (at 0 -2.5) (layer "F.SilkS") (effects (font (size 1 1) (thickness 0.15))) (uuid "ee000001"))
@@ -64,31 +60,20 @@
     (pad "5" thru_hole circle (at 0 10.16) (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 5 "I2S_SCK") (uuid "ff000005"))
   )
 
-  ;; U1 - ICS-43434 (bottom-port LGA, 3.5mm x 2.65mm x 0.98mm)
-  ;; Pad layout per datasheet: 6 pads + center ground
   (footprint "soundspy:ICS-43434" (at 9.5 6.0 0) (layer "F.Cu")
     (uuid "dd000003")
     (fp_text reference "U1" (at 0 -2.5) (layer "F.SilkS") (effects (font (size 0.8 0.8) (thickness 0.12))) (uuid "ee000003"))
     (fp_text value "ICS-43434" (at 0 3.5) (layer "F.Fab") (effects (font (size 0.8 0.8) (thickness 0.12))) (uuid "ee000004"))
-    ;; Pin 1: WS (top-left)
     (pad "1" smd rect (at -1.2 -0.975) (size 0.7 0.5) (layers "F.Cu" "F.Mask" "F.Paste") (net 3 "I2S_WS") (uuid "ff000006"))
-    ;; Pin 2: SCK (bottom-left)
     (pad "2" smd rect (at -1.2 0.975) (size 0.7 0.5) (layers "F.Cu" "F.Mask" "F.Paste") (net 5 "I2S_SCK") (uuid "ff000007"))
-    ;; Pin 3: GND (top-right of left side — actually bottom center per DS)
     (pad "3" smd rect (at 0 0.975) (size 0.7 0.5) (layers "F.Cu" "F.Mask" "F.Paste") (net 2 "GND") (uuid "ff000008"))
-    ;; Pin 4: L/R select (top-right) — tied to GND for left channel
     (pad "4" smd rect (at 1.2 -0.975) (size 0.7 0.5) (layers "F.Cu" "F.Mask" "F.Paste") (net 2 "GND") (uuid "ff000009"))
-    ;; Pin 5: VDD (right-center top)
     (pad "5" smd rect (at 1.2 0) (size 0.7 0.5) (layers "F.Cu" "F.Mask" "F.Paste") (net 1 "3V3") (uuid "ff000010"))
-    ;; Pin 6: SD data out (bottom-right)
     (pad "6" smd rect (at 1.2 0.975) (size 0.7 0.5) (layers "F.Cu" "F.Mask" "F.Paste") (net 4 "I2S_SD") (uuid "ff000011"))
-    ;; Center GND pad (exposed pad / thermal)
     (pad "7" smd rect (at 0 0) (size 1.0 1.3) (layers "F.Cu" "F.Mask" "F.Paste") (net 2 "GND") (uuid "ff000012"))
-    ;; Sound port hole (bottom-port microphone)
     (pad "" np_thru_hole circle (at 0 0) (size 0.5 0.5) (drill 0.5) (layers "*.Cu" "*.Mask") (uuid "ff000013"))
   )
 
-  ;; C1 - 100nF decoupling capacitor (0402)
   (footprint "Capacitor_SMD:C_0402_1005Metric" (at 9.5 3.0 0) (layer "F.Cu")
     (uuid "dd000004")
     (fp_text reference "C1" (at 0 -1.2) (layer "F.SilkS") (effects (font (size 0.6 0.6) (thickness 0.1))) (uuid "ee000005"))
@@ -97,28 +82,21 @@
     (pad "2" smd roundrect (at 0.48 0) (size 0.56 0.62) (layers "F.Cu" "F.Mask" "F.Paste") (roundrect_rratio 0.25) (net 2 "GND") (uuid "ff000015"))
   )
 
-  ;; Traces - F.Cu
 
-  ;; 3V3: J1 pin1 -> C1 pad1 -> U1 VDD (pin5)
   (segment (start 2.54 6.0) (end 9.02 3.0) (width 0.3) (layer "F.Cu") (net 1) (uuid "aa000001"))
   (segment (start 9.02 3.0) (end 10.7 6.0) (width 0.3) (layer "F.Cu") (net 1) (uuid "aa000002"))
 
-  ;; GND: J1 pin2 -> C1 pad2 -> U1 center pad -> U1 pin3 -> U1 pin4 (L/R)
   (segment (start 2.54 8.54) (end 9.98 3.0) (width 0.4) (layer "F.Cu") (net 2) (uuid "aa000003"))
   (segment (start 9.98 3.0) (end 9.5 6.0) (width 0.4) (layer "F.Cu") (net 2) (uuid "aa000004"))
   (segment (start 9.5 6.0) (end 9.5 6.975) (width 0.4) (layer "F.Cu") (net 2) (uuid "aa000005"))
   (segment (start 9.5 6.0) (end 10.7 5.025) (width 0.4) (layer "F.Cu") (net 2) (uuid "aa000006"))
 
-  ;; I2S_WS: J1 pin3 -> U1 pin1
   (segment (start 2.54 11.08) (end 8.3 5.025) (width 0.3) (layer "F.Cu") (net 3) (uuid "aa000007"))
 
-  ;; I2S_SD: J1 pin4 -> U1 pin6
   (segment (start 2.54 13.62) (end 10.7 6.975) (width 0.3) (layer "F.Cu") (net 4) (uuid "aa000008"))
 
-  ;; I2S_SCK: J1 pin5 -> U1 pin2
   (segment (start 2.54 16.16) (end 8.3 6.975) (width 0.3) (layer "F.Cu") (net 5) (uuid "aa000009"))
 
-  ;; Silkscreen annotations
   (gr_text "SoundSpy Mic v1.0" (at 7.5 11.0) (layer "F.SilkS")
     (effects (font (size 0.8 0.8) (thickness 0.12)))
     (uuid "cc000005")
@@ -128,7 +106,6 @@
     (uuid "cc000006")
   )
 
-  ;; Ground fill zone (back copper)
   (zone (net 2) (net_name "GND") (layer "B.Cu") (uuid "bb000001")
     (hatch edge 0.5)
     (connect_pads (clearance 0.3))

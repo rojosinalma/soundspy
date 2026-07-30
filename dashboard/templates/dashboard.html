@@ -477,41 +477,6 @@
             text-align: center;
         }
 
-        .reading {
-            background: #0f1a14;
-            padding: 15px;
-            border-radius: 8px;
-            border-left: 4px solid #3a5a42;
-        }
-
-        .reading.bass {
-            border-left-color: #44dd66;
-        }
-
-        .reading.overall {
-            border-left-color: #48bb78;
-        }
-
-        .reading-label {
-            font-size: 0.85em;
-            color: #8b92a8;
-            margin-bottom: 5px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .reading-value {
-            font-size: 2em;
-            font-weight: 600;
-            color: #fff;
-        }
-
-        .reading-unit {
-            font-size: 0.5em;
-            color: #8b92a8;
-            margin-left: 5px;
-        }
-
         .time-range-selector {
             display: flex;
             gap: 6px;
@@ -582,26 +547,6 @@
         .chart-wrapper {
             position: relative;
             height: 300px;
-        }
-
-        .threshold-info {
-            text-align: center;
-            padding: 15px;
-            background: #1a2820;
-            border-radius: 8px;
-            margin-top: 20px;
-            border-left: 4px solid #f59e0b;
-        }
-
-        .threshold-info p {
-            color: #8b92a8;
-            margin-bottom: 5px;
-        }
-
-        .threshold-value {
-            font-size: 1.8em;
-            font-weight: 600;
-            color: #f59e0b;
         }
 
         .threshold-control {
@@ -1150,12 +1095,6 @@
         const nodeDisplayNames = {};  // { chipId: displayName }
         let historySelectedNode = 'all';
 
-        function getEffectiveThreshold() {
-            const values = Object.values(nodeThresholds);
-            if (values.length === 0) return thresholdValue;
-            return Math.min(...values);
-        }
-
         function selectHistoryNode(nodeId) {
             historySelectedNode = nodeId;
             document.querySelectorAll('.history-node-btn').forEach(btn => {
@@ -1437,7 +1376,6 @@
 
             // Update knob display with percentage
             const roundedPct = Math.round(percentage);
-            document.getElementById(`mic-gain-value-${nodeId}`).textContent = roundedPct + '%';
             document.getElementById(`mic-gain-percent-${nodeId}`).textContent = roundedPct + '%';
             const angle = (roundedPct / 100) * 300 - 150;
             const indicator = document.getElementById(`mic-knob-indicator-${nodeId}`);
@@ -1464,7 +1402,6 @@
 
             // Update knob display with percentage
             const roundedPct = Math.round(percentage);
-            document.getElementById(`volume-value-${nodeId}`).textContent = roundedPct + '%';
             document.getElementById(`volume-percent-${nodeId}`).textContent = roundedPct + '%';
             const angle = (roundedPct / 100) * 300 - 150;
             document.getElementById(`volume-knob-indicator-${nodeId}`).style.transform = `rotate(${angle}deg)`;
@@ -2145,7 +2082,6 @@
                                 <div class="knob-container" id="mic-knob-${nodeId}">
                                     <div class="knob-bg">
                                         <div class="knob-indicator" id="mic-knob-indicator-${nodeId}"></div>
-                                        <div class="knob-value" id="mic-gain-value-${nodeId}">40%</div>
                                     </div>
                                 </div>
                                 <div class="knob-range" id="mic-gain-percent-${nodeId}">40%</div>
@@ -2155,7 +2091,6 @@
                                 <div class="knob-container" id="volume-knob-${nodeId}">
                                     <div class="knob-bg">
                                         <div class="knob-indicator" id="volume-knob-indicator-${nodeId}"></div>
-                                        <div class="knob-value" id="volume-value-${nodeId}">50%</div>
                                     </div>
                                 </div>
                                 <div class="knob-range" id="volume-percent-${nodeId}">50%</div>
@@ -2203,63 +2138,6 @@
                                 <div class="eq-label">500Hz-2k</div>
                                 <div class="eq-label">2k-6kHz</div>
                                 <div class="eq-label">6k-20kHz</div>
-                            </div>
-                        </div>
-                        <div class="spectrum-container" style="display:none;">
-                                <div class="band-row" data-band="sub_bass">
-                                    <div class="band-label">Sub Bass</div>
-                                    <div class="band-bar-container">
-                                        <div class="band-bar" style="width: 0%">
-                                            <span class="band-bar-label"></span>
-                                        </div>
-                                    </div>
-                                    <div class="band-value">--</div>
-                                </div>
-                                <div class="band-row" data-band="bass">
-                                    <div class="band-label">Bass</div>
-                                    <div class="band-bar-container">
-                                        <div class="band-bar" style="width: 0%">
-                                            <span class="band-bar-label"></span>
-                                        </div>
-                                    </div>
-                                    <div class="band-value">--</div>
-                                </div>
-                                <div class="band-row" data-band="low_mid">
-                                    <div class="band-label">Low Mid</div>
-                                    <div class="band-bar-container">
-                                        <div class="band-bar" style="width: 0%">
-                                            <span class="band-bar-label"></span>
-                                        </div>
-                                    </div>
-                                    <div class="band-value">--</div>
-                                </div>
-                                <div class="band-row" data-band="mid">
-                                    <div class="band-label">Mid</div>
-                                    <div class="band-bar-container">
-                                        <div class="band-bar" style="width: 0%">
-                                            <span class="band-bar-label"></span>
-                                        </div>
-                                    </div>
-                                    <div class="band-value">--</div>
-                                </div>
-                                <div class="band-row" data-band="high_mid">
-                                    <div class="band-label">High Mid</div>
-                                    <div class="band-bar-container">
-                                        <div class="band-bar" style="width: 0%">
-                                            <span class="band-bar-label"></span>
-                                        </div>
-                                    </div>
-                                    <div class="band-value">--</div>
-                                </div>
-                                <div class="band-row" data-band="high">
-                                    <div class="band-label">High</div>
-                                    <div class="band-bar-container">
-                                        <div class="band-bar" style="width: 0%">
-                                            <span class="band-bar-label"></span>
-                                        </div>
-                                    </div>
-                                    <div class="band-value">--</div>
-                                </div>
                             </div>
                         </div>
                         <div class="node-actions">
@@ -2525,7 +2403,6 @@
         // Chart update interval control
         let chartUpdateInterval;
         let currentTimeRange = 'realtime';
-        let realtimeStartTs = null;
 
         function startChartUpdates() {
             if (chartUpdateInterval) clearInterval(chartUpdateInterval);
@@ -2734,7 +2611,6 @@
 
         function setTimeRange(range) {
             currentTimeRange = range;
-            realtimeStartTs = (range === 'realtime') ? Date.now() / 1000 : null;
 
             // Update button states
             document.querySelectorAll('.time-range-btn').forEach(btn => {

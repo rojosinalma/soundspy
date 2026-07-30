@@ -4,7 +4,6 @@
 #include <PubSubClient.h>
 #include <WebSocketsClient.h>
 #include <HTTPUpdate.h>
-#include <HTTPClient.h>
 #include <esp_ota_ops.h>
 #include <driver/i2s.h>
 #include <math.h>
@@ -34,8 +33,7 @@ char NODE_ID[9];
 #define SAMPLES_PER_READ 1024
 #define PUBLISH_INTERVAL_MS 20  // 50Hz update rate
 
-// Audio streaming config - NO DOWNSAMPLING for now
-#define STREAM_SAMPLE_RATE 44100  // Full sample rate
+// Audio streaming config
 #define STREAM_CHUNK_SIZE 4410    // 100ms chunks at 44.1kHz
 
 int32_t i2s_read_buf[SAMPLES_PER_READ];
