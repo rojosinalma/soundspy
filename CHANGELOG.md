@@ -14,6 +14,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-07-30
+
+### Added
+- Sleep/wake: nodes now enter soft sleep (I2S stopped, WiFi+MQTT alive) instead of deep sleep — can be woken remotely from dashboard
+- Heartbeat: nodes publish to `soundspy/<chip_id>/heartbeat` every 30s (uptime, sleep state, free heap)
+- Backend tracks sleep state and uses heartbeat for online detection (sleeping node goes offline after 60s of missed heartbeats)
+- dBFS/dBA toggle on level display — click the unit label to switch; affects level meter, spectrum bars, and history chart
+- Firmware version updates live via socket without page reload
+
+### Fixed
+- History chart averaging now done in linear power domain (was averaging dBFS directly — compresses dynamic range)
+- Offline/sleeping nodes drop level and spectrum to floor immediately
+- Sleeping nodes show "Sleeping" status (not "Offline") with wake button
+- Sleep state persists across page reloads (tracked server-side)
+- Chart grid lines brighter (#2a4a34)
+- Filter separator lines brighter (#3a5a42)
+- "Real time" selector label (no hyphen)
+- Average line legend toggle no longer resets on each chart update (stable key fix)
+- Threshold control spacing increased between input box and slider
+
 ## [1.3.1] - 2026-07-30
 
 ### Fixed

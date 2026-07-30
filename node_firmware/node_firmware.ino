@@ -11,7 +11,7 @@
 #include <base64.h>
 #include <ArduinoJson.h>
 
-const char* FIRMWARE_VERSION = "1.3.1";
+const char* FIRMWARE_VERSION = "1.4.0";
 
 const char* WIFI_SSID  = "PLACEHOLDER_WIFI_SSID";
 const char* WIFI_PASS  = "PLACEHOLDER_WIFI_PASS";
@@ -44,6 +44,13 @@ int audioStreamIndex = 0;
 
 // Remote-controllable gain
 float audioGain = 4.0f;  // Default gain (12dB)
+
+// Sleep mode — keeps WiFi+MQTT alive but stops I2S processing
+bool sleeping = false;
+
+// Heartbeat interval (ms)
+#define HEARTBEAT_INTERVAL_MS 30000
+unsigned long lastHeartbeat = 0;
 
 WiFiClient espClient;
 PubSubClient mqtt(espClient);
@@ -255,12 +262,23 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     ESP.restart();
   }
 
-  // Handle deep sleep (power off) — only wakes on physical reset
-  if (doc.containsKey("sleep") && doc["sleep"] == true) {
-    remoteLog("info", "Entering deep sleep (power off)");
+  // Handle sleep/wake — stops I2S processing but keeps WiFi+MQTT alive
+  if (doc.containsKey("sleep") && doc["sleep"] == true && !sleeping) {
+    sleeping = true;
+    i2s_driver_uninstall(I2S_PORT);
+    remoteLog("info", "Sleeping (I2S stopped, MQTT alive)");
     mqtt.loop();
-    delay(200);
-    esp_deep_sleep_start();
+  }
+  if (doc.containsKey("wake") && doc["wake"] == true && sleeping) {
+    sleeping = false;
+    setupI2S();
+    size_t discard;
+    for (int i = 0; i < 4; i++) {
+      i2s_read(I2S_PORT, i2s_read_buf, sizeof(i2s_read_buf), &discard, 100);
+    }
+    bootTime = millis();
+    remoteLog("info", "Woke up (I2S restarted)");
+    mqtt.loop();
   }
 
   // Handle gain control
@@ -368,9 +386,27 @@ void setup() {
   mqtt.loop();
 }
 
+void sendHeartbeat() {
+  if (millis() - lastHeartbeat < HEARTBEAT_INTERVAL_MS) return;
+  lastHeartbeat = millis();
+  char payload[128];
+  snprintf(payload, sizeof(payload),
+    "{\"node\":\"%s\",\"uptime_ms\":%lu,\"sleeping\":%s,\"free_heap\":%u}",
+    NODE_ID, millis(), sleeping ? "true" : "false", ESP.getFreeHeap());
+  String topic = String("soundspy/") + NODE_ID + "/heartbeat";
+  mqtt.publish(topic.c_str(), payload);
+}
+
 void loop() {
   if (!mqtt.connected()) connectMQTT();
   mqtt.loop();
+  sendHeartbeat();
+
+  if (sleeping) {
+    delay(100);
+    return;
+  }
+
   webSocket.loop();
 
   size_t bytesRead = 0;

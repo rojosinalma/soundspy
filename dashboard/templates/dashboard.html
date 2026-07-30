@@ -127,7 +127,8 @@
         .node-name {
             font-size: 1.4em;
             font-weight: 600;
-            color: #fff;
+            color: #44dd66;
+            text-shadow: 0 0 4px rgba(68, 221, 102, 0.3);
         }
 
         .node-edit-btn {
@@ -378,6 +379,16 @@
             z-index: 1;
         }
 
+        .weighting-toggle {
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.2s;
+        }
+
+        .weighting-toggle:hover {
+            color: #44dd66;
+        }
+
         .level-meter-box {
             flex: 0 0 36px;
             min-width: 36px;
@@ -503,7 +514,7 @@
 
         .time-range-selector {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             align-items: center;
         }
 
@@ -527,6 +538,25 @@
             color: #fff;
         }
 
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .filter-label {
+            font-size: 0.65em;
+            color: #8b92a8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .filter-separator {
+            width: 1px;
+            height: 20px;
+            background: #3a5a42;
+        }
+
         .chart-container {
             background: #0f1a14;
             border-radius: 12px;
@@ -545,7 +575,8 @@
         .chart-title {
             font-size: 1.3em;
             font-weight: 600;
-            color: #fff;
+            color: #44dd66;
+            text-shadow: 0 0 4px rgba(68, 221, 102, 0.3);
         }
 
         .chart-wrapper {
@@ -576,7 +607,7 @@
         .threshold-control {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 16px;
             align-items: stretch;
             width: 100%;
         }
@@ -724,7 +755,8 @@
         .log-title {
             font-size: 1.3em;
             font-weight: 600;
-            color: #fff;
+            color: #44dd66;
+            text-shadow: 0 0 4px rgba(68, 221, 102, 0.3);
             cursor: pointer;
         }
 
@@ -1054,17 +1086,24 @@
     <div class="chart-container">
         <div class="chart-header">
             <div class="chart-title">Level History</div>
-            <div style="display: flex; gap: 12px; align-items: center;">
-                <div class="time-range-selector" id="historyNodeSelector">
-                    <button class="time-range-btn history-node-btn active" data-node="all" onclick="selectHistoryNode('all')">All</button>
+            <div style="display: flex; gap: 16px; align-items: center;">
+                <div class="filter-group">
+                    <span class="filter-label">Node</span>
+                    <div class="time-range-selector" id="historyNodeSelector">
+                        <button class="time-range-btn history-node-btn active" data-node="all" onclick="selectHistoryNode('all')">All</button>
+                    </div>
                 </div>
-                <div class="time-range-selector">
-                    <button class="time-range-btn" onclick="setTimeRange('realtime')">Real-time</button>
-                    <button class="time-range-btn active" onclick="setTimeRange(60)">1m</button>
-                    <button class="time-range-btn" onclick="setTimeRange(300)">5m</button>
-                    <button class="time-range-btn" onclick="setTimeRange(600)">10m</button>
-                    <button class="time-range-btn" onclick="setTimeRange(1800)">30m</button>
-                    <button class="time-range-btn" onclick="setTimeRange(3600)">1h</button>
+                <div class="filter-separator"></div>
+                <div class="filter-group">
+                    <span class="filter-label">Range</span>
+                    <div class="time-range-selector">
+                        <button class="time-range-btn active" onclick="setTimeRange('realtime')">Real time</button>
+                        <button class="time-range-btn" onclick="setTimeRange(60)">1m</button>
+                        <button class="time-range-btn" onclick="setTimeRange(300)">5m</button>
+                        <button class="time-range-btn" onclick="setTimeRange(600)">10m</button>
+                        <button class="time-range-btn" onclick="setTimeRange(1800)">30m</button>
+                        <button class="time-range-btn" onclick="setTimeRange(3600)">1h</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1142,9 +1181,20 @@
                     container.appendChild(btn);
                 }
             });
+
+            // Update labels if display names changed
+            existing.forEach(btn => {
+                const nid = btn.dataset.node;
+                if (nid && nid !== 'all' && nodeDisplayNames[nid]) {
+                    btn.textContent = nodeDisplayNames[nid];
+                }
+            });
         }
         let logEntries = [];
         const MAX_LOG_ENTRIES = 100;
+
+        // Track sleeping nodes
+        const sleepingNodes = new Set();
 
         // Exponential moving average for overall level display
         const emaLevels = {};
@@ -1157,6 +1207,47 @@
                 emaLevels[nodeId] += EMA_ALPHA * (clamped - emaLevels[nodeId]);
             }
             return emaLevels[nodeId];
+        }
+
+        // A-weighting: approximate corrections per band center frequency
+        // Band centers: sub_bass~85Hz, bass~185Hz, low_mid~375Hz, mid~1250Hz, high_mid~4000Hz, high~13000Hz
+        const A_WEIGHT_OFFSETS = {
+            sub_bass: -22.4,
+            bass: -11.0,
+            low_mid: -4.8,
+            mid: 0.0,
+            high_mid: 1.2,
+            high: -1.0
+        };
+
+        let useAWeighting = false;
+
+        function toggleWeighting() {
+            useAWeighting = !useAWeighting;
+            document.querySelectorAll('.weighting-toggle').forEach(el => {
+                el.textContent = useAWeighting ? 'dBA' : 'dBFS';
+            });
+        }
+
+        function applyAWeighting(bands) {
+            if (!useAWeighting) return bands;
+            const weighted = {};
+            for (const [k, v] of Object.entries(bands)) {
+                const offset = A_WEIGHT_OFFSETS[k] || 0;
+                weighted[k] = v + offset;
+            }
+            return weighted;
+        }
+
+        function computeWeightedOverall(bands) {
+            const bandOrder = ['sub_bass', 'bass', 'low_mid', 'mid', 'high_mid', 'high'];
+            let sumPower = 0;
+            for (const name of bandOrder) {
+                const dbfs = bands[name] || -80;
+                const offset = useAWeighting ? (A_WEIGHT_OFFSETS[name] || 0) : 0;
+                sumPower += Math.pow(10, (dbfs + offset) / 10);
+            }
+            return 10 * Math.log10(sumPower + 1e-18);
         }
 
         // Overall level meter peak tracking
@@ -1580,7 +1671,7 @@
                                 color: '#8b92a8'
                             },
                             grid: {
-                                color: '#1a2e24'
+                                color: '#2a4a34'
                             },
                             ticks: {
                                 color: '#8b92a8',
@@ -1600,7 +1691,7 @@
                                 color: '#8b92a8'
                             },
                             grid: {
-                                color: '#1a2e24'
+                                color: '#2a4a34'
                             },
                             ticks: {
                                 color: '#8b92a8'
@@ -1611,7 +1702,30 @@
                         legend: {
                             display: true,
                             labels: {
-                                color: '#e0e6ed'
+                                color: '#e0e6ed',
+                                usePointStyle: true,
+                                pointStyle: 'line',
+                                pointStyleWidth: 20,
+                                generateLabels: function(chart) {
+                                    return chart.data.datasets.map((ds, i) => ({
+                                        text: nodeDisplayNames[ds.label] || ds.label,
+                                        fontColor: '#e0e6ed',
+                                        strokeStyle: ds.borderColor,
+                                        fillStyle: 'transparent',
+                                        lineWidth: ds.borderWidth,
+                                        lineDash: ds.borderDash || [],
+                                        hidden: !chart.isDatasetVisible(i),
+                                        datasetIndex: i,
+                                        pointStyle: 'line'
+                                    }));
+                                }
+                            },
+                            onClick: function(e, legendItem, legend) {
+                                const index = legendItem.datasetIndex;
+                                const chart = legend.chart;
+                                const meta = chart.getDatasetMeta(index);
+                                meta.hidden = meta.hidden === null ? !chart.data.datasets[index].hidden : null;
+                                chart.update();
                             }
                         },
                         tooltip: {
@@ -1944,9 +2058,9 @@
                         </div>
                         <div class="controls-section">
                             <div class="control-box overall-level">
-                                <label>Overall Level</label>
+                                <label>Level</label>
                                 <div class="value"><span class="overall-value">--</span></div>
-                                <div class="subtitle">dBFS</div>
+                                <div class="subtitle weighting-toggle" onclick="toggleWeighting()" id="weighting-label">dBFS</div>
                             </div>
                             <div class="level-meter-box">
                                 <canvas class="level-meter-canvas" id="level-meter-${nodeId}"></canvas>
@@ -1999,7 +2113,6 @@
                         </div>
                         <div class="eq-container">
                             <div class="eq-header">
-                                <div style="font-size: 0.75em; color: #8b92a8; text-transform: uppercase; letter-spacing: 0.5px;">Spectrum</div>
                                 <div class="eq-mode-toggle">
                                     <button class="eq-mode-btn active" onclick="setEQMode('${nodeId}', 'bars')" id="eq-mode-bars-${nodeId}">Bars</button>
                                     <button class="eq-mode-btn" onclick="setEQMode('${nodeId}', 'wave')" id="eq-mode-wave-${nodeId}">Wave</button>
@@ -2077,7 +2190,7 @@
                         <div class="node-actions">
                             <button class="audio-control" onclick="showOTADialog('${nodeId}')" title="Update Firmware">↑ Update</button>
                             <button class="audio-control" onclick="rebootNode('${nodeId}')" title="Reboot Node">↻ Reboot</button>
-                            <button class="audio-control" onclick="sleepNode('${nodeId}')" title="Deep Sleep (Power Off)">☾ Sleep</button>
+                            <button class="audio-control" id="sleep-btn-${nodeId}" onclick="toggleSleep('${nodeId}')" title="Sleep / Wake">☾ Sleep</button>
                             <button class="audio-control" onclick="disconnectNode('${nodeId}')" title="Disconnect Node">✕ Disconnect</button>
                         </div>
                     `;
@@ -2106,13 +2219,24 @@
 
                 // Update status
                 const isOnline = data.online;
+                const isSleeping = data.sleeping;
                 const statusDot = card.querySelector('.status-dot');
                 const statusText = card.querySelector('.status-text');
 
-                if (isOnline) {
+                if (isSleeping) {
+                    card.classList.remove('offline');
+                    statusDot.classList.remove('offline');
+                    statusText.textContent = 'Sleeping';
+                    sleepingNodes.add(nodeId);
+                    const btn = document.getElementById(`sleep-btn-${nodeId}`);
+                    if (btn) btn.textContent = '☀ Wake';
+                } else if (isOnline) {
                     card.classList.remove('offline');
                     statusDot.classList.remove('offline');
                     statusText.textContent = 'Online';
+                    sleepingNodes.delete(nodeId);
+                    const btn = document.getElementById(`sleep-btn-${nodeId}`);
+                    if (btn) btn.textContent = '☾ Sleep';
                 } else {
                     card.classList.add('offline');
                     statusDot.classList.add('offline');
@@ -2133,18 +2257,29 @@
                     }
                 }
 
-                // Update readings
-                if (data.current.overall_dbfs !== null) {
-                    const smoothed = getSmoothedLevel(nodeId, data.current.overall_dbfs);
+                // Drop level and spectrum to floor when offline/sleeping
+                if (!isOnline || isSleeping) {
+                    card.querySelector('.overall-value').textContent = '-80';
+                    drawLevelMeter(nodeId, -80);
+                    drawEQ(nodeId, [-80, -80, -80, -80, -80, -80]);
+                    card.classList.remove('alert');
+                    emaLevels[nodeId] = -80;
+                } else if (data.current.overall_dbfs !== null) {
+                    // Compute level (use A-weighted sum of bands if dBA mode)
+                    let rawLevel = data.current.overall_dbfs;
+                    if (useAWeighting && data.current.bands) {
+                        rawLevel = computeWeightedOverall(data.current.bands);
+                    }
+                    const smoothed = getSmoothedLevel(nodeId, rawLevel);
                     const displayDbfs = Math.max(-80, smoothed);
                     card.querySelector('.overall-value').textContent = Math.round(displayDbfs);
                     drawLevelMeter(nodeId, displayDbfs);
 
                     // Update EQ visualization
                     if (data.current.bands) {
-                        const bands = data.current.bands;
+                        const weightedBands = applyAWeighting(data.current.bands);
                         const bandOrder = ['sub_bass', 'bass', 'low_mid', 'mid', 'high_mid', 'high'];
-                        const bandValues = bandOrder.map(name => Math.max(-80, bands[name] || -80));
+                        const bandValues = bandOrder.map(name => Math.max(-80, weightedBands[name] || -80));
 
                         drawEQ(nodeId, bandValues);
 
@@ -2162,8 +2297,8 @@
 
         // Node color palette (supports many nodes)
         const nodeColors = [
-            '#6366f1', '#33bb55', '#ec4899', '#f97316',
-            '#06b6d4', '#14b8a6', '#84cc16', '#eab308'
+            '#44dd66', '#06b6d4', '#84cc16', '#14b8a6',
+            '#eab308', '#33bb55', '#2dd4bf', '#a3e635'
         ];
         let nodeColorMap = {};
         let nodeColorIndex = 0;
@@ -2208,15 +2343,24 @@
                         const oldestTs = filteredHistory[0].timestamp;
                         const spanTs = filteredHistory[filteredHistory.length - 1].timestamp - oldestTs;
 
-                        const overallData = filteredHistory.map(point => ({
-                            x: spanTs > 0 ? (point.timestamp - oldestTs) / spanTs : 0,
-                            y: Math.max(-80, point.overall_dbfs)
-                        }));
+                        const overallData = filteredHistory.map(point => {
+                            let level = point.overall_dbfs;
+                            if (useAWeighting && point.bands) {
+                                level = computeWeightedOverall(point.bands);
+                            }
+                            return {
+                                x: spanTs > 0 ? (point.timestamp - oldestTs) / spanTs : 0,
+                                y: Math.max(-80, level)
+                            };
+                        });
 
-                        allNodeData.push(filteredHistory.map(point => ({
-                            ts: point.timestamp,
-                            y: Math.max(-80, point.overall_dbfs)
-                        })));
+                        allNodeData.push(filteredHistory.map(point => {
+                            let level = point.overall_dbfs;
+                            if (useAWeighting && point.bands) {
+                                level = computeWeightedOverall(point.bands);
+                            }
+                            return { ts: point.timestamp, y: Math.max(-80, level) };
+                        }));
 
                         datasets.push({
                             label: nodeId,
@@ -2225,7 +2369,7 @@
                             backgroundColor: 'transparent',
                             borderWidth: 2,
                             pointRadius: 0,
-                            tension: 0.4
+                            tension: 0.2
                         });
                     }
                 } catch (error) {
@@ -2243,6 +2387,7 @@
 
                     datasets.push({
                         label: `Avg: ${avgLevel.toFixed(1)} dBFS`,
+                        stableKey: 'avg',
                         data: [{x: 0, y: avgLevel}, {x: 1, y: avgLevel}],
                         borderColor: getZoneColor(avgLevel),
                         backgroundColor: 'transparent',
@@ -2255,9 +2400,25 @@
                 }
             }
 
+            // Preserve hidden state from legend toggles (use stableKey for avg since label changes)
+            const hiddenState = {};
+            historyChart.data.datasets.forEach((ds, i) => {
+                const meta = historyChart.getDatasetMeta(i);
+                const key = ds.stableKey || ds.label;
+                if (meta.hidden) hiddenState[key] = true;
+            });
+
             historyChart.options.scales.x.min = 0;
             historyChart.options.scales.x.max = 1;
             historyChart.data.datasets = datasets;
+
+            datasets.forEach((ds, i) => {
+                const key = ds.stableKey || ds.label;
+                if (hiddenState[key]) {
+                    historyChart.getDatasetMeta(i).hidden = true;
+                }
+            });
+
             historyChart.update();
         }
 
@@ -2278,7 +2439,7 @@
 
         // Chart update interval control
         let chartUpdateInterval;
-        let currentTimeRange = 60;  // Default 1 minute
+        let currentTimeRange = 'realtime';
         let realtimeStartTs = null;
 
         function startChartUpdates() {
@@ -2289,7 +2450,7 @@
 
         // Initialize
         initChart();
-        fetchNodes();  // Initial fetch only
+        fetchNodes().then(() => updateChart());
         startChartUpdates();
 
         // Log panel state
@@ -2318,7 +2479,7 @@
                 const item = document.createElement('div');
                 item.className = 'log-sidebar-item';
                 item.dataset.node = nodeId;
-                item.textContent = nodeId;
+                item.textContent = nodeDisplayNames[nodeId] || nodeId;
                 item.onclick = () => selectLogNode(nodeId);
                 sidebar.appendChild(item);
             }
@@ -2520,6 +2681,9 @@
             nodesData[update.node_id].current = update.data;
             nodesData[update.node_id].last_update = update.timestamp;
             nodesData[update.node_id].online = true;
+            if (update.firmware_version) {
+                nodesData[update.node_id].firmware_version = update.firmware_version;
+            }
             updateNodeCards(nodesData);
             addAppLogEntry(update.node_id, update.data, update.timestamp);
         });
@@ -2551,16 +2715,25 @@
             }).catch(err => console.error('Reboot failed:', err));
         }
 
-        async function sleepNode(nodeId) {
-            if (!await showConfirm('Deep Sleep', `Put ${nodeId} to sleep? It will only wake on physical reset.`)) return;
+        async function toggleSleep(nodeId) {
+            const isSleeping = sleepingNodes.has(nodeId);
+            if (!isSleeping) {
+                if (!await showConfirm('Sleep', `Put ${nodeId} to sleep? You can wake it from the dashboard.`)) return;
+            }
+            const command = isSleeping ? {wake: true} : {sleep: true};
             fetch('/api/control', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({node_id: nodeId, command: {sleep: true}})
+                body: JSON.stringify({node_id: nodeId, command})
             }).then(() => {
-                nodesData[nodeId].online = false;
-                updateNodeCards(nodesData);
-            }).catch(err => console.error('Sleep failed:', err));
+                if (isSleeping) {
+                    sleepingNodes.delete(nodeId);
+                } else {
+                    sleepingNodes.add(nodeId);
+                }
+                const btn = document.getElementById(`sleep-btn-${nodeId}`);
+                if (btn) btn.textContent = sleepingNodes.has(nodeId) ? '☀ Wake' : '☾ Sleep';
+            }).catch(err => console.error('Sleep/wake failed:', err));
         }
 
         async function disconnectNode(nodeId) {
