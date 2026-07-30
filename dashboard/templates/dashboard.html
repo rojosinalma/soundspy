@@ -224,9 +224,9 @@
             top: 10%;
             left: 50%;
             width: 3px;
-            height: 35%;
+            height: 40%;
             background: #667eea;
-            transform-origin: bottom center;
+            transform-origin: 50% 100%;
             border-radius: 2px;
             margin-left: -1.5px;
         }
@@ -318,9 +318,9 @@
         }
 
         .control-box.overall-level {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: 2px solid #8b5cf6;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            background: radial-gradient(ellipse at center, #0d1a0d, #050a05);
+            border: 2px solid #1a2a1a;
+            box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.4);
             position: relative;
             overflow: hidden;
         }
@@ -328,21 +328,16 @@
         .control-box.overall-level::before {
             content: '';
             position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-            animation: pulse-glow 3s ease-in-out infinite;
-        }
-
-        @keyframes pulse-glow {
-            0%, 100% { opacity: 0.5; transform: scale(1); }
-            50% { opacity: 0.8; transform: scale(1.1); }
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.4) 100%);
+            pointer-events: none;
         }
 
         .control-box.overall-level label {
-            color: rgba(255, 255, 255, 0.9);
+            color: #2a6e3f;
             font-weight: 600;
             position: relative;
             z-index: 1;
@@ -350,14 +345,15 @@
 
         .control-box.overall-level .value {
             font-size: 2.2em;
-            color: #fff;
-            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            color: #44dd66;
+            text-shadow: 0 0 8px #44dd66, 0 0 2px #44dd66;
+            font-family: monospace;
             position: relative;
             z-index: 1;
         }
 
         .control-box.overall-level .subtitle {
-            color: rgba(255, 255, 255, 0.7);
+            color: #2a6e3f;
             position: relative;
             z-index: 1;
         }
@@ -631,7 +627,8 @@
 
         .threshold-slider-marks {
             position: relative;
-            width: 100%;
+            width: calc(100% - 16px);
+            margin-left: 8px;
             height: 16px;
             margin-top: 2px;
         }
@@ -1130,7 +1127,7 @@
 
         // Exponential moving average for overall level display
         const emaLevels = {};
-        const EMA_ALPHA = 0.01;
+        const EMA_ALPHA = 0.08;
         function getSmoothedLevel(nodeId, rawDbfs) {
             const clamped = Math.max(-80, rawDbfs);
             if (!(nodeId in emaLevels)) {
@@ -1194,10 +1191,10 @@
                 const segDbfs = dbfsMin + ((i + 0.5) / segCount) * (dbfsMax - dbfsMin);
                 if (i < filledSegs) {
                     ctx.fillStyle = getBarColor(segDbfs);
-                    ctx.fillRect(1, y, width - 2, segHeight);
+                    ctx.fillRect(2, y, width - 4, segHeight);
                 } else {
                     ctx.fillStyle = 'rgba(255,255,255,0.03)';
-                    ctx.fillRect(1, y, width - 2, segHeight);
+                    ctx.fillRect(2, y, width - 4, segHeight);
                 }
             }
 
@@ -1223,10 +1220,10 @@
                 const peakColor = getBarColor(meterPeaks[nodeId]);
                 ctx.globalAlpha = peakAlpha;
                 ctx.fillStyle = peakColor;
-                ctx.fillRect(0, peakY - 1, width, 3);
+                ctx.fillRect(2, peakY, width - 4, 2);
                 ctx.shadowColor = peakColor;
-                ctx.shadowBlur = 4;
-                ctx.fillRect(0, peakY - 1, width, 3);
+                ctx.shadowBlur = 3;
+                ctx.fillRect(2, peakY, width - 4, 2);
                 ctx.shadowBlur = 0;
                 ctx.globalAlpha = 1;
             }
@@ -1319,7 +1316,7 @@
 
                 const deltaY = lastY - e.clientY;
                 lastY = e.clientY;
-                rawPercentage += deltaY / 10.0;
+                rawPercentage += deltaY / 4.0;
                 rawPercentage = Math.max(0, Math.min(100, rawPercentage));
 
                 updateMicGain(nodeId, snapToNotch(rawPercentage));
@@ -1353,7 +1350,7 @@
 
                 const deltaY = lastY - e.clientY;
                 lastY = e.clientY;
-                rawPercentage += deltaY / 10.0;
+                rawPercentage += deltaY / 4.0;
                 rawPercentage = Math.max(0, Math.min(100, rawPercentage));
 
                 updateBrowserVolume(nodeId, snapToNotch(rawPercentage));
@@ -2122,8 +2119,8 @@
 
                         drawEQ(nodeId, bandValues);
 
-                        // Check overall level against threshold
-                        if (data.current.overall_dbfs >= thresholdValue) {
+                        // Check smoothed level against threshold
+                        if (displayDbfs > thresholdValue) {
                             card.classList.add('alert');
                         } else {
                             card.classList.remove('alert');
