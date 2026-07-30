@@ -81,4 +81,4 @@ For detailed documentation see the [wiki](https://github.com/rojosinalma/soundsp
 
 ## License
 
-MIT
+[AGPL-3.0](LICENSE)
