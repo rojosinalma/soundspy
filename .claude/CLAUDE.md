@@ -105,6 +105,18 @@ The `docker-compose.override.yml` (gitignored) adds traefik labels for `soundspy
 
 Single source of truth: `VERSION` file in repo root. Use `./scripts/bump_version.sh <new-version>` to update VERSION, firmware, and dashboard in one step. GitHub Actions (`.github/workflows/release.yml`) auto-tags and creates a GitHub release when VERSION changes on main, pulling notes from CHANGELOG.md.
 
+## PCB Design
+
+Hardware carrier board for ESP32 + INMP441 mic. Files in `pcb/inmp441/`.
+
+- **Board:** 30×68mm, USB-C notch at bottom, 4x M2 mounting holes
+- **Mic connector J_MIC:** 2x3, 2.54mm col / 7.62mm row pitch, at (15,10)
+- **Sound port hole:** 3mm at (15,10), aligns with mic acoustic port
+- **C1:** 100nF decoupling cap on 3V3 near mic VDD
+- **ESP32 GPIOs:** SCK=GPIO33 (left pin8), WS=GPIO25 (left pin9), SD=GPIO32 (left pin10)
+- **PCB versioning:** `pcb/<model>/VERSION` — bump to trigger `pcb-release.yml` workflow which builds and releases a per-model zip
+- Current status: v1.3, user routing manually in KiCad
+
 ## Git Rules
 
 - All commits must be GPG-signed: `git commit -S`
