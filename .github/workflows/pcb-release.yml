@@ -1,0 +1,45 @@
+name: PCB Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - pcb/**
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get short SHA
+        id: sha
+        run: echo "short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Package PCB files
+        run: |
+          zip -r "soundspy-pcb-${{ steps.sha.outputs.short }}.zip" pcb/
+          echo "pcb_zip=soundspy-pcb-${{ steps.sha.outputs.short }}.zip" >> $GITHUB_ENV
+
+      - name: Delete existing pcb-latest release and tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete pcb-latest --yes 2>/dev/null || true
+          git push origin :refs/tags/pcb-latest 2>/dev/null || true
+
+      - name: Create PCB release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git tag pcb-latest
+          git push origin pcb-latest
+          gh release create pcb-latest \
+            --title "PCB Files (latest)" \
+            --notes "Latest PCB files from commit ${{ steps.sha.outputs.short }}. Built automatically on every change to the \`pcb/\` folder." \
+            --prerelease \
+            "${{ env.pcb_zip }}"
