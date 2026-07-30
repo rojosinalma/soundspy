@@ -18,23 +18,64 @@
             background: #0a0e27;
             color: #e0e6ed;
             padding: 20px;
+            padding-bottom: 60px;
         }
 
         .header {
             text-align: center;
             margin-bottom: 30px;
+            padding: 24px 0;
+            border-bottom: 1px solid #1e2744;
+            position: relative;
         }
 
         .header h1 {
-            font-size: 2.5em;
-            font-weight: 300;
-            margin-bottom: 10px;
+            font-size: 2.2em;
+            font-weight: 600;
+            margin-bottom: 6px;
             color: #fff;
+            letter-spacing: -0.5px;
+        }
+
+        .header h1 span {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .header p {
             color: #8b92a8;
-            font-size: 1.1em;
+            font-size: 0.95em;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 12px 0;
+            text-align: center;
+            background: #0a0e27;
+            border-top: 1px solid #1e2744;
+            z-index: 10;
+        }
+
+        .footer a {
+            color: #8b92a8;
+            transition: color 0.2s;
+        }
+
+        .footer a:hover {
+            color: #fff;
+        }
+
+        .footer svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
         }
 
         .nodes-grid {
@@ -158,15 +199,20 @@
             height: 100%;
             border-radius: 50%;
             background:
-                /* Tick marks at 0%, 25%, 50%, 75%, 100% */
+                /* Tick marks every 10% (0-100%), 300° sweep starting at -150° */
                 conic-gradient(
-                    from -135deg at 50% 50%,
-                    transparent 0deg,
-                    #4a5568 0deg, #4a5568 2deg, transparent 2deg,  /* 0% */
-                    transparent calc(67.5deg - 1deg), #4a5568 67.5deg, #4a5568 calc(67.5deg + 1deg), transparent calc(67.5deg + 2deg),  /* 25% */
-                    transparent calc(135deg - 1deg), #667eea calc(135deg), #667eea calc(135deg + 2deg), transparent calc(135deg + 3deg),  /* 50% - highlighted */
-                    transparent calc(202.5deg - 1deg), #4a5568 calc(202.5deg), #4a5568 calc(202.5deg + 1deg), transparent calc(202.5deg + 2deg),  /* 75% */
-                    transparent calc(270deg - 2deg), #4a5568 calc(270deg - 1deg), #4a5568 271deg, transparent 271deg  /* 100% */
+                    from -150deg at 50% 50%,
+                    #4a5568 0deg, #4a5568 1deg, transparent 1deg,             /* 0% = 0° */
+                    transparent 29deg, #3a4558 29deg, #3a4558 31deg, transparent 31deg,   /* 10% = 30° */
+                    transparent 59deg, #3a4558 59deg, #3a4558 61deg, transparent 61deg,   /* 20% = 60° */
+                    transparent 89deg, #3a4558 89deg, #3a4558 91deg, transparent 91deg,   /* 30% = 90° */
+                    transparent 119deg, #3a4558 119deg, #3a4558 121deg, transparent 121deg, /* 40% = 120° */
+                    transparent 149deg, #667eea 149deg, #667eea 151deg, transparent 151deg, /* 50% = 150° */
+                    transparent 179deg, #3a4558 179deg, #3a4558 181deg, transparent 181deg, /* 60% = 180° */
+                    transparent 209deg, #3a4558 209deg, #3a4558 211deg, transparent 211deg, /* 70% = 210° */
+                    transparent 239deg, #3a4558 239deg, #3a4558 241deg, transparent 241deg, /* 80% = 240° */
+                    transparent 269deg, #3a4558 269deg, #3a4558 271deg, transparent 271deg, /* 90% = 270° */
+                    transparent 299deg, #4a5568 299deg, #4a5568 301deg, transparent 301deg  /* 100% = 300° */
                 );
             -webkit-mask: radial-gradient(circle, transparent 60%, black 60%, black 90%, transparent 90%);
             mask: radial-gradient(circle, transparent 60%, black 60%, black 90%, transparent 90%);
@@ -472,7 +518,11 @@
         }
 
         .chart-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             margin-bottom: 15px;
+            gap: 16px;
         }
 
         .chart-title {
@@ -520,7 +570,7 @@
         }
 
         .threshold-text-input {
-            width: 70px;
+            width: 85px;
             padding: 8px;
             background: #0a0e27;
             border: 2px solid #2a3552;
@@ -529,6 +579,15 @@
             font-size: 1.2em;
             font-weight: 600;
             text-align: center;
+        }
+
+        .threshold-text-input::-webkit-inner-spin-button,
+        .threshold-text-input::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .threshold-text-input[type=number] {
+            -moz-appearance: textfield;
         }
 
         .threshold-text-input:focus {
@@ -541,7 +600,7 @@
             height: 6px;
             -webkit-appearance: none;
             appearance: none;
-            background: linear-gradient(to right, #22c55e 0%, #f59e0b 50%, #ef4444 100%);
+            background: linear-gradient(to right, #22c55e 0%, #22c55e 75%, #f59e0b 75%, #f59e0b 87.5%, #ef4444 87.5%, #ef4444 100%);
             border-radius: 3px;
             outline: none;
         }
@@ -575,12 +634,22 @@
             margin-top: 10px;
         }
 
+        .node-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #1e2744;
+        }
+
         .log-container {
             background: #151b33;
             border-radius: 12px;
             padding: 20px;
             border: 2px solid #1e2744;
             margin-top: 20px;
+            margin-bottom: 60px;
         }
 
         .log-header {
@@ -594,6 +663,18 @@
             font-size: 1.3em;
             font-weight: 600;
             color: #fff;
+        }
+
+        .log-arrow {
+            display: inline-block;
+            font-size: 1.2em;
+            color: #8b92a8;
+            transition: transform 0.2s;
+            margin-right: 6px;
+        }
+
+        .log-arrow.expanded {
+            transform: rotate(90deg);
         }
 
         .log-clear {
@@ -615,7 +696,6 @@
             background: #0a0e27;
             border-radius: 8px;
             padding: 15px;
-            height: 300px;
             overflow-y: auto;
             font-family: 'Courier New', monospace;
             font-size: 0.85em;
@@ -778,8 +858,22 @@
 </head>
 <body>
     <div class="header">
-        <h1>soundspy</h1>
-        <p>Multi-Node Sound Monitor Dashboard</p>
+        <h1><span>soundspy</span></h1>
+        <p>Multi-Node Sound Monitoring</p>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div class="modal-overlay" id="confirmModal">
+        <div class="modal">
+            <div class="modal-title" id="confirm-title">Confirm</div>
+            <div class="modal-body">
+                <p id="confirm-message"></p>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn cancel" onclick="closeConfirmModal(false)">Cancel</button>
+                <button class="modal-btn upload" id="confirm-ok-btn" onclick="closeConfirmModal(true)">Confirm</button>
+            </div>
+        </div>
     </div>
 
     <!-- OTA Upload Modal -->
@@ -809,11 +903,11 @@
 
     <div class="chart-container">
         <div class="chart-header">
-            <div class="chart-title">Historical Overall Level</div>
+            <div class="chart-title">Level History</div>
             <div class="time-range-selector">
                 <button class="time-range-btn" onclick="setTimeRange('realtime')">Real-time</button>
-                <button class="time-range-btn" onclick="setTimeRange(60)">1m</button>
-                <button class="time-range-btn active" onclick="setTimeRange(300)">5m</button>
+                <button class="time-range-btn active" onclick="setTimeRange(60)">1m</button>
+                <button class="time-range-btn" onclick="setTimeRange(300)">5m</button>
                 <button class="time-range-btn" onclick="setTimeRange(600)">10m</button>
                 <button class="time-range-btn" onclick="setTimeRange(1800)">30m</button>
                 <button class="time-range-btn" onclick="setTimeRange(3600)">1h</button>
@@ -826,12 +920,21 @@
 
     <div class="log-container">
         <div class="log-header">
-            <div class="log-title" onclick="toggleLog()" style="cursor: pointer;">▶ Live Data Log (click to expand)</div>
-            <button class="log-clear" onclick="clearLog()">Clear Log</button>
+            <div class="log-title" onclick="toggleLog()" style="cursor: pointer;"><span class="log-arrow" id="logArrow">&#9656;</span> Live Log</div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <button class="log-clear" id="logResumeBtn" onclick="resumeLogScroll()" style="display: none;">Resume ▼</button>
+                <button class="log-clear" onclick="clearLog()">Clear</button>
+            </div>
         </div>
         <div class="log-content" id="logContent" style="display: none;">
             <div style="color: #666; text-align: center; padding: 20px;">Waiting for data...</div>
         </div>
+    </div>
+
+    <div class="footer">
+        <a href="https://github.com/rojosinalma/soundspy" target="_blank" rel="noopener noreferrer" title="View on GitHub">
+            <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
     </div>
 
     <script>
@@ -840,6 +943,19 @@
         let thresholdValue = -20;
         let logEntries = [];
         const MAX_LOG_ENTRIES = 100;
+
+        // Exponential moving average for overall level display
+        const emaLevels = {};
+        const EMA_ALPHA = 0.01;
+        function getSmoothedLevel(nodeId, rawDbfs) {
+            const clamped = Math.max(-80, rawDbfs);
+            if (!(nodeId in emaLevels)) {
+                emaLevels[nodeId] = clamped;
+            } else {
+                emaLevels[nodeId] += EMA_ALPHA * (clamped - emaLevels[nodeId]);
+            }
+            return emaLevels[nodeId];
+        }
 
         // Audio streaming setup
         const socket = io();
@@ -858,8 +974,8 @@
         }
 
         function percentageToGain(percentage) {
-            // Map 0-100% to 0-20x gain
-            return (percentage / 100) * 20;
+            // Map 0-100% to 0-10x gain (INMP441 max safe range)
+            return (percentage / 100) * 10;
         }
 
         function updateMicGain(nodeId, percentage) {
@@ -869,7 +985,7 @@
             const roundedPct = Math.round(percentage);
             document.getElementById(`mic-gain-value-${nodeId}`).textContent = roundedPct + '%';
             document.getElementById(`mic-gain-percent-${nodeId}`).textContent = roundedPct + '%';
-            const angle = (percentage / 100) * 270 - 135;  // Map 0-100% to -135° to +135°
+            const angle = (roundedPct / 100) * 300 - 150;
             const indicator = document.getElementById(`mic-knob-indicator-${nodeId}`);
             if (indicator) {
                 indicator.style.transform = `rotate(${angle}deg)`;
@@ -896,15 +1012,26 @@
             const roundedPct = Math.round(percentage);
             document.getElementById(`volume-value-${nodeId}`).textContent = roundedPct + '%';
             document.getElementById(`volume-percent-${nodeId}`).textContent = roundedPct + '%';
-            const angle = (percentage / 100) * 270 - 135;
+            const angle = (roundedPct / 100) * 300 - 150;
             document.getElementById(`volume-knob-indicator-${nodeId}`).style.transform = `rotate(${angle}deg)`;
+        }
+
+        function snapToNotch(value) {
+            const notch = Math.round(value / 10) * 10;
+            return Math.abs(value - notch) <= 2 ? notch : Math.round(value);
         }
 
         function initMicGainKnob(nodeId) {
             const knob = document.getElementById(`mic-knob-${nodeId}`);
             let isDragging = false;
             let lastY = 0;
-            let currentPercentage = 20;  // Default 20% = 4x gain
+            let rawPercentage = 40;
+
+            knob.addEventListener('dblclick', (e) => {
+                rawPercentage = 40;
+                updateMicGain(nodeId, 40);
+                e.preventDefault();
+            });
 
             knob.addEventListener('mousedown', (e) => {
                 isDragging = true;
@@ -917,11 +1044,10 @@
 
                 const deltaY = lastY - e.clientY;
                 lastY = e.clientY;
-                const percentageDelta = deltaY / 10.0;
-                currentPercentage += percentageDelta;
-                currentPercentage = Math.max(0, Math.min(100, currentPercentage));
+                rawPercentage += deltaY / 10.0;
+                rawPercentage = Math.max(0, Math.min(100, rawPercentage));
 
-                updateMicGain(nodeId, currentPercentage);
+                updateMicGain(nodeId, snapToNotch(rawPercentage));
             });
 
             document.addEventListener('mouseup', () => {
@@ -933,7 +1059,13 @@
             const knob = document.getElementById(`volume-knob-${nodeId}`);
             let isDragging = false;
             let lastY = 0;
-            let currentPercentage = 50;  // Default 50%
+            let rawPercentage = 50;
+
+            knob.addEventListener('dblclick', (e) => {
+                rawPercentage = 50;
+                updateBrowserVolume(nodeId, 50);
+                e.preventDefault();
+            });
 
             knob.addEventListener('mousedown', (e) => {
                 isDragging = true;
@@ -946,11 +1078,10 @@
 
                 const deltaY = lastY - e.clientY;
                 lastY = e.clientY;
-                const percentageDelta = deltaY / 10.0;
-                currentPercentage += percentageDelta;
-                currentPercentage = Math.max(0, Math.min(100, currentPercentage));
+                rawPercentage += deltaY / 10.0;
+                rawPercentage = Math.max(0, Math.min(100, rawPercentage));
 
-                updateBrowserVolume(nodeId, currentPercentage);
+                updateBrowserVolume(nodeId, snapToNotch(rawPercentage));
             });
 
             document.addEventListener('mouseup', () => {
@@ -964,28 +1095,55 @@
 
             if (!slider || !input) return;
 
-            // Sync slider to input
-            slider.addEventListener('input', (e) => {
-                const value = parseFloat(e.target.value);
-                input.value = value;
-                thresholdValue = value;
-            });
+            const snapPoints = [-20, -10];
+            const snapRange = 1.5;
 
-            // Sync input to slider
-            input.addEventListener('input', (e) => {
-                const value = parseFloat(e.target.value);
-                // Clamp value to range
-                const clamped = Math.max(-80, Math.min(0, value));
-                if (value !== clamped) {
-                    input.value = clamped;
+            const snapValue = (val) => {
+                for (const snap of snapPoints) {
+                    if (Math.abs(val - snap) <= snapRange) return snap;
                 }
+                return Math.round(val * 10) / 10;
+            };
+
+            const updateValue = (value) => {
+                const clamped = Math.max(-80, Math.min(0, parseFloat(value) || -20));
+                input.value = clamped;
                 slider.value = clamped;
                 thresholdValue = clamped;
+                return clamped;
+            };
+
+            // Sync slider to input with snapping
+            slider.addEventListener('input', (e) => {
+                const snapped = snapValue(parseFloat(e.target.value));
+                updateValue(snapped);
             });
 
-            // Set initial values
-            slider.value = thresholdValue;
-            input.value = thresholdValue;
+            // Sync input to slider (while typing)
+            input.addEventListener('input', (e) => {
+                const value = parseFloat(e.target.value);
+                if (!isNaN(value)) {
+                    slider.value = Math.max(-80, Math.min(0, value));
+                    thresholdValue = Math.max(-80, Math.min(0, value));
+                }
+            });
+
+            // Validate and clamp on blur (when user finishes editing)
+            input.addEventListener('blur', (e) => {
+                updateValue(e.target.value);
+            });
+
+            // Validate and clamp on Enter key
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    updateValue(e.target.value);
+                    e.target.blur();
+                }
+            });
+
+            // Set initial values from HTML or global thresholdValue
+            const initialValue = parseFloat(input.value) || thresholdValue;
+            updateValue(initialValue);
         }
 
         function toggleAudio(nodeId) {
@@ -1084,8 +1242,8 @@
                         x: {
                             type: 'linear',
                             position: 'bottom',
-                            min: -300,
-                            max: 0,
+                            min: 0,
+                            max: 1,
                             title: {
                                 display: true,
                                 text: 'Time (seconds ago)',
@@ -1097,11 +1255,15 @@
                             ticks: {
                                 color: '#8b92a8',
                                 callback: function(value) {
-                                    return Math.abs(value).toFixed(0);
+                                    const range = currentTimeRange === 'realtime' ? 30 : currentTimeRange;
+                                    const secsAgo = Math.round((1 - value) * range);
+                                    return secsAgo + 's';
                                 }
                             }
                         },
                         y: {
+                            min: -80,
+                            max: 0,
                             title: {
                                 display: true,
                                 text: 'dBFS',
@@ -1130,7 +1292,25 @@
                             borderWidth: 1
                         }
                     }
-                }
+                },
+                plugins: [{
+                    id: 'zoneBackground',
+                    beforeDraw(chart) {
+                        const {ctx, chartArea, scales: {y}} = chart;
+                        if (!chartArea) return;
+                        const zones = [
+                            {from: -80, to: -20, color: 'rgba(34, 197, 94, 0.08)'},
+                            {from: -20, to: -10, color: 'rgba(245, 158, 11, 0.12)'},
+                            {from: -10, to: 0,   color: 'rgba(239, 68, 68, 0.15)'}
+                        ];
+                        zones.forEach(zone => {
+                            const yTop = y.getPixelForValue(zone.to);
+                            const yBot = y.getPixelForValue(zone.from);
+                            ctx.fillStyle = zone.color;
+                            ctx.fillRect(chartArea.left, yTop, chartArea.width, yBot - yTop);
+                        });
+                    }
+                }]
             });
         }
 
@@ -1154,15 +1334,12 @@
         }
 
         function getBarColor(dbfs) {
-            // Color based on level (like professional audio meters)
-            if (dbfs >= -5) {
-                return '#ef4444';  // Red (clipping danger)
-            } else if (dbfs >= -10) {
-                return '#f59e0b';  // Yellow/Orange (caution)
+            if (dbfs >= -10) {
+                return '#ef4444';  // Red (neighbors will hear)
             } else if (dbfs >= -20) {
-                return '#84cc16';  // Light green (good)
+                return '#f59e0b';  // Yellow (noticeably loud)
             } else {
-                return '#22c55e';  // Green (safe)
+                return '#22c55e';  // Green (respectable volume)
             }
         }
 
@@ -1195,20 +1372,50 @@
             ctx.fillStyle = '#0a0e1f';
             ctx.fillRect(0, 0, width, height);
 
-            // dBFS scale: -80 to -10 dBFS (typical audio monitoring range)
+            // dBFS scale: -80 to 0 dBFS (full monitoring range including clipping zone)
             const dbfsMin = -80;
-            const dbfsMax = -10;
+            const dbfsMax = 0;
+
+            // Draw colored background zones (quiet residential monitoring)
+            // Green zone: < -40 dBFS (ambient/quiet)
+            // Yellow zone: -40 to -30 dBFS (noticeable noise)
+            // Red zone: > -30 dBFS (loud/disruptive)
+
+            const drawZone = (fromDb, toDb, color) => {
+                const yFrom = height - ((Math.min(toDb, dbfsMax) - dbfsMin) / (dbfsMax - dbfsMin)) * height;
+                const yTo = height - ((Math.max(fromDb, dbfsMin) - dbfsMin) / (dbfsMax - dbfsMin)) * height;
+                const zoneHeight = yTo - yFrom;
+                if (zoneHeight > 0) {
+                    ctx.fillStyle = color;
+                    ctx.fillRect(0, yFrom, width, zoneHeight);
+                }
+            };
+
+            drawZone(-10, 0, 'rgba(239, 68, 68, 0.15)');    // Red: > -10 dBFS
+            drawZone(-20, -10, 'rgba(245, 158, 11, 0.12)'); // Yellow: -20 to -10 dBFS
+            drawZone(-80, -20, 'rgba(34, 197, 94, 0.08)');  // Green: < -20 dBFS
 
             // Draw grid lines (dB markers)
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
             ctx.lineWidth = 1;
-            for (let db = -70; db <= -10; db += 10) {
+            for (let db = -70; db <= 0; db += 10) {
                 const y = height - ((db - dbfsMin) / (dbfsMax - dbfsMin)) * height;
                 ctx.beginPath();
                 ctx.moveTo(0, y);
                 ctx.lineTo(width, y);
                 ctx.stroke();
             }
+
+            // Draw threshold line at alert threshold
+            const thresholdY = height - ((thresholdValue - dbfsMin) / (dbfsMax - dbfsMin)) * height;
+            ctx.strokeStyle = 'rgba(245, 158, 11, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(0, thresholdY);
+            ctx.lineTo(width, thresholdY);
+            ctx.stroke();
+            ctx.setLineDash([]);  // Reset to solid lines
 
             // Convert band values to heights (0 = bottom, 1 = top)
             const heights = bandValues.map(dbfs => {
@@ -1307,12 +1514,14 @@
                 // Draw as smooth wave
                 const segmentWidth = width / (numBands - 1);
 
-                // Draw gradient fill under curve
+                // Fill gradient matches zone colors (red top, yellow mid, green bottom)
                 const gradient = ctx.createLinearGradient(0, 0, 0, height);
-                gradient.addColorStop(0, 'rgba(250, 112, 154, 0.5)');
-                gradient.addColorStop(0.3, 'rgba(102, 126, 234, 0.3)');
-                gradient.addColorStop(0.7, 'rgba(67, 233, 123, 0.3)');
-                gradient.addColorStop(1, 'rgba(255, 236, 210, 0.5)');
+                const redLine = (dbfsMax - (-10)) / (dbfsMax - dbfsMin);
+                const yellowLine = (dbfsMax - (-20)) / (dbfsMax - dbfsMin);
+                gradient.addColorStop(0, 'rgba(239, 68, 68, 0.4)');
+                gradient.addColorStop(redLine, 'rgba(239, 68, 68, 0.35)');
+                gradient.addColorStop(yellowLine, 'rgba(245, 158, 11, 0.3)');
+                gradient.addColorStop(1, 'rgba(34, 197, 94, 0.25)');
 
                 // Draw smooth curve through points
                 ctx.beginPath();
@@ -1338,12 +1547,12 @@
                 ctx.fillStyle = gradient;
                 ctx.fill();
 
-                // Draw stroke on top with gradient
-                const strokeGradient = ctx.createLinearGradient(0, 0, width, 0);
-                strokeGradient.addColorStop(0, '#fa709a');
-                strokeGradient.addColorStop(0.3, '#667eea');
-                strokeGradient.addColorStop(0.7, '#43e97b');
-                strokeGradient.addColorStop(1, '#ffecd2');
+                // Stroke gradient matches zones (vertical)
+                const strokeGradient = ctx.createLinearGradient(0, 0, 0, height);
+                strokeGradient.addColorStop(0, '#ef4444');
+                strokeGradient.addColorStop(redLine, '#ef4444');
+                strokeGradient.addColorStop(yellowLine, '#f59e0b');
+                strokeGradient.addColorStop(1, '#22c55e');
 
                 ctx.beginPath();
                 ctx.moveTo(0, height - heights[0] * height);
@@ -1389,9 +1598,6 @@
                                 <button class="audio-control" onclick="toggleAudio('${nodeId}')" id="audio-btn-${nodeId}">
                                     🔇 Muted
                                 </button>
-                                <button class="audio-control" onclick="showOTADialog('${nodeId}')" title="Update Firmware">
-                                    📡 Update
-                                </button>
                                 <div class="status-dot"></div>
                                 <span class="status-text">Online</span>
                             </div>
@@ -1407,10 +1613,10 @@
                                 <div class="knob-container" id="mic-knob-${nodeId}">
                                     <div class="knob-bg">
                                         <div class="knob-indicator" id="mic-knob-indicator-${nodeId}"></div>
-                                        <div class="knob-value" id="mic-gain-value-${nodeId}">20%</div>
+                                        <div class="knob-value" id="mic-gain-value-${nodeId}">40%</div>
                                     </div>
                                 </div>
-                                <div class="knob-range" id="mic-gain-percent-${nodeId}">20%</div>
+                                <div class="knob-range" id="mic-gain-percent-${nodeId}">40%</div>
                             </div>
                             <div class="gain-control">
                                 <label>Volume</label>
@@ -1433,6 +1639,7 @@
                             </div>
                             <div class="eq-canvas-wrapper">
                                 <div class="eq-y-axis">
+                                    <div class="eq-y-label">0</div>
                                     <div class="eq-y-label">-10</div>
                                     <div class="eq-y-label">-20</div>
                                     <div class="eq-y-label">-30</div>
@@ -1445,12 +1652,12 @@
                                 <canvas class="eq-canvas" id="eq-canvas-${nodeId}"></canvas>
                             </div>
                             <div class="eq-labels">
-                                <div class="eq-label" style="margin-left: 40px;">20-60Hz</div>
-                                <div class="eq-label">60-250Hz</div>
+                                <div class="eq-label" style="margin-left: 40px;">50-120Hz</div>
+                                <div class="eq-label">120-250Hz</div>
                                 <div class="eq-label">250-500Hz</div>
                                 <div class="eq-label">500Hz-2k</div>
-                                <div class="eq-label">2k-4kHz</div>
-                                <div class="eq-label">4k-8kHz</div>
+                                <div class="eq-label">2k-6kHz</div>
+                                <div class="eq-label">6k-20kHz</div>
                             </div>
                         </div>
                         <div class="controls-section" style="margin-top: 10px;">
@@ -1462,7 +1669,7 @@
                                                id="threshold-input-${nodeId}"
                                                class="threshold-text-input"
                                                value="-20"
-                                               step="0.5"
+                                               step="0.1"
                                                min="-80"
                                                max="0">
                                         <span style="color: #8b92a8;">dBFS</span>
@@ -1473,7 +1680,7 @@
                                            value="-20"
                                            min="-80"
                                            max="0"
-                                           step="0.5">
+                                           step="0.1">
                                 </div>
                             </div>
                         </div>
@@ -1535,6 +1742,11 @@
                             </div>
                         </div>
                         <div class="last-update">Last update: <span class="last-update-time">--</span></div>
+                        <div class="node-actions">
+                            <button class="audio-control" onclick="showOTADialog('${nodeId}')" title="Update Firmware">📡 Update</button>
+                            <button class="audio-control" onclick="rebootNode('${nodeId}')" title="Reboot Node">↻ Reboot</button>
+                            <button class="audio-control" onclick="disconnectNode('${nodeId}')" title="Disconnect Node">✕ Disconnect</button>
+                        </div>
                     `;
                     grid.appendChild(card);
 
@@ -1547,7 +1759,7 @@
 
                     // Set initial positions after DOM is ready
                     setTimeout(() => {
-                        updateMicGain(nodeId, 20);  // Set initial mic gain to 20% (4x)
+                        updateMicGain(nodeId, 40);  // Set initial mic gain to 40% (4x)
                         updateBrowserVolume(nodeId, 50);  // Set initial volume to 50%
                         initThresholdControls(nodeId);  // Initialize threshold controls
                     }, 0);
@@ -1584,13 +1796,15 @@
 
                 // Update readings
                 if (data.current.overall_dbfs !== null) {
-                    card.querySelector('.overall-value').textContent = data.current.overall_dbfs.toFixed(1);
+                    const smoothed = getSmoothedLevel(nodeId, data.current.overall_dbfs);
+                    const displayDbfs = Math.max(-80, smoothed);
+                    card.querySelector('.overall-value').textContent = Math.round(displayDbfs);
 
                     // Update EQ visualization
                     if (data.current.bands) {
                         const bands = data.current.bands;
                         const bandOrder = ['sub_bass', 'bass', 'low_mid', 'mid', 'high_mid', 'high'];
-                        const bandValues = bandOrder.map(name => bands[name] || -80);
+                        const bandValues = bandOrder.map(name => Math.max(-80, bands[name] || -80));
 
                         drawEQ(nodeId, bandValues);
 
@@ -1611,38 +1825,63 @@
             });
         }
 
+        // Node color palette (supports many nodes)
+        const nodeColors = [
+            '#6366f1', '#8b5cf6', '#ec4899', '#f97316',
+            '#06b6d4', '#14b8a6', '#84cc16', '#eab308'
+        ];
+        let nodeColorMap = {};
+        let nodeColorIndex = 0;
+        function getNodeColor(nodeId) {
+            if (!nodeColorMap[nodeId]) {
+                nodeColorMap[nodeId] = nodeColors[nodeColorIndex % nodeColors.length];
+                nodeColorIndex++;
+            }
+            return nodeColorMap[nodeId];
+        }
+
+        function getZoneColor(dbfs) {
+            if (dbfs >= -10) return '#ef4444';
+            if (dbfs >= -20) return '#f59e0b';
+            return '#22c55e';
+        }
+
         // Update chart with historical data
         async function updateChart() {
-            const now = Date.now() / 1000;
             const datasets = [];
-            const colors = {
-                wall1: '#48bb78',
-                wall2: '#38b2ac',
-                wall3: '#fc8181'
-            };
+            const allNodeData = [];
 
             for (const nodeId of Object.keys(nodesData)) {
                 try {
                     const response = await fetch(`/api/history/${nodeId}`);
                     const data = await response.json();
 
-                    if (data.history && data.history.length > 0) {
-                        // Filter data based on time range
+                    if (data.history && data.history.length > 1) {
                         let filteredHistory = data.history;
-                        if (currentTimeRange !== 'realtime') {
-                            const cutoff = now - currentTimeRange;
-                            filteredHistory = data.history.filter(point => point.timestamp >= cutoff);
-                        }
+                        const newestTs = data.history[data.history.length - 1].timestamp;
+                        const windowSecs = currentTimeRange === 'realtime' ? 30 : currentTimeRange;
+                        const cutoff = newestTs - windowSecs;
+                        filteredHistory = data.history.filter(point => point.timestamp >= cutoff);
+
+                        if (filteredHistory.length < 2) continue;
+
+                        const oldestTs = filteredHistory[0].timestamp;
+                        const spanTs = filteredHistory[filteredHistory.length - 1].timestamp - oldestTs;
 
                         const overallData = filteredHistory.map(point => ({
-                            x: point.timestamp - now,
-                            y: point.overall_dbfs
+                            x: spanTs > 0 ? (point.timestamp - oldestTs) / spanTs : 0,
+                            y: Math.max(-80, point.overall_dbfs)
                         }));
+
+                        allNodeData.push(filteredHistory.map(point => ({
+                            ts: point.timestamp,
+                            y: Math.max(-80, point.overall_dbfs)
+                        })));
 
                         datasets.push({
                             label: nodeId,
                             data: overallData,
-                            borderColor: colors[nodeId] || '#48bb78',
+                            borderColor: getNodeColor(nodeId),
                             backgroundColor: 'transparent',
                             borderWidth: 2,
                             pointRadius: 0,
@@ -1654,15 +1893,29 @@
                 }
             }
 
-            // Update chart X-axis range
-            if (currentTimeRange !== 'realtime') {
-                historyChart.options.scales.x.min = -currentTimeRange;
-                historyChart.options.scales.x.max = 0;
-            } else {
-                historyChart.options.scales.x.min = -30;  // Show last 30s for realtime
-                historyChart.options.scales.x.max = 0;
+            // Compute average line across all nodes
+            // Compute average across all visible data points as a flat horizontal line
+            if (allNodeData.length >= 1) {
+                const allValues = allNodeData.flatMap(nd => nd.map(p => p.y));
+                if (allValues.length > 0) {
+                    const avg = allValues.reduce((a, b) => a + b, 0) / allValues.length;
+                    const avgLevel = Math.max(-80, avg);
+
+                    datasets.push({
+                        label: `Avg: ${avgLevel.toFixed(1)} dBFS`,
+                        data: [{x: 0, y: avgLevel}, {x: 1, y: avgLevel}],
+                        borderColor: getZoneColor(avgLevel),
+                        backgroundColor: 'transparent',
+                        borderWidth: 2.5,
+                        borderDash: [6, 4],
+                        pointRadius: 0,
+                        tension: 0
+                    });
+                }
             }
 
+            historyChart.options.scales.x.min = 0;
+            historyChart.options.scales.x.max = 1;
             historyChart.data.datasets = datasets;
             historyChart.update();
         }
@@ -1684,7 +1937,8 @@
 
         // Chart update interval control
         let chartUpdateInterval;
-        let currentTimeRange = 300;  // Default 5 minutes
+        let currentTimeRange = 60;  // Default 1 minute
+        let realtimeStartTs = null;
 
         function startChartUpdates() {
             if (chartUpdateInterval) clearInterval(chartUpdateInterval);
@@ -1698,18 +1952,35 @@
         startChartUpdates();
 
         // Add log entry
+        let logAutoScroll = true;
+        let logScrolledByCode = false;
+
+        document.getElementById('logContent').addEventListener('scroll', function() {
+            if (logScrolledByCode) return;
+            const el = this;
+            const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 30;
+            if (!atBottom) {
+                logAutoScroll = false;
+                document.getElementById('logResumeBtn').style.display = 'block';
+            }
+        });
+
+        function resumeLogScroll() {
+            logAutoScroll = true;
+            const logContent = document.getElementById('logContent');
+            while (logContent.children.length > MAX_LOG_ENTRIES) {
+                logContent.removeChild(logContent.firstChild);
+            }
+            logScrolledByCode = true;
+            logContent.scrollTop = logContent.scrollHeight;
+            logScrolledByCode = false;
+            document.getElementById('logResumeBtn').style.display = 'none';
+        }
+
         function addLogEntry(nodeId, data, timestamp) {
             const now = new Date(timestamp * 1000);
             const timeStr = now.toLocaleTimeString('en-US', { hour12: false });
 
-            // Calculate latency if we have timestamps
-            const frontendRecvTime = Date.now() / 1000;
-            const backendRecvTime = data.backend_recv_time;
-            let latencyStr = '';
-            if (backendRecvTime) {
-                const latency = ((frontendRecvTime - backendRecvTime) * 1000).toFixed(0);
-                latencyStr = ` [latency: ${latency}ms]`;
-            }
 
             const entry = document.createElement('div');
             entry.className = 'log-entry';
@@ -1727,47 +1998,67 @@
                 <span class="log-timestamp">[${timeStr}]</span>
                 <span class="log-node">${nodeId}</span>
                 <span class="log-seq">${seqStr}</span>
-                <span class="log-data">overall=${data.overall_dbfs?.toFixed(1) || '--'} dBFS | ${bandsStr}${latencyStr}</span>
+                <span class="log-data">overall=${data.overall_dbfs?.toFixed(1) || '--'} dBFS | ${bandsStr}</span>
             `;
 
             const logContent = document.getElementById('logContent');
 
-            // Remove "waiting for data" message on first entry
             if (logContent.children.length === 1 && logContent.children[0].textContent.includes('Waiting')) {
                 logContent.innerHTML = '';
             }
 
-            // Append new entry at bottom (newest at bottom)
             logContent.appendChild(entry);
 
-            // Keep only MAX_LOG_ENTRIES (remove from top)
-            while (logContent.children.length > MAX_LOG_ENTRIES) {
-                logContent.removeChild(logContent.firstChild);
+            if (logAutoScroll) {
+                while (logContent.children.length > MAX_LOG_ENTRIES) {
+                    logContent.removeChild(logContent.firstChild);
+                }
+                logScrolledByCode = true;
+                logContent.scrollTop = logContent.scrollHeight;
+                logScrolledByCode = false;
             }
-
-            // Auto-scroll to bottom (newest entries)
-            logContent.scrollTop = logContent.scrollHeight;
         }
 
         function clearLog() {
             document.getElementById('logContent').innerHTML = '<div style="color: #666; text-align: center; padding: 20px;">Log cleared. Waiting for data...</div>';
+            logAutoScroll = true;
+            document.getElementById('logResumeBtn').style.display = 'none';
         }
 
         function toggleLog() {
             const logContent = document.getElementById('logContent');
-            const logTitle = document.querySelector('.log-title');
+            const logArrow = document.getElementById('logArrow');
 
             if (logContent.style.display === 'none') {
                 logContent.style.display = 'block';
-                logTitle.textContent = '▼ Live Data Log (click to collapse)';
+                logArrow.classList.add('expanded');
+                resizeLog();
             } else {
                 logContent.style.display = 'none';
-                logTitle.textContent = '▶ Live Data Log (click to expand)';
+                logContent.style.maxHeight = '';
+                logArrow.classList.remove('expanded');
             }
         }
 
+        function resizeLog() {
+            const logContent = document.getElementById('logContent');
+            if (logContent.style.display === 'none') return;
+            const footer = document.querySelector('.footer');
+            const container = document.querySelector('.log-container');
+            const footerTop = footer.getBoundingClientRect().top;
+            const logContentTop = logContent.getBoundingClientRect().top;
+            const containerPadding = 20;
+            const containerBorder = 2;
+            const gap = 12;
+            const available = footerTop - logContentTop - containerPadding - containerBorder - gap;
+            logContent.style.maxHeight = Math.max(100, available) + 'px';
+        }
+
+        window.addEventListener('resize', resizeLog);
+
         function setTimeRange(range) {
             currentTimeRange = range;
+            realtimeStartTs = (range === 'realtime') ? Date.now() / 1000 : null;
 
             // Update button states
             document.querySelectorAll('.time-range-btn').forEach(btn => {
@@ -1799,6 +2090,42 @@
             updateNodeCards(nodesData);
             addLogEntry(update.node_id, update.data, update.timestamp);
         });
+        let confirmResolve = null;
+        function showConfirm(title, message) {
+            document.getElementById('confirm-title').textContent = title;
+            document.getElementById('confirm-message').textContent = message;
+            document.getElementById('confirmModal').style.display = 'flex';
+            return new Promise(resolve => { confirmResolve = resolve; });
+        }
+        function closeConfirmModal(result) {
+            document.getElementById('confirmModal').style.display = 'none';
+            if (confirmResolve) { confirmResolve(result); confirmResolve = null; }
+        }
+
+        async function rebootNode(nodeId) {
+            if (!await showConfirm('Reboot Node', `Reboot ${nodeId}?`)) return;
+            fetch('/api/control', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({node_id: nodeId, command: {reboot: true}})
+            }).then(() => {
+                nodesData[nodeId].online = false;
+                updateNodeCards(nodesData);
+            }).catch(err => console.error('Reboot failed:', err));
+        }
+
+        async function disconnectNode(nodeId) {
+            if (!await showConfirm('Disconnect Node', `Disconnect ${nodeId}? It will disappear from the dashboard.`)) return;
+            fetch('/api/disconnect', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({node_id: nodeId})
+            }).then(() => {
+                delete nodesData[nodeId];
+                updateNodeCards(nodesData);
+            }).catch(err => console.error('Disconnect failed:', err));
+        }
+
         // OTA Update functions
         let otaSelectedFile = null;
         let otaTargetNode = null;

@@ -55,4 +55,6 @@ services:
       - "${DASHBOARD_PORT}:8091"
     volumes:
       - ./builds:/app/firmware
+      - ./dashboard/dashboard.py:/app/dashboard.py
+      - ./dashboard/templates:/app/templates
 
