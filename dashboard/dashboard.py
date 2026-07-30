@@ -24,14 +24,13 @@ FREQ_THRESHOLD_DBFS = float(os.environ.get("FREQ_THRESHOLD_DBFS", -20))
 TOPIC_DATA = "soundspy/+/data"
 TOPIC_VERSION = "soundspy/+/version"
 
-# Store last 1 hour of data per node
-# ESP32 publishes at 50Hz, so 1 hour = 3600 * 50 = 180,000 points
-# Keep this reasonable for memory
+# Store last 1 hour of data per node (1 point/second = 3600 points)
 HISTORY_SIZE = 3600
 node_data = defaultdict(lambda: {
     "last_update": None,
     "current": {"overall_dbfs": None, "freq_dbfs": None},
     "history": deque(maxlen=HISTORY_SIZE),
+    "history_acc": {"sum_dbfs": 0, "count": 0, "bands": {}, "last_sec": 0},
     "firmware_version": "unknown"
 })
 data_lock = Lock()
@@ -72,13 +71,7 @@ def on_message(client, userdata, msg):
         bands = payload.get("bands", {})
         seq = payload.get("seq")
         firmware_version = payload.get("firmware")
-        esp_ts = payload.get("ts")  # ESP32 millis() timestamp
-
-        # Log latency (for debugging)
-        if esp_ts is not None:
-            mqtt_latency = (recv_time * 1000) - esp_ts  # Convert to ms, relative to ESP32 uptime
-            # Note: This will be incorrect until we sync clocks, but shows MQTT transit time
-            print(f"[latency] {node_id} seq={seq}: received at backend", flush=True)
+        esp_ts = payload.get("ts")
 
         # Handle both old single-band and new multi-band formats
         if bands:
@@ -109,11 +102,27 @@ def on_message(client, userdata, msg):
             # Update firmware version if present in payload
             if firmware_version:
                 node_data[node_id]["firmware_version"] = firmware_version
-            node_data[node_id]["history"].append({
-                "timestamp": timestamp,
-                "overall_dbfs": overall_dbfs,
-                "bands": freq_data
-            })
+            # Downsample to 1 point/second for history
+            current_sec = int(timestamp)
+            acc = node_data[node_id]["history_acc"]
+            if current_sec != acc["last_sec"]:
+                if acc["count"] > 0:
+                    avg_dbfs = acc["sum_dbfs"] / acc["count"]
+                    avg_bands = {k: v / acc["count"] for k, v in acc["bands"].items()}
+                    node_data[node_id]["history"].append({
+                        "timestamp": acc["last_sec"],
+                        "overall_dbfs": round(avg_dbfs, 1),
+                        "bands": {k: round(v, 1) for k, v in avg_bands.items()}
+                    })
+                acc["sum_dbfs"] = overall_dbfs
+                acc["count"] = 1
+                acc["bands"] = dict(freq_data) if isinstance(freq_data, dict) else {}
+                acc["last_sec"] = current_sec
+            else:
+                acc["sum_dbfs"] += overall_dbfs
+                acc["count"] += 1
+                for k, v in (freq_data.items() if isinstance(freq_data, dict) else []):
+                    acc["bands"][k] = acc["bands"].get(k, 0) + v
 
             # Broadcast real-time update via WebSocket (faster than SSE)
             socketio.emit('sensor_data', {
@@ -202,6 +211,23 @@ def api_control():
 
     print(f"Sent control to {node_id}: {payload}", flush=True)
 
+    return jsonify({"success": True})
+
+
+@app.route("/api/disconnect", methods=["POST"])
+def api_disconnect():
+    """Remove a node from the dashboard."""
+    data = request.get_json()
+    node_id = data.get("node_id")
+
+    if not node_id:
+        return jsonify({"error": "Missing node_id"}), 400
+
+    with data_lock:
+        if node_id in node_data:
+            del node_data[node_id]
+
+    print(f"Disconnected node: {node_id}", flush=True)
     return jsonify({"success": True})
 
 
@@ -345,4 +371,4 @@ mqtt_t.start()
 
 if __name__ == "__main__":
     # Start Flask-SocketIO server (MQTT thread already started at module load)
-    socketio.run(app, host="0.0.0.0", port=8091, debug=False, allow_unsafe_werkzeug=True)
+    socketio.run(app, host="0.0.0.0", port=8091, debug=True, use_reloader=True, allow_unsafe_werkzeug=True)

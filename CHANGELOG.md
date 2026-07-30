@@ -14,6 +14,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-07-30
+
+### Added
+- I2S watchdog: auto-reinitializes bus after 5 consecutive -180 dBFS readings, reboots if reinit fails
+- Custom confirm modal (replaces browser confirm() dialogs)
+
+### Changed
+- Firmware consolidated to single file: `node_firmware/node_firmware.ino`
+- Credentials removed from source — all config injected from `.env` at build time
+- Threshold input spinner arrows removed (use slider or type directly)
+- Build script sed patterns simplified for robustness
+
+### Removed
+- Legacy firmware files (`node.ino`, `node_multiband.ino`)
+- Hardcoded WiFi/MQTT credentials from firmware source
+- Old firmware files purged from git history
+
+## [0.9.3] - 2026-07-30
+
+### Added
+- Reboot command via MQTT control channel (`{"reboot": true}`)
+- History chart colored zone backgrounds (green/yellow/red)
+- Average level line (flat dotted) on history chart with zone-colored styling
+- Multi-node color palette for history chart (supports unlimited nodes)
+- Knob snapping at 10% increments with 11 notch marks
+- Double-click knobs to reset to defaults
+- EMA smoothing on overall level display
+- Live log scroll pause with Resume button
+- GitHub footer link
+- Window resize handler for log expansion
+
+### Changed
+- Frequency bands realigned for ICS-43434 mic (50 Hz–20 kHz)
+- New biquad bandpass coefficients for all 6 bands
+- Zone thresholds: Green < -20, Yellow -20 to -10, Red > -10 dBFS
+- Default alert threshold: -20 dBFS
+- Mic gain range reduced to 0–10x (was 0–20x), default 4x (40%)
+- Knob sweep expanded to 300° (was 270°)
+- History chart: fixed Y-axis (-80 to 0), normalized X-axis (full width)
+- History downsampled to 1 point/sec (was raw ~20Hz)
+- Default time range: 1 minute (was 5 minutes)
+- Overall level displays as integer (was 1 decimal)
+- Wave visualization uses zone colors (was multicolor gradient)
+- Threshold slider gradient matches zone boundaries
+- Header restyled with gradient title
+- Live log renamed, collapsible with proper sizing
+- Dashboard container uses volume mounts for live reload
+- Flask debug mode with auto-reloader
+
+### Removed
+- Latency tracking from log entries and backend
+
+### Fixed
+- History chart line not spanning full width
+- Knob indicator not aligning with notch marks
+- dBFS values below -80 showing as -180 (now clamped)
+
+## [0.9.0] - 2026-07-30
+
+### Changed
+- Frequency bands realigned for INMP441 mic (60 Hz–15 kHz)
+- Mic gain default reduced to 2x, max to 10x
+
+## [0.8.4] - 2026-07-29
+
+### Added
+- `deploy_ota.sh` script for automated OTA deployment
+- `init_arduino.sh` script for toolchain setup
+- Automated OTA workflow (build → upload → trigger)
+
 ## [0.8.3] - 2026-07-29
 
 ### Added

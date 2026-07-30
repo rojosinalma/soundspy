@@ -4,6 +4,7 @@ docker-compose.override.yml
 
 # Claude Code local files
 .claude/
+CONTEXT.md
 
 # Mosquitto runtime data
 mosquitto/data/*

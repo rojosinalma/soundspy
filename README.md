@@ -169,7 +169,7 @@ The build script:
 - Outputs ready-to-flash `.bin` file
 
 **Option B: Manual build in Arduino IDE**
-1. Open `node_firmware/node_multiband_audio.ino`
+1. Open `node_firmware/node_firmware.ino`
 2. Manually edit the config section with your values
 3. Click **Upload** or **Sketch → Export Compiled Binary**
 
@@ -320,8 +320,7 @@ docker-compose up -d
 ```
 soundspy/
 ├── node_firmware/                  # ESP32/Arduino firmware source code
-│   ├── node_multiband_audio.ino    # Main firmware (v0.8.3, with OTA support)
-│   └── node_multiband.ino          # Legacy firmware (no audio streaming)
+│   └── node_firmware.ino           # Main firmware (with OTA + I2S watchdog)
 ├── dashboard/                      # Web dashboard and monitoring services
 │   ├── dashboard.py                # Flask + SocketIO web server
 │   ├── threshold_monitor.py        # Alert service

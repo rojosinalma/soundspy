@@ -55,17 +55,17 @@ TEMP_SKETCH_NAME="soundspy_temp"
 TEMP_SKETCH_DIR="$TEMP_DIR/$TEMP_SKETCH_NAME"
 mkdir -p "$TEMP_SKETCH_DIR"
 TEMP_INO="$TEMP_SKETCH_DIR/${TEMP_SKETCH_NAME}.ino"
-INPUT_INO="node_firmware/node_multiband_audio.ino"
+INPUT_INO="node_firmware/node_firmware.ino"
 
 # Read template and inject values
-sed -e "s/const char\* FIRMWARE_VERSION = \".*\";/const char* FIRMWARE_VERSION = \"$FIRMWARE_VERSION\";/" \
-    -e "s/const char\* NODE_ID.*= \".*\";.*\/\/ .*/const char* NODE_ID    = \"$NODE_ID\";              \/\/ wall1, wall2, wall3, etc./" \
-    -e "s/const char\* WIFI_SSID.*= \".*\";/const char* WIFI_SSID  = \"$WIFI_SSID\";/" \
-    -e "s/const char\* WIFI_PASS.*= \".*\";/const char* WIFI_PASS  = \"$WIFI_PASSWORD\";/" \
-    -e "s/const char\* MQTT_HOST.*= \".*\";.*\/\/ .*/const char* MQTT_HOST  = \"$MQTT_HOST\";        \/\/ silver server IP/" \
-    -e "s/const int.*MQTT_PORT.*= [0-9]*;/const int   MQTT_PORT  = $MQTT_PORT;/" \
-    -e "s/const char\* WS_HOST.*= \".*\";.*\/\/ .*/const char* WS_HOST    = \"$WS_HOST\";        \/\/ WebSocket server (same as MQTT)/" \
-    -e "s/const int.*WS_PORT.*= [0-9]*;/const int   WS_PORT    = $WS_PORT;/" \
+sed -e "s/const char\* FIRMWARE_VERSION = \".*\"/const char* FIRMWARE_VERSION = \"$FIRMWARE_VERSION\"/" \
+    -e "s/const char\* NODE_ID.*= \".*\"/const char* NODE_ID    = \"$NODE_ID\"/" \
+    -e "s/const char\* WIFI_SSID.*= \".*\"/const char* WIFI_SSID  = \"$WIFI_SSID\"/" \
+    -e "s/const char\* WIFI_PASS.*= \".*\"/const char* WIFI_PASS  = \"$WIFI_PASSWORD\"/" \
+    -e "s/const char\* MQTT_HOST.*= \".*\"/const char* MQTT_HOST  = \"$MQTT_HOST\"/" \
+    -e "s/const int.*MQTT_PORT.*= [0-9]*/const int   MQTT_PORT  = $MQTT_PORT/" \
+    -e "s/const char\* WS_HOST.*= \".*\"/const char* WS_HOST    = \"$WS_HOST\"/" \
+    -e "s/const int.*WS_PORT.*= [0-9]*/const int   WS_PORT    = $WS_PORT/" \
     "$INPUT_INO" > "$TEMP_INO"
 
 echo "Generated temporary firmware file with injected values"
