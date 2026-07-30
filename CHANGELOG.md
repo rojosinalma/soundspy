@@ -14,6 +14,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-07-30
+
+### Fixed
+- Duplicate chip IDs across boards: now uses lower 4 bytes of EfuseMAC (8-char hex) instead of middle 3 bytes which collided on chips from same batch
+
+### Changed
+- Dashboard color palette shifted from blue/purple to green (hardware EQ aesthetic)
+- Header uses Share Tech Mono font with phosphor green glow
+- Node display names update live on existing cards (not only on card creation)
+- Node rename uses inline contenteditable (no browser prompt)
+- Edit button (✎) next to node name, audio indicator moved next to mute button
+- Mute/unmute button uses ◁ icon, online dot has green glow
+
 ## [1.3.0] - 2026-07-30
 
 ### Changed
