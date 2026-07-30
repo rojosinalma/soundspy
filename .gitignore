@@ -2,8 +2,9 @@
 docker-compose.override.yml
 .env
 
-# Claude Code local files
+# Claude Code local files (keep CLAUDE.md tracked, ignore everything else)
 .claude/
+!.claude/CLAUDE.md
 CONTEXT.md
 
 # Mosquitto runtime data
