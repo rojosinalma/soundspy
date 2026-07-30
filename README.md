@@ -79,6 +79,12 @@ docker logs -f soundspy_monitor     # Alert service logs
 
 For detailed documentation see the [wiki](https://github.com/rojosinalma/soundspy/wiki).
 
+## Screenshot
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/rojosinalma/soundspy/main/assets/screenshot.png" alt="soundspy dashboard" width="100%"/>
+</p>
+
 ## License
 
 [AGPL-3.0](LICENSE)
