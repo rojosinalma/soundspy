@@ -14,6 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.5] - 2026-07-30
+
+### Changed
+- Knob percentage values: dark display background, border, monospace font, larger size
+- Knob labels (Mic Gain, Volume): dark display background with border
+- Alert Threshold label: dark display background, generous padding (10px 20px)
+- Button and selector text: brighter green (#8ec9a0, was #6b9e7a)
+- Log Clear/Resume buttons: green border + text matching action button style
+- Threshold input: centered with hidden spacer, unit label sits right beside it
+
 ## [1.4.4] - 2026-07-30
 
 ### Added
