@@ -171,7 +171,7 @@
         .audio-control {
             background: #1a2e24;
             border: 1px solid #2a4a34;
-            color: #6b9e7a;
+            color: #8ec9a0;
             padding: 6px 12px;
             border-radius: 4px;
             cursor: pointer;
@@ -211,6 +211,10 @@
         .gain-control label {
             font-size: 0.75em;
             color: #6b9e7a;
+            background: #050a06;
+            border: 1px solid #1a2e24;
+            border-radius: 3px;
+            padding: 2px 8px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             line-height: 1;
@@ -276,9 +280,15 @@
         }
 
         .knob-range {
-            font-size: 0.7em;
+            font-size: 0.9em;
             color: #a3e6b8;
             text-align: center;
+            background: #050a06;
+            border: 1px solid #1a2e24;
+            border-radius: 3px;
+            padding: 2px 8px;
+            font-family: monospace;
+            min-width: 40px;
         }
 
         .audio-indicator {
@@ -523,7 +533,7 @@
         .time-range-btn {
             background: #1a2e24;
             border: 1px solid #2a4a34;
-            color: #6b9e7a;
+            color: #8ec9a0;
             padding: 6px 14px;
             border-radius: 4px;
             cursor: pointer;
@@ -597,6 +607,14 @@
             padding-top: 16px;
             height: auto;
             min-height: 120px;
+        }
+
+        .threshold-box label {
+            background: #050a06;
+            border: 1px solid #1a2e24;
+            border-radius: 3px;
+            padding: 10px 20px;
+            margin-bottom: 6px;
         }
 
         .threshold-control {
@@ -770,17 +788,19 @@
 
         .log-clear {
             background: #1a2e24;
-            border: none;
-            color: #8b92a8;
+            border: 1px solid #2a4a34;
+            color: #8ec9a0;
             padding: 6px 12px;
             border-radius: 4px;
             cursor: pointer;
             font-size: 0.85em;
-            transition: background 0.2s;
+            transition: all 0.2s;
         }
 
         .log-clear:hover {
             background: #1a2e24;
+            border-color: #44dd66;
+            color: #a3e6b8;
         }
 
         .log-body {
