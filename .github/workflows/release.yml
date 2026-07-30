@@ -70,8 +70,7 @@ jobs:
         if: steps.version.outputs.changed == 'true' && steps.check_tag.outputs.exists == 'false'
         run: |
           VERSION="${{ steps.version.outputs.new }}"
-          zip -j "soundspy-pcb-v${VERSION}.zip" pcb/*.kicad_pcb pcb/*.kicad_pro pcb/*.kicad_sch pcb/DESIGN.md 2>/dev/null || \
-          zip -j "soundspy-pcb-v${VERSION}.zip" pcb/*.kicad_pcb pcb/DESIGN.md
+          zip -j "soundspy-pcb-v${VERSION}.zip" pcb/*
           echo "pcb_zip=soundspy-pcb-v${VERSION}.zip" >> $GITHUB_ENV
 
       - name: Create GitHub release
