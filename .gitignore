@@ -27,6 +27,9 @@ venv/
 # Compiled firmware binaries (all build outputs)
 builds/
 
+# Persistent state (node names, thresholds)
+data/
+
 # Rendered firmware (contains secrets, for manual Arduino IDE flashing)
 node_firmware/*.rendered.ino
 

@@ -14,6 +14,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-07-30
+
+### Changed
+- **BREAKING**: Node ID no longer configured at build time — derived from ESP32 chip ID at runtime (lower 3 bytes of EfuseMAC as 6-char hex)
+- Firmware binary is now generic: compile once, flash to any ESP32
+- MQTT topics use chip ID: `soundspy/<chip_id>/data` (e.g. `soundspy/a1b2c3/data`)
+- Build script no longer takes NODE_ID argument, produces `soundspy_v<version>.bin`
+- Deploy script takes chip_id (visible in dashboard) as argument
+- NODE_ID removed from `.env`
+
+### Added
+- Node name persistence: `data/node_names.json` maps chip IDs to display names
+- Auto-naming: new nodes assigned "node-1", "node-2", etc. on first connect
+- Rename nodes via double-click in dashboard UI or `POST /api/node/rename`
+- Display names shown in node cards, history chart selector, logs
+- `data/` volume mounted into dashboard container for state persistence
+
+## [1.2.1] - 2026-07-30
+
+### Added
+- Per-node threshold tracking with history chart node selector
+- Vertical level meter bar (segmented, with peak hold and zone colors)
+- Threshold slider: tick marks every 10dB, snap-to-mark, dynamic zone indicators (▲)
+- Slider double-click resets to -20, step=0.5 dBFS
+- Overall level display restyled as CRT oscilloscope (phosphor green, vignette)
+- Remote logging over MQTT (`soundspy/<node>/log` and `/boot` topics)
+- OTA rollback: `esp_ota_mark_app_valid_cancel_rollback()` gates on MQTT connectivity
+- Boot report published to MQTT with partition, reset reason, free heap, IP
+- Two-stage boot order: WiFi → MQTT → OTA confirm → I2S → WebSocket
+- Live logs panel in dashboard: per-node sidebar + app/system tab split
+- Deep sleep command (`{"sleep": true}`) for safe power-off
+- I2S watchdog stays alive in degraded mode after 3 failed reinits (keeps MQTT)
+
+### Changed
+- MQTT buffer increased to 512 bytes
+- Boot messages flush with `mqtt.loop()` after publish
+
+## [1.1.0] - 2026-07-30
+
+### Changed
+- All firmware config (WiFi, MQTT, WS, NODE_ID) moved to PLACEHOLDER_* tokens
+- Version is the only hardcoded value in firmware source
+- Build script extracts version from .ino (not .env)
+- Build generates `node_firmware.rendered.ino` for Arduino IDE manual flashing
+
+### Removed
+- FIRMWARE_VERSION from `.env` (now source-of-truth is the .ino)
+
 ## [1.0.0] - 2026-07-30
 
 ### Added

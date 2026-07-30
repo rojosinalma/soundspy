@@ -26,6 +26,41 @@ TOPIC_VERSION = "soundspy/+/version"
 TOPIC_LOG = "soundspy/+/log"
 TOPIC_BOOT = "soundspy/+/boot"
 
+# Node name persistence
+NODE_NAMES_FILE = "/app/data/node_names.json"
+
+
+def load_node_names():
+    try:
+        with open(NODE_NAMES_FILE, "r") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def save_node_names(names):
+    os.makedirs(os.path.dirname(NODE_NAMES_FILE), exist_ok=True)
+    with open(NODE_NAMES_FILE, "w") as f:
+        json.dump(names, f, indent=2)
+
+
+def get_node_name(chip_id):
+    """Get display name for a chip ID, auto-assigning if new."""
+    names = load_node_names()
+    if chip_id not in names:
+        existing_nums = []
+        for name in names.values():
+            if name.startswith("node-"):
+                try:
+                    existing_nums.append(int(name.split("-")[1]))
+                except (IndexError, ValueError):
+                    pass
+        next_num = max(existing_nums, default=0) + 1
+        names[chip_id] = f"node-{next_num}"
+        save_node_names(names)
+    return names[chip_id]
+
+
 # Store last 1 hour of data per node (1 point/second = 3600 points)
 HISTORY_SIZE = 3600
 node_data = defaultdict(lambda: {
@@ -155,6 +190,7 @@ def on_message(client, userdata, msg):
             # Broadcast real-time update via WebSocket (faster than SSE)
             socketio.emit('sensor_data', {
                 'node_id': node_id,
+                'display_name': get_node_name(node_id),
                 'data': node_data[node_id]["current"],
                 'timestamp': timestamp
             }, namespace='/')
@@ -192,13 +228,32 @@ def api_nodes():
                 "online": is_online,
                 "last_update": last_update,
                 "current": data["current"],
-                "firmware_version": data.get("firmware_version", "unknown")
+                "firmware_version": data.get("firmware_version", "unknown"),
+                "display_name": get_node_name(node_id)
             }
 
         return jsonify({
             "nodes": result,
             "threshold": FREQ_THRESHOLD_DBFS
         })
+
+
+@app.route("/api/node/rename", methods=["POST"])
+def api_rename_node():
+    """Rename a node's display name."""
+    data = request.get_json()
+    chip_id = data.get("chip_id")
+    new_name = data.get("name", "").strip()
+
+    if not chip_id or not new_name:
+        return jsonify({"error": "Missing chip_id or name"}), 400
+
+    names = load_node_names()
+    names[chip_id] = new_name
+    save_node_names(names)
+
+    print(f"Node {chip_id} renamed to '{new_name}'", flush=True)
+    return jsonify({"success": True, "chip_id": chip_id, "name": new_name})
 
 
 @app.route("/api/history/<node_id>")
