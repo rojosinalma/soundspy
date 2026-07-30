@@ -66,6 +66,14 @@ jobs:
           fi
           echo "$NOTES" > /tmp/release_notes.md
 
+      - name: Package PCB files
+        if: steps.version.outputs.changed == 'true' && steps.check_tag.outputs.exists == 'false'
+        run: |
+          VERSION="${{ steps.version.outputs.new }}"
+          zip -j "soundspy-pcb-v${VERSION}.zip" pcb/*.kicad_pcb pcb/*.kicad_pro pcb/*.kicad_sch pcb/DESIGN.md 2>/dev/null || \
+          zip -j "soundspy-pcb-v${VERSION}.zip" pcb/*.kicad_pcb pcb/DESIGN.md
+          echo "pcb_zip=soundspy-pcb-v${VERSION}.zip" >> $GITHUB_ENV
+
       - name: Create GitHub release
         if: steps.version.outputs.changed == 'true' && steps.check_tag.outputs.exists == 'false'
         env:
@@ -73,4 +81,5 @@ jobs:
         run: |
           gh release create "v${{ steps.version.outputs.new }}" \
             --title "v${{ steps.version.outputs.new }}" \
-            --notes-file /tmp/release_notes.md
+            --notes-file /tmp/release_notes.md \
+            "${{ env.pcb_zip }}"
