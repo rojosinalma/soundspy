@@ -19,6 +19,8 @@ from werkzeug.utils import secure_filename
 MQTT_HOST = os.environ.get("MQTT_HOST", "localhost")
 MQTT_PORT = int(os.environ.get("MQTT_PORT", 1883))
 FREQ_THRESHOLD_DBFS = float(os.environ.get("FREQ_THRESHOLD_DBFS", -20))
+DASHBOARD_VERSION = "1.4.5"
+
 TOPIC_DATA = "soundspy/+/data"
 TOPIC_VERSION = "soundspy/+/version"
 TOPIC_LOG = "soundspy/+/log"
@@ -226,7 +228,7 @@ def mqtt_thread():
 
 @app.route("/")
 def index():
-    return render_template("dashboard.html")
+    return render_template("dashboard.html", dashboard_version=DASHBOARD_VERSION)
 
 
 @app.route("/api/nodes")
@@ -446,4 +448,4 @@ mqtt_t.start()
 
 if __name__ == "__main__":
     # Start Flask-SocketIO server (MQTT thread already started at module load)
-    socketio.run(app, host="0.0.0.0", port=8091, debug=True, use_reloader=True, allow_unsafe_werkzeug=True)
+    socketio.run(app, host="0.0.0.0", port=8091, debug=True, use_reloader=True, reloader_type='watchdog', allow_unsafe_werkzeug=True)
