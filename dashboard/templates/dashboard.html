@@ -2098,6 +2098,12 @@
                     }, 0);
                 }
 
+                // Update display name if changed
+                const nameEl = document.getElementById(`node-display-name-${nodeId}`);
+                if (nameEl && nodeDisplayNames[nodeId] && nameEl.contentEditable !== 'true') {
+                    nameEl.textContent = nodeDisplayNames[nodeId];
+                }
+
                 // Update status
                 const isOnline = data.online;
                 const statusDot = card.querySelector('.status-dot');
