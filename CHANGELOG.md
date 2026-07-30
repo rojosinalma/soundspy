@@ -14,6 +14,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-07-30
+
+### Added
+- dBA default: dashboard loads in dBA mode; toggle label, threshold unit, chart Y-axis, and avg line label all switch together
+- Threshold stored internally as dBFS; displayed and compared in active unit using cached A-weighting offset per node
+- A-weighting offset cached on first band data arrival (not recomputed per frame) — fixes moving threshold line
+- Level meter bar now follows raw unsmoothed signal; number display remains EMA-smoothed
+
+### Fixed
+- Threshold line in spectrum no longer drifts when bands fluctuate
+- All zone backgrounds, bar colors, and alert comparisons use display-unit threshold consistently
+
 ## [1.4.0] - 2026-07-30
 
 ### Added
