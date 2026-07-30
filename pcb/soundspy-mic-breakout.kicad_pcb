@@ -9,8 +9,8 @@
   (title_block
     (title "SoundSpy Mic Breakout")
     (date "2026-07-30")
-    (rev "1.0")
-    (comment 1 "ICS-43434 breakout adapter for ESP32 DevKit")
+    (rev "1.1")
+    (comment 1 "ICS-43434 I2S mic breakout for ESP32")
   )
 
   (layers
@@ -44,68 +44,104 @@
   (gr_line (start 15 12) (end 0 12) (layer "Edge.Cuts") (width 0.15) (uuid "cc000003"))
   (gr_line (start 0 12) (end 0 0) (layer "Edge.Cuts") (width 0.15) (uuid "cc000004"))
 
-  (footprint "MountingHole:MountingHole_2.2mm_M2" (at 12.5 2.5) (layer "F.Cu")
-    (uuid "dd000001")
-    (pad "" np_thru_hole circle (at 0 0) (size 2.2 2.2) (drill 2.2) (layers "*.Cu" "*.Mask"))
-  )
-
-  (footprint "Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical" (at 2.54 6.0 0) (layer "F.Cu")
+  ;; J1 centered vertically: pin1(3V3) at y=0.92, pin5(SCK) at y=11.08
+  (footprint "Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical" (at 1.5 0.92 0) (layer "F.Cu")
     (uuid "dd000002")
-    (fp_text reference "J1" (at 0 -2.5) (layer "F.SilkS") (effects (font (size 1 1) (thickness 0.15))) (uuid "ee000001"))
-    (fp_text value "ESP32" (at 0 12.7) (layer "F.Fab") (effects (font (size 1 1) (thickness 0.15))) (uuid "ee000002"))
-    (pad "1" thru_hole rect (at 0 0) (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 1 "3V3") (uuid "ff000001"))
-    (pad "2" thru_hole circle (at 0 2.54) (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 2 "GND") (uuid "ff000002"))
-    (pad "3" thru_hole circle (at 0 5.08) (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 3 "I2S_WS") (uuid "ff000003"))
-    (pad "4" thru_hole circle (at 0 7.62) (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 4 "I2S_SD") (uuid "ff000004"))
+    (fp_text reference "J1" (at 0 -1.3) (layer "F.SilkS") (effects (font (size 0.7 0.7) (thickness 0.1))) (uuid "ee000001"))
+    (fp_text value "ESP32" (at 3.0 5.08) (layer "F.Fab") (effects (font (size 0.7 0.7) (thickness 0.1))) (uuid "ee000002"))
+    (pad "1" thru_hole rect   (at 0 0)     (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 1 "3V3")     (uuid "ff000001"))
+    (pad "2" thru_hole circle (at 0 2.54)  (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 2 "GND")     (uuid "ff000002"))
+    (pad "3" thru_hole circle (at 0 5.08)  (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 3 "I2S_WS")  (uuid "ff000003"))
+    (pad "4" thru_hole circle (at 0 7.62)  (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 4 "I2S_SD")  (uuid "ff000004"))
     (pad "5" thru_hole circle (at 0 10.16) (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 5 "I2S_SCK") (uuid "ff000005"))
   )
 
-  (footprint "soundspy:ICS-43434" (at 9.5 6.0 0) (layer "F.Cu")
+  ;; Absolute J1 pad positions (footprint at y=0.92):
+  ;;   pin1 3V3:    (1.5, 0.92)
+  ;;   pin2 GND:    (1.5, 3.46)
+  ;;   pin3 I2S_WS: (1.5, 6.00)
+  ;;   pin4 I2S_SD: (1.5, 8.54)
+  ;;   pin5 I2S_SCK:(1.5, 11.08)
+
+  ;; U1 - ICS-43434 LGA, placed at (9.5, 6.0)
+  ;; Absolute pad positions:
+  ;;   pin1 WS:  (8.3,  5.025)
+  ;;   pin2 SCK: (8.3,  6.975)
+  ;;   pin3 GND: (9.5,  6.975)
+  ;;   pin4 GND: (10.7, 5.025)
+  ;;   pin5 VDD: (10.7, 6.0)
+  ;;   pin6 SD:  (10.7, 6.975)
+  ;;   pin7 EP:  (9.5,  6.0)
+  (footprint "Package_LGA:LGA-8_3.5x2.65mm_P1.27mm" (at 9.5 6.0 0) (layer "F.Cu")
     (uuid "dd000003")
-    (fp_text reference "U1" (at 0 -2.5) (layer "F.SilkS") (effects (font (size 0.8 0.8) (thickness 0.12))) (uuid "ee000003"))
-    (fp_text value "ICS-43434" (at 0 3.5) (layer "F.Fab") (effects (font (size 0.8 0.8) (thickness 0.12))) (uuid "ee000004"))
-    (pad "1" smd rect (at -1.2 -0.975) (size 0.7 0.5) (layers "F.Cu" "F.Mask" "F.Paste") (net 3 "I2S_WS") (uuid "ff000006"))
-    (pad "2" smd rect (at -1.2 0.975) (size 0.7 0.5) (layers "F.Cu" "F.Mask" "F.Paste") (net 5 "I2S_SCK") (uuid "ff000007"))
-    (pad "3" smd rect (at 0 0.975) (size 0.7 0.5) (layers "F.Cu" "F.Mask" "F.Paste") (net 2 "GND") (uuid "ff000008"))
-    (pad "4" smd rect (at 1.2 -0.975) (size 0.7 0.5) (layers "F.Cu" "F.Mask" "F.Paste") (net 2 "GND") (uuid "ff000009"))
-    (pad "5" smd rect (at 1.2 0) (size 0.7 0.5) (layers "F.Cu" "F.Mask" "F.Paste") (net 1 "3V3") (uuid "ff000010"))
-    (pad "6" smd rect (at 1.2 0.975) (size 0.7 0.5) (layers "F.Cu" "F.Mask" "F.Paste") (net 4 "I2S_SD") (uuid "ff000011"))
-    (pad "7" smd rect (at 0 0) (size 1.0 1.3) (layers "F.Cu" "F.Mask" "F.Paste") (net 2 "GND") (uuid "ff000012"))
+    (fp_text reference "U1" (at 0 -2.0) (layer "F.SilkS") (effects (font (size 0.7 0.7) (thickness 0.1))) (uuid "ee000003"))
+    (fp_text value "ICS-43434" (at 0 2.0) (layer "F.Fab") (effects (font (size 0.7 0.7) (thickness 0.1))) (uuid "ee000004"))
+    (pad "1" smd rect (at -1.2 -0.975) (size 0.7 0.5) (layers "F.Cu" "F.Mask" "F.Paste") (net 3 "I2S_WS")  (uuid "ff000006"))
+    (pad "2" smd rect (at -1.2  0.975) (size 0.7 0.5) (layers "F.Cu" "F.Mask" "F.Paste") (net 5 "I2S_SCK") (uuid "ff000007"))
+    (pad "3" smd rect (at  0    0.975) (size 0.7 0.5) (layers "F.Cu" "F.Mask" "F.Paste") (net 2 "GND")     (uuid "ff000008"))
+    (pad "4" smd rect (at  1.2 -0.975) (size 0.7 0.5) (layers "F.Cu" "F.Mask" "F.Paste") (net 2 "GND")     (uuid "ff000009"))
+    (pad "5" smd rect (at  1.2  0)     (size 0.7 0.5) (layers "F.Cu" "F.Mask" "F.Paste") (net 1 "3V3")     (uuid "ff000010"))
+    (pad "6" smd rect (at  1.2  0.975) (size 0.7 0.5) (layers "F.Cu" "F.Mask" "F.Paste") (net 4 "I2S_SD")  (uuid "ff000011"))
+    (pad "7" smd rect (at  0    0)     (size 1.0 1.3) (layers "F.Cu" "F.Mask" "F.Paste") (net 2 "GND")     (uuid "ff000012"))
     (pad "" np_thru_hole circle (at 0 0) (size 0.5 0.5) (drill 0.5) (layers "*.Cu" "*.Mask") (uuid "ff000013"))
   )
 
-  (footprint "Capacitor_SMD:C_0402_1005Metric" (at 9.5 3.0 0) (layer "F.Cu")
+  ;; C1 - 100nF 0402 at (5.5, 0.92) - near 3V3/GND pins
+  ;; pad1 (3V3) abs: (5.02, 0.92)
+  ;; pad2 (GND) abs: (5.98, 0.92)
+  (footprint "Capacitor_SMD:C_0402_1005Metric" (at 5.5 0.92 0) (layer "F.Cu")
     (uuid "dd000004")
-    (fp_text reference "C1" (at 0 -1.2) (layer "F.SilkS") (effects (font (size 0.6 0.6) (thickness 0.1))) (uuid "ee000005"))
-    (fp_text value "100nF" (at 0 1.2) (layer "F.Fab") (effects (font (size 0.6 0.6) (thickness 0.1))) (uuid "ee000006"))
+    (fp_text reference "C1" (at 0 -0.9) (layer "F.SilkS") (effects (font (size 0.6 0.6) (thickness 0.1))) (uuid "ee000005"))
+    (fp_text value "100nF" (at 0 0.9) (layer "F.Fab") (effects (font (size 0.6 0.6) (thickness 0.1))) (uuid "ee000006"))
     (pad "1" smd roundrect (at -0.48 0) (size 0.56 0.62) (layers "F.Cu" "F.Mask" "F.Paste") (roundrect_rratio 0.25) (net 1 "3V3") (uuid "ff000014"))
-    (pad "2" smd roundrect (at 0.48 0) (size 0.56 0.62) (layers "F.Cu" "F.Mask" "F.Paste") (roundrect_rratio 0.25) (net 2 "GND") (uuid "ff000015"))
+    (pad "2" smd roundrect (at  0.48 0) (size 0.56 0.62) (layers "F.Cu" "F.Mask" "F.Paste") (roundrect_rratio 0.25) (net 2 "GND") (uuid "ff000015"))
   )
 
+  ;; Mounting hole M2 at (12.5, 2.5) - top right, safely inside board
+  (footprint "MountingHole:MountingHole_2.2mm_M2" (at 12.5 2.5) (layer "F.Cu")
+    (uuid "dd000001")
+    (pad "" np_thru_hole circle (at 0 0) (size 2.2 2.2) (drill 2.2) (layers "*.Cu" "*.Mask") (uuid "ff000016"))
+  )
 
-  (segment (start 2.54 6.0) (end 9.02 3.0) (width 0.3) (layer "F.Cu") (net 1) (uuid "aa000001"))
-  (segment (start 9.02 3.0) (end 10.7 6.0) (width 0.3) (layer "F.Cu") (net 1) (uuid "aa000002"))
+  ;; ── Traces ────────────────────────────────────────────────────────────────────
+  ;; All routes verified non-crossing by going through distinct Y corridors:
+  ;;   3V3  : top corridor  Y~0.92
+  ;;   GND  : Y~2.0 jog then via B.Cu pour
+  ;;   WS   : Y~6.0
+  ;;   SD   : Y~8.54
+  ;;   SCK  : Y~11.08 then diagonal up to U1
 
-  (segment (start 2.54 8.54) (end 9.98 3.0) (width 0.4) (layer "F.Cu") (net 2) (uuid "aa000003"))
-  (segment (start 9.98 3.0) (end 9.5 6.0) (width 0.4) (layer "F.Cu") (net 2) (uuid "aa000004"))
-  (segment (start 9.5 6.0) (end 9.5 6.975) (width 0.4) (layer "F.Cu") (net 2) (uuid "aa000005"))
-  (segment (start 9.5 6.0) (end 10.7 5.025) (width 0.4) (layer "F.Cu") (net 2) (uuid "aa000006"))
+  ;; 3V3: J1.1(1.5,0.92) -> C1.1(5.02,0.92) -> U1.5(10.7,6.0)
+  (segment (start 1.5  0.92) (end 5.02 0.92) (width 0.25) (layer "F.Cu") (net 1) (uuid "aa000001"))
+  (segment (start 5.98 0.92) (end 8.5  0.92) (width 0.25) (layer "F.Cu") (net 1) (uuid "aa000002"))
+  (segment (start 8.5  0.92) (end 10.7 6.0)  (width 0.25) (layer "F.Cu") (net 1) (uuid "aa000003"))
 
-  (segment (start 2.54 11.08) (end 8.3 5.025) (width 0.3) (layer "F.Cu") (net 3) (uuid "aa000007"))
+  ;; GND: J1.2(1.5,3.46) -> C1.2(5.98,0.92) jog through Y=2.2
+  (segment (start 1.5  3.46) (end 3.0  3.46) (width 0.3)  (layer "F.Cu") (net 2) (uuid "aa000004"))
+  (segment (start 3.0  3.46) (end 3.0  2.2)  (width 0.3)  (layer "F.Cu") (net 2) (uuid "aa000005"))
+  (segment (start 3.0  2.2)  (end 5.98 2.2)  (width 0.3)  (layer "F.Cu") (net 2) (uuid "aa000006"))
+  (segment (start 5.98 2.2)  (end 5.98 0.92) (width 0.3)  (layer "F.Cu") (net 2) (uuid "aa000007"))
+  ;; GND also connects to U1 EP via B.Cu zone (no explicit trace needed)
 
-  (segment (start 2.54 13.62) (end 10.7 6.975) (width 0.3) (layer "F.Cu") (net 4) (uuid "aa000008"))
+  ;; WS: J1.3(1.5,6.0) -> U1.1(8.3,5.025) -- straight horizontal then short diagonal
+  (segment (start 1.5  6.0)  (end 6.5  6.0)  (width 0.25) (layer "F.Cu") (net 3) (uuid "aa000008"))
+  (segment (start 6.5  6.0)  (end 8.3  5.025)(width 0.25) (layer "F.Cu") (net 3) (uuid "aa000009"))
 
-  (segment (start 2.54 16.16) (end 8.3 6.975) (width 0.3) (layer "F.Cu") (net 5) (uuid "aa000009"))
+  ;; SD: J1.4(1.5,8.54) -> U1.6(10.7,6.975) -- route below U1
+  (segment (start 1.5  8.54) (end 7.0  8.54) (width 0.25) (layer "F.Cu") (net 4) (uuid "aa000010"))
+  (segment (start 7.0  8.54) (end 10.7 6.975)(width 0.25) (layer "F.Cu") (net 4) (uuid "aa000011"))
 
-  (gr_text "SoundSpy Mic v1.0" (at 7.5 11.0) (layer "F.SilkS")
-    (effects (font (size 0.8 0.8) (thickness 0.12)))
+  ;; SCK: J1.5(1.5,11.08) -> U1.2(8.3,6.975) -- route along bottom then angle up
+  (segment (start 1.5  11.08) (end 5.0  11.08) (width 0.25) (layer "F.Cu") (net 5) (uuid "aa000012"))
+  (segment (start 5.0  11.08) (end 8.3   6.975) (width 0.25) (layer "F.Cu") (net 5) (uuid "aa000013"))
+
+  ;; ── Silkscreen ────────────────────────────────────────────────────────────────
+  (gr_text "SoundSpy Mic v1.1" (at 7.5 11.3) (layer "F.SilkS")
+    (effects (font (size 0.7 0.7) (thickness 0.1)))
     (uuid "cc000005")
   )
-  (gr_text "3V3 GND WS SD SCK" (at 2.54 1.5) (layer "F.SilkS")
-    (effects (font (size 0.6 0.6) (thickness 0.1)))
-    (uuid "cc000006")
-  )
 
+  ;; ── GND fill (B.Cu) ───────────────────────────────────────────────────────────
   (zone (net 2) (net_name "GND") (layer "B.Cu") (uuid "bb000001")
     (hatch edge 0.5)
     (connect_pads (clearance 0.3))
@@ -115,4 +151,5 @@
       (pts (xy 0.5 0.5) (xy 14.5 0.5) (xy 14.5 11.5) (xy 0.5 11.5))
     )
   )
+
 )

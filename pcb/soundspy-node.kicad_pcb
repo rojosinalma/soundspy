@@ -1,0 +1,237 @@
+(kicad_pcb (version 20221018) (generator pcbnew)
+
+  (general
+    (thickness 1.6)
+  )
+
+  (paper "A4")
+
+  (title_block
+    (title "SoundSpy Node Carrier")
+    (date "2026-07-30")
+    (rev "1.0")
+    (comment 1 "ESP32 38-pin DevKit + ICS-43434 carrier board")
+    (comment 2 "USB-C notch at bottom for case passthrough")
+    (comment 3 "Mic on standoffs, port facing front")
+  )
+
+  (layers
+    (0 "F.Cu" signal)
+    (31 "B.Cu" signal)
+    (36 "B.SilkS" user "B.Silkscreen")
+    (37 "F.SilkS" user "F.Silkscreen")
+    (38 "B.Mask" user "B.Mask")
+    (39 "F.Mask" user "F.Mask")
+    (44 "Edge.Cuts" user)
+  )
+
+  (setup
+    (pad_to_mask_clearance 0.05)
+    (grid_origin 0 0)
+    (pcbplotparams
+      (layerselection 0x00010fc_ffffffff)
+      (outputdirectory "gerbers/")
+    )
+  )
+
+  (net 0 "")
+  (net 1 "3V3")
+  (net 2 "GND")
+  (net 3 "I2S_WS")
+  (net 4 "I2S_SD")
+  (net 5 "I2S_SCK")
+
+  ;; ── Board outline: 30mm x 68mm ────────────────────────────────────────────
+  ;; Top and sides are straight lines
+  (gr_line (start 0 0)   (end 30 0)  (layer "Edge.Cuts") (width 0.15) (uuid "cc000001"))
+  (gr_line (start 30 0)  (end 30 68) (layer "Edge.Cuts") (width 0.15) (uuid "cc000002"))
+  (gr_line (start 0 68)  (end 0 0)   (layer "Edge.Cuts") (width 0.15) (uuid "cc000003"))
+  ;; Bottom edge with USB-C notch (11mm wide, 4mm deep, centered at x=15)
+  (gr_line (start 0 68)   (end 9.5 68)  (layer "Edge.Cuts") (width 0.15) (uuid "cc000004"))
+  (gr_line (start 9.5 68) (end 9.5 64)  (layer "Edge.Cuts") (width 0.15) (uuid "cc000005"))
+  (gr_line (start 9.5 64) (end 20.5 64) (layer "Edge.Cuts") (width 0.15) (uuid "cc000006"))
+  (gr_line (start 20.5 64)(end 20.5 68) (layer "Edge.Cuts") (width 0.15) (uuid "cc000007"))
+  (gr_line (start 20.5 68)(end 30 68)   (layer "Edge.Cuts") (width 0.15) (uuid "cc000008"))
+
+  ;; ── Mounting holes M2 (4x corners) ───────────────────────────────────────
+  (footprint "MountingHole:MountingHole_2.2mm_M2" (at 3 3) (layer "F.Cu")
+    (uuid "mh000001")
+    (pad "" np_thru_hole circle (at 0 0) (size 2.2 2.2) (drill 2.2) (layers "*.Cu" "*.Mask") (uuid "mhp000001"))
+  )
+  (footprint "MountingHole:MountingHole_2.2mm_M2" (at 27 3) (layer "F.Cu")
+    (uuid "mh000002")
+    (pad "" np_thru_hole circle (at 0 0) (size 2.2 2.2) (drill 2.2) (layers "*.Cu" "*.Mask") (uuid "mhp000002"))
+  )
+  (footprint "MountingHole:MountingHole_2.2mm_M2" (at 3 65) (layer "F.Cu")
+    (uuid "mh000003")
+    (pad "" np_thru_hole circle (at 0 0) (size 2.2 2.2) (drill 2.2) (layers "*.Cu" "*.Mask") (uuid "mhp000003"))
+  )
+  (footprint "MountingHole:MountingHole_2.2mm_M2" (at 27 65) (layer "F.Cu")
+    (uuid "mh000004")
+    (pad "" np_thru_hole circle (at 0 0) (size 2.2 2.2) (drill 2.2) (layers "*.Cu" "*.Mask") (uuid "mhp000004"))
+  )
+
+  ;; ── J1 - ICS-43434 standoff pads (1x5, 1.27mm pitch) ────────────────────
+  ;; Placed at top center. 5 pads: VDD, GND, WS, SD, SCK
+  ;; Pin pitch 1.27mm, row at x=15, centered: span = 4*1.27 = 5.08mm
+  ;; Pad 1 at (12.46, 4.5), pad 5 at (17.54, 4.5)
+  (footprint "Connector_PinHeader_1.27mm:PinHeader_1x05_P1.27mm_Vertical" (at 12.46 4.5 0) (layer "F.Cu")
+    (uuid "dd000001")
+    (fp_text reference "J_MIC" (at 2.54 -1.5) (layer "F.SilkS") (effects (font (size 0.7 0.7) (thickness 0.1))) (uuid "ee000001"))
+    (fp_text value "ICS-43434" (at 2.54 1.5) (layer "F.Fab") (effects (font (size 0.7 0.7) (thickness 0.1))) (uuid "ee000002"))
+    (pad "1" thru_hole rect   (at 0 0)     (size 1.5 1.5) (drill 0.8) (layers "*.Cu" "*.Mask") (net 1 "3V3")     (uuid "ff000001"))
+    (pad "2" thru_hole circle (at 1.27 0)  (size 1.5 1.5) (drill 0.8) (layers "*.Cu" "*.Mask") (net 2 "GND")     (uuid "ff000002"))
+    (pad "3" thru_hole circle (at 2.54 0)  (size 1.5 1.5) (drill 0.8) (layers "*.Cu" "*.Mask") (net 3 "I2S_WS")  (uuid "ff000003"))
+    (pad "4" thru_hole circle (at 3.81 0)  (size 1.5 1.5) (drill 0.8) (layers "*.Cu" "*.Mask") (net 4 "I2S_SD")  (uuid "ff000004"))
+    (pad "5" thru_hole circle (at 5.08 0)  (size 1.5 1.5) (drill 0.8) (layers "*.Cu" "*.Mask") (net 5 "I2S_SCK") (uuid "ff000005"))
+  )
+
+  ;; Sound port hole (1.5mm) below mic pad center — faces front of case
+  (footprint "MountingHole:MountingHole_1.5mm" (at 15 7.5) (layer "F.Cu")
+    (uuid "dd000002")
+    (fp_text reference "SOUND_PORT" (at 0 -2) (layer "F.SilkS") (effects (font (size 0.5 0.5) (thickness 0.08))) (uuid "ee000003"))
+    (pad "" np_thru_hole circle (at 0 0) (size 1.5 1.5) (drill 1.5) (layers "*.Cu" "*.Mask") (uuid "ff000006"))
+  )
+
+  ;; ── C1 - 100nF 0402 decoupling near mic pads ─────────────────────────────
+  (footprint "Capacitor_SMD:C_0402_1005Metric" (at 19.5 4.5 0) (layer "F.Cu")
+    (uuid "dd000003")
+    (fp_text reference "C1" (at 0 -0.9) (layer "F.SilkS") (effects (font (size 0.6 0.6) (thickness 0.1))) (uuid "ee000004"))
+    (fp_text value "100nF" (at 0 0.9) (layer "F.Fab") (effects (font (size 0.6 0.6) (thickness 0.1))) (uuid "ee000005"))
+    (pad "1" smd roundrect (at -0.48 0) (size 0.56 0.62) (layers "F.Cu" "F.Mask" "F.Paste") (roundrect_rratio 0.25) (net 1 "3V3") (uuid "ff000007"))
+    (pad "2" smd roundrect (at  0.48 0) (size 0.56 0.62) (layers "F.Cu" "F.Mask" "F.Paste") (roundrect_rratio 0.25) (net 2 "GND") (uuid "ff000008"))
+  )
+
+  ;; ── ESP32 38-pin socket (2 rows x 19 pins, 2.54mm pitch) ─────────────────
+  ;; Left row at x=2.3, right row at x=27.7
+  ;; Pin 1 (top) at y=12.0, pin 19 (bottom) at y=12+18*2.54=57.72
+  ;; Left row pinout (top to bottom): GND EN VP VN IO34 IO35 IO32 IO33 IO25 IO26 IO27 IO14 IO12 IO13 SD2 SD3 CMD CLK SD0
+  ;; Right row pinout (top to bottom): 3V3 IO23 IO22 TX RX IO21 IO19 IO18 IO5 IO17 IO16 IO4 IO0 IO2 IO15 SD1 SD0_2 CLK_2 3V3
+  ;; We only need 3V3, GND, GPIO32(WS), GPIO33(SCK), GPIO25(SD) per DESIGN.md
+
+  ;; Left row (x=2.3)
+  (footprint "Connector_PinHeader_2.54mm:PinHeader_1x19_P2.54mm_Vertical" (at 2.3 12.0 0) (layer "F.Cu")
+    (uuid "esp000001")
+    (fp_text reference "U1_L" (at -1.5 23.0) (layer "F.SilkS") (effects (font (size 0.7 0.7) (thickness 0.1)) (justify left)) (uuid "espe000001"))
+    (fp_text value "ESP32_L" (at 0 -1.5) (layer "F.Fab") (effects (font (size 0.7 0.7) (thickness 0.1))) (uuid "espe000002"))
+    (pad "1"  thru_hole rect   (at 0 0)      (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 2 "GND")     (uuid "espl000001"))
+    (pad "2"  thru_hole circle (at 0 2.54)   (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")        (uuid "espl000002"))
+    (pad "3"  thru_hole circle (at 0 5.08)   (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")        (uuid "espl000003"))
+    (pad "4"  thru_hole circle (at 0 7.62)   (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")        (uuid "espl000004"))
+    (pad "5"  thru_hole circle (at 0 10.16)  (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")        (uuid "espl000005"))
+    (pad "6"  thru_hole circle (at 0 12.7)   (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")        (uuid "espl000006"))
+    (pad "7"  thru_hole circle (at 0 15.24)  (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")        (uuid "espl000007"))
+    (pad "8"  thru_hole circle (at 0 17.78)  (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 5 "I2S_SCK") (uuid "espl000008"))
+    (pad "9"  thru_hole circle (at 0 20.32)  (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 3 "I2S_WS")  (uuid "espl000009"))
+    (pad "10" thru_hole circle (at 0 22.86)  (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 4 "I2S_SD")  (uuid "espl000010"))
+    (pad "11" thru_hole circle (at 0 25.4)   (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")        (uuid "espl000011"))
+    (pad "12" thru_hole circle (at 0 27.94)  (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")        (uuid "espl000012"))
+    (pad "13" thru_hole circle (at 0 30.48)  (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")        (uuid "espl000013"))
+    (pad "14" thru_hole circle (at 0 33.02)  (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")        (uuid "espl000014"))
+    (pad "15" thru_hole circle (at 0 35.56)  (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")        (uuid "espl000015"))
+    (pad "16" thru_hole circle (at 0 38.1)   (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")        (uuid "espl000016"))
+    (pad "17" thru_hole circle (at 0 40.64)  (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")        (uuid "espl000017"))
+    (pad "18" thru_hole circle (at 0 43.18)  (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")        (uuid "espl000018"))
+    (pad "19" thru_hole circle (at 0 45.72)  (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")        (uuid "espl000019"))
+  )
+
+  ;; Right row (x=27.7)
+  (footprint "Connector_PinHeader_2.54mm:PinHeader_1x19_P2.54mm_Vertical" (at 27.7 12.0 0) (layer "F.Cu")
+    (uuid "esp000002")
+    (fp_text reference "U1_R" (at 1.5 23.0) (layer "F.SilkS") (effects (font (size 0.7 0.7) (thickness 0.1)) (justify right)) (uuid "espe000003"))
+    (fp_text value "ESP32_R" (at 0 -1.5) (layer "F.Fab") (effects (font (size 0.7 0.7) (thickness 0.1))) (uuid "espe000004"))
+    (pad "1"  thru_hole rect   (at 0 0)      (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 1 "3V3")  (uuid "espr000001"))
+    (pad "2"  thru_hole circle (at 0 2.54)   (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")     (uuid "espr000002"))
+    (pad "3"  thru_hole circle (at 0 5.08)   (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")     (uuid "espr000003"))
+    (pad "4"  thru_hole circle (at 0 7.62)   (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")     (uuid "espr000004"))
+    (pad "5"  thru_hole circle (at 0 10.16)  (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")     (uuid "espr000005"))
+    (pad "6"  thru_hole circle (at 0 12.7)   (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")     (uuid "espr000006"))
+    (pad "7"  thru_hole circle (at 0 15.24)  (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")     (uuid "espr000007"))
+    (pad "8"  thru_hole circle (at 0 17.78)  (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")     (uuid "espr000008"))
+    (pad "9"  thru_hole circle (at 0 20.32)  (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")     (uuid "espr000009"))
+    (pad "10" thru_hole circle (at 0 22.86)  (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")     (uuid "espr000010"))
+    (pad "11" thru_hole circle (at 0 25.4)   (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")     (uuid "espr000011"))
+    (pad "12" thru_hole circle (at 0 27.94)  (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")     (uuid "espr000012"))
+    (pad "13" thru_hole circle (at 0 30.48)  (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")     (uuid "espr000013"))
+    (pad "14" thru_hole circle (at 0 33.02)  (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")     (uuid "espr000014"))
+    (pad "15" thru_hole circle (at 0 35.56)  (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")     (uuid "espr000015"))
+    (pad "16" thru_hole circle (at 0 38.1)   (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")     (uuid "espr000016"))
+    (pad "17" thru_hole circle (at 0 40.64)  (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")     (uuid "espr000017"))
+    (pad "18" thru_hole circle (at 0 43.18)  (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")     (uuid "espr000018"))
+    (pad "19" thru_hole circle (at 0 45.72)  (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 0 "")     (uuid "espr000019"))
+  )
+
+  ;; ── Traces ────────────────────────────────────────────────────────────────
+  ;; 3V3: right row pin1 (27.7,12.0) -> C1 pad1 (19.02,4.5) -> mic pad1 (12.46,4.5)
+  (segment (start 27.7 12.0) (end 27.7 10.0)  (width 0.3) (layer "F.Cu") (net 1) (uuid "tr000001"))
+  (segment (start 27.7 10.0) (end 19.02 10.0) (width 0.3) (layer "F.Cu") (net 1) (uuid "tr000002"))
+  (segment (start 19.02 10.0)(end 19.02 4.5)  (width 0.3) (layer "F.Cu") (net 1) (uuid "tr000003"))
+  (segment (start 18.98 4.5) (end 12.46 4.5)  (width 0.3) (layer "F.Cu") (net 1) (uuid "tr000004"))
+
+  ;; GND: left row pin1 (2.3,12.0) -> C1 pad2 (19.98,4.5) -> mic pad2 (13.73,4.5)
+  (segment (start 2.3 12.0)  (end 2.3 10.5)   (width 0.3) (layer "F.Cu") (net 2) (uuid "tr000005"))
+  (segment (start 2.3 10.5)  (end 7.0 10.5)   (width 0.3) (layer "F.Cu") (net 2) (uuid "tr000006"))
+  (segment (start 7.0 10.5)  (end 7.0 4.5)    (width 0.3) (layer "F.Cu") (net 2) (uuid "tr000007"))
+  (segment (start 7.0 4.5)   (end 13.73 4.5)  (width 0.3) (layer "F.Cu") (net 2) (uuid "tr000008"))
+  ;; C1 GND pad
+  (segment (start 7.0 4.5)   (end 19.98 4.5)  (width 0.3) (layer "F.Cu") (net 2) (uuid "tr000009"))
+
+  ;; WS (GPIO25): left row pin9 (2.3, 12+8*2.54=32.32) -> mic pad3 (15.0,4.5)
+  (segment (start 2.3 32.32) (end 5.5 32.32)  (width 0.25) (layer "F.Cu") (net 3) (uuid "tr000010"))
+  (segment (start 5.5 32.32) (end 5.5 6.0)    (width 0.25) (layer "F.Cu") (net 3) (uuid "tr000011"))
+  (segment (start 5.5 6.0)   (end 15.0 6.0)   (width 0.25) (layer "F.Cu") (net 3) (uuid "tr000012"))
+  (segment (start 15.0 6.0)  (end 15.0 4.5)   (width 0.25) (layer "F.Cu") (net 3) (uuid "tr000013"))
+
+  ;; SD (GPIO32 = left pin8, y=12+7*2.54=29.78) -> mic pad4 (16.27,4.5)
+  (segment (start 2.3 29.78) (end 6.5 29.78)  (width 0.25) (layer "F.Cu") (net 4) (uuid "tr000014"))
+  (segment (start 6.5 29.78) (end 6.5 6.5)    (width 0.25) (layer "F.Cu") (net 4) (uuid "tr000015"))
+  (segment (start 6.5 6.5)   (end 16.27 6.5)  (width 0.25) (layer "F.Cu") (net 4) (uuid "tr000016"))
+  (segment (start 16.27 6.5) (end 16.27 4.5)  (width 0.25) (layer "F.Cu") (net 4) (uuid "tr000017"))
+
+  ;; SCK (GPIO33 = left pin8 offset check: GPIO33=pin8 y=12+7*2.54=29.78)
+  ;; Wait -- GPIO33=pad8, GPIO32=pad9. Recalculate:
+  ;; Left row bottom-to-top (per ESP32 38-pin standard):
+  ;; pad1=GND pad8=GPIO33(SCK) pad9=GPIO25(WS)...
+  ;; Actually using the layout as defined above where:
+  ;; pad8 = I2S_SCK (GPIO33) at y=12+7*2.54=29.78  -- already used for SD above
+  ;; pad9 = I2S_WS  (GPIO25) at y=12+8*2.54=32.32  -- already used for WS above
+  ;; pad10= I2S_SD  (GPIO32) at y=12+9*2.54=34.86
+  ;; Fix: SCK is pad8 (y=29.78), WS is pad9 (y=32.32), SD is pad10 (y=34.86)
+
+  ;; SD (GPIO32 = left pad10, y=34.86) -> mic pad4 (16.27,4.5) -- override tr000014-17
+  ;; SCK already correct at pad8 (y=29.78)
+
+  ;; Corrected SD route
+  (segment (start 2.3 34.86) (end 6.5 34.86)  (width 0.25) (layer "F.Cu") (net 4) (uuid "tr000018"))
+  (segment (start 6.5 34.86) (end 6.5 7.0)    (width 0.25) (layer "F.Cu") (net 4) (uuid "tr000019"))
+  (segment (start 6.5 7.0)   (end 16.27 7.0)  (width 0.25) (layer "F.Cu") (net 4) (uuid "tr000020"))
+  (segment (start 16.27 7.0) (end 16.27 4.5)  (width 0.25) (layer "F.Cu") (net 4) (uuid "tr000021"))
+
+  ;; ── Silkscreen ────────────────────────────────────────────────────────────
+  (gr_text "SoundSpy Node v1.0" (at 15 61.0) (layer "F.SilkS")
+    (effects (font (size 0.8 0.8) (thickness 0.12)))
+    (uuid "cc000010")
+  )
+  (gr_text "MIC" (at 15 2.5) (layer "F.SilkS")
+    (effects (font (size 0.7 0.7) (thickness 0.1)))
+    (uuid "cc000011")
+  )
+  (gr_text "USB-C" (at 15 66.0) (layer "F.SilkS")
+    (effects (font (size 0.6 0.6) (thickness 0.09)))
+    (uuid "cc000012")
+  )
+  ;; ESP32 outline silkscreen
+  (gr_rect (start 4.57 12.0) (end 25.43 57.72) (layer "F.SilkS") (width 0.1) (uuid "cc000013"))
+
+  ;; ── GND fill (B.Cu) ───────────────────────────────────────────────────────
+  (zone (net 2) (net_name "GND") (layer "B.Cu") (uuid "bb000001")
+    (hatch edge 0.5)
+    (connect_pads (clearance 0.3))
+    (min_thickness 0.25)
+    (fill yes (thermal_gap 0.5) (thermal_bridge_width 0.5))
+    (polygon
+      (pts (xy 0.5 0.5) (xy 29.5 0.5) (xy 29.5 67.5) (xy 20.5 67.5) (xy 20.5 64.5) (xy 9.5 64.5) (xy 9.5 67.5) (xy 0.5 67.5))
+    )
+  )
+
+)
