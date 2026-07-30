@@ -171,7 +171,7 @@
         .audio-control {
             background: #1a2e24;
             border: 1px solid #2a4a34;
-            color: #8b92a8;
+            color: #6b9e7a;
             padding: 6px 12px;
             border-radius: 4px;
             cursor: pointer;
@@ -286,7 +286,7 @@
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            background: #666;
+            background: #2a4a34;
             margin-left: 5px;
         }
 
@@ -305,7 +305,8 @@
         }
 
         .status-dot.offline {
-            background: #666;
+            background: #2a4a34;
+            box-shadow: none;
             animation: none;
         }
 
@@ -392,8 +393,18 @@
             font-family: monospace;
             position: relative;
             z-index: 1;
-            min-width: 3ch;
             text-align: center;
+        }
+
+        .overall-value {
+            display: inline-block;
+            position: relative;
+        }
+
+        .level-sign {
+            position: absolute;
+            right: calc(100% + 3px);
+            opacity: 0.7;
         }
 
         .control-box.overall-level .subtitle {
@@ -512,7 +523,7 @@
         .time-range-btn {
             background: #1a2e24;
             border: 1px solid #2a4a34;
-            color: #8b92a8;
+            color: #6b9e7a;
             padding: 6px 14px;
             border-radius: 4px;
             cursor: pointer;
@@ -572,6 +583,8 @@
             font-weight: 600;
             color: #44dd66;
             text-shadow: 0 0 4px rgba(68, 221, 102, 0.3);
+            cursor: pointer;
+            user-select: none;
         }
 
         .chart-wrapper {
@@ -599,6 +612,11 @@
             align-items: center;
             justify-content: center;
             gap: 8px;
+        }
+
+        .threshold-unit-spacer {
+            width: 28px;
+            visibility: hidden;
         }
 
         .threshold-text-input {
@@ -1063,8 +1081,8 @@
 
     <div class="chart-container">
         <div class="chart-header">
-            <div class="chart-title">Level History</div>
-            <div style="display: flex; gap: 16px; align-items: center;">
+            <div class="chart-title" onclick="toggleChart()"><span class="log-toggle-icon" id="chartToggle">−</span> Level History</div>
+            <div id="chartControls" style="display: flex; gap: 16px; align-items: center;">
                 <div class="filter-group">
                     <span class="filter-label">Node</span>
                     <div class="time-range-selector" id="historyNodeSelector">
@@ -1085,8 +1103,10 @@
                 </div>
             </div>
         </div>
-        <div class="chart-wrapper">
-            <canvas id="historyChart"></canvas>
+        <div id="chartBody">
+            <div class="chart-wrapper">
+                <canvas id="historyChart"></canvas>
+            </div>
         </div>
     </div>
 
@@ -1172,6 +1192,14 @@
         // Exponential moving average for overall level display
         const emaLevels = {};
         const EMA_ALPHA = 0.08;
+
+        // Render level with sign absolutely positioned so only digits participate in centering
+        function fmtLevel(val) {
+            const n = Math.round(val);
+            const sign = n < 0 ? '<span class="level-sign">−</span>' : '';
+            return sign + Math.abs(n);
+        }
+
         function getSmoothedLevel(nodeId, rawDbfs) {
             const clamped = Math.max(-80, rawDbfs);
             if (!(nodeId in emaLevels)) {
@@ -2150,6 +2178,7 @@
                                 <label>Alert Threshold</label>
                                 <div class="threshold-control">
                                     <div class="threshold-input-group">
+                                        <span class="threshold-unit-spacer">dBA</span>
                                         <input type="number"
                                                id="threshold-input-${nodeId}"
                                                class="threshold-text-input"
@@ -2268,7 +2297,7 @@
 
                 // Drop level and spectrum to floor when offline/sleeping
                 if (!isOnline || isSleeping) {
-                    card.querySelector('.overall-value').textContent = '-80';
+                    card.querySelector('.overall-value').innerHTML = fmtLevel(-80);
                     drawLevelMeter(nodeId, -80);
                     drawEQ(nodeId, [-80, -80, -80, -80, -80, -80]);
                     card.classList.remove('alert');
@@ -2282,7 +2311,7 @@
                     rawLevels[nodeId] = Math.max(-80, rawLevel);
                     const smoothed = getSmoothedLevel(nodeId, rawLevel);
                     const displayDbfs = Math.max(-80, smoothed);
-                    card.querySelector('.overall-value').textContent = Math.round(displayDbfs);
+                    card.querySelector('.overall-value').innerHTML = fmtLevel(displayDbfs);
                     // Peak tracks smoothed level; bar follows raw
                     drawLevelMeter(nodeId, displayDbfs, rawLevels[nodeId]);
 
@@ -2633,6 +2662,16 @@
             renderLog();
             logAutoScroll = true;
             document.getElementById('logResumeBtn').style.display = 'none';
+        }
+
+        function toggleChart() {
+            const body = document.getElementById('chartBody');
+            const controls = document.getElementById('chartControls');
+            const icon = document.getElementById('chartToggle');
+            const collapsed = body.style.display === 'none';
+            body.style.display = collapsed ? '' : 'none';
+            controls.style.display = collapsed ? 'flex' : 'none';
+            icon.textContent = collapsed ? '−' : '+';
         }
 
         function toggleLog() {
