@@ -81,16 +81,25 @@ unsigned long lastPublish = 0;
 uint32_t messageSeq = 0;
 
 // I2S watchdog — detect bus lockup (sustained -180 dBFS)
-#define I2S_WATCHDOG_THRESHOLD 5   // consecutive -180 readings before recovery
+#define I2S_WATCHDOG_THRESHOLD 150  // ~3 seconds at 50Hz before reinit
 #define I2S_WATCHDOG_DBFS_FLOOR -170.0f
+#define I2S_STARTUP_GRACE_MS 5000   // ignore dead reads for 5s after boot
 int i2sLockupCount = 0;
+unsigned long bootTime = 0;
+
+int i2sReinitCount = 0;
 
 void reinitI2S() {
   Serial.println("[IMPORTANT] I2S watchdog: reinitializing bus");
   i2s_driver_uninstall(I2S_PORT);
-  delay(50);
+  delay(200);
   setupI2S();
-  i2sLockupCount = 0;
+  // Discard first few DMA buffers (mic settling time)
+  size_t discard;
+  for (int i = 0; i < 4; i++) {
+    i2s_read(I2S_PORT, i2s_read_buf, sizeof(i2s_read_buf), &discard, 100);
+  }
+  i2sReinitCount++;
 }
 
 void configureBands() {
@@ -304,6 +313,7 @@ void setup() {
   connectMQTT();
   connectWebSocket();
   lastPublish = millis();
+  bootTime = millis();
 
   Serial.println("[IMPORTANT] Initialization complete, starting main loop\n");
 }
@@ -351,14 +361,17 @@ void loop() {
     float dbfsOverall = 20.0f * log10f(rmsOverall + 1e-9f);
 
     // I2S watchdog: detect sustained silence (bus lockup)
-    if (dbfsOverall < I2S_WATCHDOG_DBFS_FLOOR) {
+    // Skip during startup grace period
+    if (dbfsOverall < I2S_WATCHDOG_DBFS_FLOOR && millis() - bootTime > I2S_STARTUP_GRACE_MS) {
       i2sLockupCount++;
-      if (i2sLockupCount >= I2S_WATCHDOG_THRESHOLD * 2) {
-        Serial.println("[IMPORTANT] I2S watchdog: reinit failed, rebooting");
+      if (i2sReinitCount >= 3) {
+        Serial.println("[IMPORTANT] I2S watchdog: 3 reinits failed, rebooting");
         delay(100);
         ESP.restart();
       } else if (i2sLockupCount >= I2S_WATCHDOG_THRESHOLD) {
         reinitI2S();
+        i2sLockupCount = 0;
+        bootTime = millis();  // fresh grace window after reinit
         sumSquaresOverall = 0;
         sampleCount = 0;
         lastPublish = millis();
@@ -366,6 +379,7 @@ void loop() {
       }
     } else {
       i2sLockupCount = 0;
+      i2sReinitCount = 0;  // good data = reset reinit counter
     }
 
     char payload[512];
