@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/rojosinalma/soundspy/main/assets/logo.svg" width="120" alt="soundspy logo"/>
+</p>
+
 # soundspy — Multi-Node Sound Monitoring System
 
 Real-time multi-band frequency analysis and audio monitoring system for tracking sound levels across multiple locations. Designed for monitoring when audio production (studio monitors, instruments) might be disturbing neighbors through shared walls.
