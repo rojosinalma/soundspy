@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>soundspy - Sound Monitor Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
@@ -23,31 +24,32 @@
 
         .header {
             text-align: center;
-            margin-bottom: 30px;
-            padding: 24px 0;
+            margin-bottom: 16px;
+            padding: 12px 0;
             border-bottom: 1px solid #1e2744;
             position: relative;
         }
 
         .header h1 {
-            font-size: 2.2em;
-            font-weight: 600;
-            margin-bottom: 6px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1.5em;
+            font-weight: 400;
+            margin-bottom: 2px;
             color: #fff;
-            letter-spacing: -0.5px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
         }
 
         .header h1 span {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: #44dd66;
+            text-shadow: 0 0 8px #44dd66, 0 0 2px #44dd66;
         }
 
         .header p {
-            color: #8b92a8;
-            font-size: 0.95em;
-            letter-spacing: 0.5px;
+            font-family: 'Share Tech Mono', monospace;
+            color: #2a6e3f;
+            font-size: 0.65em;
+            letter-spacing: 1.5px;
             text-transform: uppercase;
         }
 
@@ -126,6 +128,23 @@
             font-size: 1.4em;
             font-weight: 600;
             color: #fff;
+        }
+
+        .node-edit-btn {
+            background: none;
+            border: none;
+            color: #555;
+            font-size: 0.7em;
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 3px;
+            vertical-align: middle;
+            margin-left: 4px;
+        }
+
+        .node-edit-btn:hover {
+            color: #f59e0b;
+            background: rgba(245, 158, 11, 0.1);
         }
 
         .node-status {
@@ -260,6 +279,7 @@
             height: 10px;
             border-radius: 50%;
             background: #4caf50;
+            box-shadow: 0 0 6px #4caf50, 0 0 12px rgba(76, 175, 80, 0.4);
             animation: blink 2s infinite;
         }
 
@@ -1462,10 +1482,10 @@
 
             const btn = document.getElementById(`audio-btn-${nodeId}`);
             if (audioPlayers[nodeId].muted) {
-                btn.textContent = '🔇 Muted';
+                btn.textContent = '◁ Muted';
                 btn.classList.remove('active');
             } else {
-                btn.textContent = '🔊 Playing';
+                btn.textContent = '◁ Playing';
                 btn.classList.add('active');
                 // Resume audio context if suspended (browser autoplay policy)
                 if (audioContext.state === 'suspended') {
@@ -1907,16 +1927,17 @@
                     card.innerHTML = `
                         <div class="node-header">
                             <div class="node-name">
-                                <span id="node-display-name-${nodeId}" ondblclick="renameNode('${nodeId}')" title="Double-click to rename">${displayName}</span>
-                                <span class="audio-indicator" id="audio-indicator-${nodeId}"></span>
+                                <span id="node-display-name-${nodeId}">${displayName}</span>
+                                <button class="node-edit-btn" onclick="renameNode('${nodeId}')" title="Rename node">✎</button>
                                 <div style="font-size: 0.65em; color: #666; font-weight: 400; margin-top: 2px;">
                                     <span style="color: #555;">${nodeId}</span> | <span id="fw-version-${nodeId}">Unknown</span> | <span id="node-ip-${nodeId}">--</span>
                                 </div>
                             </div>
                             <div class="node-status">
                                 <button class="audio-control" onclick="toggleAudio('${nodeId}')" id="audio-btn-${nodeId}">
-                                    🔇 Muted
+                                    ◁ Muted
                                 </button>
+                                <span class="audio-indicator" id="audio-indicator-${nodeId}"></span>
                                 <div class="status-dot"></div>
                                 <span class="status-text">Online</span>
                             </div>
@@ -2549,20 +2570,48 @@
         }
 
         function renameNode(nodeId) {
-            const current = nodeDisplayNames[nodeId] || nodeId;
-            const newName = prompt('Rename node:', current);
-            if (!newName || newName.trim() === '' || newName.trim() === current) return;
-            fetch('/api/node/rename', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({chip_id: nodeId, name: newName.trim()})
-            }).then(res => res.json()).then(data => {
-                if (data.success) {
-                    nodeDisplayNames[nodeId] = newName.trim();
-                    const el = document.getElementById(`node-display-name-${nodeId}`);
-                    if (el) el.textContent = newName.trim();
+            const el = document.getElementById(`node-display-name-${nodeId}`);
+            if (!el || el.contentEditable === 'true') return;
+            const current = el.textContent;
+            el.contentEditable = 'true';
+            el.style.outline = '1px solid #f59e0b';
+            el.style.padding = '0 4px';
+            el.style.borderRadius = '3px';
+            el.focus();
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            window.getSelection().removeAllRanges();
+            window.getSelection().addRange(range);
+
+            const commit = () => {
+                el.contentEditable = 'false';
+                el.style.outline = '';
+                el.style.padding = '';
+                const newName = el.textContent.trim();
+                if (!newName || newName === current) {
+                    el.textContent = current;
+                    return;
                 }
-            }).catch(err => console.error('Rename failed:', err));
+                fetch('/api/node/rename', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({chip_id: nodeId, name: newName})
+                }).then(res => res.json()).then(data => {
+                    if (data.success) {
+                        nodeDisplayNames[nodeId] = newName;
+                    } else {
+                        el.textContent = current;
+                    }
+                }).catch(() => { el.textContent = current; });
+            };
+
+            el.addEventListener('blur', commit, {once: true});
+            const onKey = (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+                if (e.key === 'Escape') { el.textContent = current; el.blur(); }
+            };
+            el.addEventListener('keydown', onKey);
+            el.addEventListener('blur', () => el.removeEventListener('keydown', onKey), {once: true});
         }
 
         // OTA Update functions
