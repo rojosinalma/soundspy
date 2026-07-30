@@ -362,6 +362,24 @@
             z-index: 1;
         }
 
+        .level-meter-box {
+            flex: 0 0 36px;
+            min-width: 36px;
+            height: 120px;
+            padding: 8px 6px;
+            background: #0f1426;
+            border-radius: 6px;
+            display: flex;
+            align-items: stretch;
+            justify-content: center;
+        }
+
+        .level-meter-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
         .eq-container {
             margin-top: 8px;
             padding: 12px;
@@ -543,12 +561,14 @@
             display: flex;
             flex-direction: column;
             gap: 8px;
-            align-items: center;
+            align-items: stretch;
+            width: 100%;
         }
 
         .threshold-input-group {
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 8px;
         }
 
@@ -579,11 +599,10 @@
         }
 
         .threshold-slider {
-            width: 200px;
+            width: 100%;
             height: 6px;
             -webkit-appearance: none;
             appearance: none;
-            background: linear-gradient(to right, #22c55e 0%, #22c55e 75%, #f59e0b 75%, #f59e0b 87.5%, #ef4444 87.5%, #ef4444 100%);
             border-radius: 3px;
             outline: none;
         }
@@ -591,23 +610,73 @@
         .threshold-slider::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
-            width: 18px;
-            height: 18px;
-            background: #f59e0b;
-            border: 2px solid #fff;
+            width: 16px;
+            height: 16px;
+            background: #e2e8f0;
+            border: 2px solid #94a3b8;
             border-radius: 50%;
             cursor: pointer;
             box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
 
         .threshold-slider::-moz-range-thumb {
-            width: 18px;
-            height: 18px;
-            background: #f59e0b;
-            border: 2px solid #fff;
+            width: 16px;
+            height: 16px;
+            background: #e2e8f0;
+            border: 2px solid #94a3b8;
             border-radius: 50%;
             cursor: pointer;
             box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .threshold-slider-marks {
+            position: relative;
+            width: 100%;
+            height: 16px;
+            margin-top: 2px;
+        }
+
+        .threshold-slider-marks .mark {
+            position: absolute;
+            transform: translateX(-50%);
+            font-size: 0.55em;
+            color: #555;
+            top: 0;
+        }
+
+        .threshold-slider-marks .mark::before {
+            content: '';
+            position: absolute;
+            top: -4px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 1px;
+            height: 3px;
+            background: #444;
+        }
+
+        .threshold-slider-marks .zone-mark {
+            font-size: 0.5em;
+            font-weight: 600;
+            top: 0;
+        }
+
+        .threshold-slider-marks .zone-mark.yellow {
+            color: #f59e0b;
+        }
+
+        .threshold-slider-marks .zone-mark.yellow::before {
+            background: #f59e0b;
+            height: 4px;
+        }
+
+        .threshold-slider-marks .zone-mark.red {
+            color: #ef4444;
+        }
+
+        .threshold-slider-marks .zone-mark.red::before {
+            background: #ef4444;
+            height: 4px;
         }
 
         .node-actions {
@@ -968,13 +1037,18 @@
     <div class="chart-container">
         <div class="chart-header">
             <div class="chart-title">Level History</div>
-            <div class="time-range-selector">
-                <button class="time-range-btn" onclick="setTimeRange('realtime')">Real-time</button>
-                <button class="time-range-btn active" onclick="setTimeRange(60)">1m</button>
-                <button class="time-range-btn" onclick="setTimeRange(300)">5m</button>
-                <button class="time-range-btn" onclick="setTimeRange(600)">10m</button>
-                <button class="time-range-btn" onclick="setTimeRange(1800)">30m</button>
-                <button class="time-range-btn" onclick="setTimeRange(3600)">1h</button>
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <div class="time-range-selector" id="historyNodeSelector">
+                    <button class="time-range-btn history-node-btn active" data-node="all" onclick="selectHistoryNode('all')">All</button>
+                </div>
+                <div class="time-range-selector">
+                    <button class="time-range-btn" onclick="setTimeRange('realtime')">Real-time</button>
+                    <button class="time-range-btn active" onclick="setTimeRange(60)">1m</button>
+                    <button class="time-range-btn" onclick="setTimeRange(300)">5m</button>
+                    <button class="time-range-btn" onclick="setTimeRange(600)">10m</button>
+                    <button class="time-range-btn" onclick="setTimeRange(1800)">30m</button>
+                    <button class="time-range-btn" onclick="setTimeRange(3600)">1h</button>
+                </div>
             </div>
         </div>
         <div class="chart-wrapper">
@@ -1016,6 +1090,41 @@
         let historyChart;
         let nodesData = {};
         let thresholdValue = -20;
+        const nodeThresholds = {};  // { nodeId: value }
+        let historySelectedNode = 'all';
+
+        function getEffectiveThreshold() {
+            const values = Object.values(nodeThresholds);
+            if (values.length === 0) return thresholdValue;
+            return Math.min(...values);
+        }
+
+        function selectHistoryNode(nodeId) {
+            historySelectedNode = nodeId;
+            document.querySelectorAll('.history-node-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.node === nodeId);
+            });
+            updateChart();
+        }
+
+        function updateHistoryNodeSelector() {
+            const container = document.getElementById('historyNodeSelector');
+            if (!container) return;
+            const nodes = Object.keys(nodesData);
+            const existing = container.querySelectorAll('.history-node-btn[data-node]');
+            const existingNodes = new Set([...existing].map(el => el.dataset.node));
+
+            nodes.forEach(nodeId => {
+                if (nodeId && !existingNodes.has(nodeId)) {
+                    const btn = document.createElement('button');
+                    btn.className = 'time-range-btn history-node-btn';
+                    btn.dataset.node = nodeId;
+                    btn.textContent = nodeId;
+                    btn.onclick = () => selectHistoryNode(nodeId);
+                    container.appendChild(btn);
+                }
+            });
+        }
         let logEntries = [];
         const MAX_LOG_ENTRIES = 100;
 
@@ -1030,6 +1139,97 @@
                 emaLevels[nodeId] += EMA_ALPHA * (clamped - emaLevels[nodeId]);
             }
             return emaLevels[nodeId];
+        }
+
+        // Overall level meter peak tracking
+        const meterPeaks = {};
+        const meterPeakTimestamps = {};
+        const METER_PEAK_HOLD = 3000;
+        const METER_PEAK_FADE = 500;
+
+        function getBarColor(dbfs) {
+            if (dbfs >= thresholdValue) return '#ef4444';
+            if (dbfs >= thresholdValue - 10) return '#f59e0b';
+            return '#22c55e';
+        }
+
+        function drawLevelMeter(nodeId, dbfs) {
+            const canvas = document.getElementById(`level-meter-${nodeId}`);
+            if (!canvas) return;
+
+            const ctx = canvas.getContext('2d');
+            const totalWidth = canvas.clientWidth;
+            const totalHeight = canvas.clientHeight;
+            if (totalWidth === 0 || totalHeight === 0) return;
+
+            canvas.width = totalWidth;
+            canvas.height = totalHeight;
+
+            const dbfsMin = -80, dbfsMax = 0;
+            const width = totalWidth;
+            const height = totalHeight;
+            const segGap = 2;
+            const segCount = 20;
+            const segHeight = (height - segGap * (segCount - 1)) / segCount;
+            const normalized = Math.max(0, Math.min(1, (dbfs - dbfsMin) / (dbfsMax - dbfsMin)));
+            const filledSegs = Math.round(normalized * segCount);
+
+            // Zone backgrounds
+            const yellowStart = thresholdValue - 10;
+            const zones = [
+                { from: dbfsMin, to: yellowStart, color: 'rgba(34, 197, 94, 0.15)' },
+                { from: yellowStart, to: thresholdValue, color: 'rgba(245, 158, 11, 0.22)' },
+                { from: thresholdValue, to: dbfsMax, color: 'rgba(239, 68, 68, 0.25)' }
+            ];
+            zones.forEach(zone => {
+                const yTop = height - ((Math.min(zone.to, dbfsMax) - dbfsMin) / (dbfsMax - dbfsMin)) * height;
+                const yBot = height - ((Math.max(zone.from, dbfsMin) - dbfsMin) / (dbfsMax - dbfsMin)) * height;
+                ctx.fillStyle = zone.color;
+                ctx.fillRect(0, yTop, width, yBot - yTop);
+            });
+
+            // Draw segmented bar from bottom up
+            for (let i = 0; i < segCount; i++) {
+                const y = height - (i + 1) * segHeight - i * segGap;
+                const segDbfs = dbfsMin + ((i + 0.5) / segCount) * (dbfsMax - dbfsMin);
+                if (i < filledSegs) {
+                    ctx.fillStyle = getBarColor(segDbfs);
+                    ctx.fillRect(1, y, width - 2, segHeight);
+                } else {
+                    ctx.fillStyle = 'rgba(255,255,255,0.03)';
+                    ctx.fillRect(1, y, width - 2, segHeight);
+                }
+            }
+
+            // Peak hold
+            const now = Date.now();
+            if (!(nodeId in meterPeaks)) {
+                meterPeaks[nodeId] = dbfs;
+                meterPeakTimestamps[nodeId] = now;
+            }
+            if (dbfs > meterPeaks[nodeId]) {
+                meterPeaks[nodeId] = dbfs;
+                meterPeakTimestamps[nodeId] = now;
+            }
+            const timeSincePeak = now - meterPeakTimestamps[nodeId];
+            let peakAlpha = 1;
+            if (timeSincePeak > METER_PEAK_HOLD) {
+                peakAlpha = 1 - Math.min(1, (timeSincePeak - METER_PEAK_HOLD) / METER_PEAK_FADE);
+                if (peakAlpha <= 0) meterPeaks[nodeId] = dbfs;
+            }
+            const peakNorm = Math.max(0, Math.min(1, (meterPeaks[nodeId] - dbfsMin) / (dbfsMax - dbfsMin)));
+            if (peakNorm > 0.02) {
+                const peakY = height - peakNorm * height;
+                const peakColor = getBarColor(meterPeaks[nodeId]);
+                ctx.globalAlpha = peakAlpha;
+                ctx.fillStyle = peakColor;
+                ctx.fillRect(0, peakY - 1, width, 3);
+                ctx.shadowColor = peakColor;
+                ctx.shadowBlur = 4;
+                ctx.fillRect(0, peakY - 1, width, 3);
+                ctx.shadowBlur = 0;
+                ctx.globalAlpha = 1;
+            }
         }
 
         // Audio streaming setup
@@ -1164,51 +1364,89 @@
             });
         }
 
+        function updateSliderGradient(slider, value) {
+            const min = parseFloat(slider.min);
+            const max = parseFloat(slider.max);
+            const range = max - min;
+            const yellowStart = ((value - 10 - min) / range) * 100;
+            const redStart = ((value - min) / range) * 100;
+            const greenEnd = Math.max(0, yellowStart);
+            const redEnd = Math.min(100, redStart);
+            slider.style.background = `linear-gradient(to right, #22c55e 0%, #22c55e ${greenEnd}%, #f59e0b ${greenEnd}%, #f59e0b ${redEnd}%, #ef4444 ${redEnd}%, #ef4444 100%)`;
+        }
+
+        function updateSliderMarks(nodeId, value) {
+            const container = document.getElementById(`threshold-marks-${nodeId}`);
+            if (!container) return;
+            const min = -80, max = 0, range = max - min;
+            const toPercent = (db) => ((db - min) / range) * 100;
+
+            const fixedMarks = [];
+            for (let db = -80; db <= 0; db += 10) fixedMarks.push(db);
+            const yellowDb = value - 10;
+
+            let html = '';
+            fixedMarks.forEach(db => {
+                html += `<span class="mark" style="left:${toPercent(db)}%">${db}</span>`;
+            });
+            if (yellowDb > min && yellowDb < max && !fixedMarks.includes(yellowDb)) {
+                html += `<span class="mark zone-mark yellow" style="left:${toPercent(yellowDb)}%">▲</span>`;
+            }
+            if (value > min && value < max && !fixedMarks.includes(value)) {
+                html += `<span class="mark zone-mark red" style="left:${toPercent(value)}%">▲</span>`;
+            }
+            container.innerHTML = html;
+        }
+
         function initThresholdControls(nodeId) {
             const slider = document.getElementById(`threshold-slider-${nodeId}`);
             const input = document.getElementById(`threshold-input-${nodeId}`);
 
             if (!slider || !input) return;
 
-            const snapPoints = [-20, -10];
-            const snapRange = 1.5;
-
-            const snapValue = (val) => {
-                for (const snap of snapPoints) {
-                    if (Math.abs(val - snap) <= snapRange) return snap;
-                }
-                return Math.round(val * 10) / 10;
+            const snapToMark = (val) => {
+                const nearest = Math.round(val / 10) * 10;
+                return Math.abs(val - nearest) <= 1.5 ? nearest : val;
             };
 
             const updateValue = (value) => {
-                const clamped = Math.max(-80, Math.min(0, parseFloat(value) || -20));
+                const parsed = parseFloat(value);
+                const raw = isNaN(parsed) ? -20 : Math.round(parsed * 2) / 2;
+                const snapped = snapToMark(raw);
+                const clamped = Math.max(-80, Math.min(0, snapped));
                 input.value = clamped;
                 slider.value = clamped;
                 thresholdValue = clamped;
+                nodeThresholds[nodeId] = clamped;
+                updateSliderGradient(slider, clamped);
+                updateSliderMarks(nodeId, clamped);
                 return clamped;
             };
 
-            // Sync slider to input with snapping
             slider.addEventListener('input', (e) => {
-                const snapped = snapValue(parseFloat(e.target.value));
-                updateValue(snapped);
+                updateValue(e.target.value);
             });
 
-            // Sync input to slider (while typing)
+            slider.addEventListener('dblclick', () => {
+                updateValue(-20);
+            });
+
             input.addEventListener('input', (e) => {
                 const value = parseFloat(e.target.value);
                 if (!isNaN(value)) {
-                    slider.value = Math.max(-80, Math.min(0, value));
-                    thresholdValue = Math.max(-80, Math.min(0, value));
+                    const clamped = Math.max(-80, Math.min(0, value));
+                    slider.value = clamped;
+                    thresholdValue = clamped;
+                    nodeThresholds[nodeId] = clamped;
+                    updateSliderGradient(slider, clamped);
+                    updateSliderMarks(nodeId, clamped);
                 }
             });
 
-            // Validate and clamp on blur (when user finishes editing)
             input.addEventListener('blur', (e) => {
                 updateValue(e.target.value);
             });
 
-            // Validate and clamp on Enter key
             input.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
                     updateValue(e.target.value);
@@ -1216,9 +1454,8 @@
                 }
             });
 
-            // Set initial values from HTML or global thresholdValue
-            const initialValue = parseFloat(input.value) || thresholdValue;
-            updateValue(initialValue);
+            const initialValue = parseFloat(input.value);
+            updateValue(isNaN(initialValue) ? -20 : initialValue);
         }
 
         function toggleAudio(nodeId) {
@@ -1373,11 +1610,12 @@
                     beforeDraw(chart) {
                         const {ctx, chartArea, scales: {y}} = chart;
                         if (!chartArea) return;
-                        const yellowStart = thresholdValue - 10;
+                        const t = historySelectedNode === 'all' ? getEffectiveThreshold() : (nodeThresholds[historySelectedNode] || thresholdValue);
+                        const yellowStart = t - 10;
                         const zones = [
                             {from: -80, to: yellowStart, color: 'rgba(34, 197, 94, 0.15)'},
-                            {from: yellowStart, to: thresholdValue, color: 'rgba(245, 158, 11, 0.22)'},
-                            {from: thresholdValue, to: 0, color: 'rgba(239, 68, 68, 0.25)'}
+                            {from: yellowStart, to: t, color: 'rgba(245, 158, 11, 0.22)'},
+                            {from: t, to: 0, color: 'rgba(239, 68, 68, 0.25)'}
                         ];
                         zones.forEach(zone => {
                             const yTop = y.getPixelForValue(zone.to);
@@ -1407,16 +1645,6 @@
             document.getElementById(`eq-mode-wave-${nodeId}`).classList.toggle('active', mode === 'wave');
 
             // Redraw (will be called on next data update)
-        }
-
-        function getBarColor(dbfs) {
-            if (dbfs >= -10) {
-                return '#ef4444';  // Red (neighbors will hear)
-            } else if (dbfs >= -20) {
-                return '#f59e0b';  // Yellow (noticeably loud)
-            } else {
-                return '#22c55e';  // Green (respectable volume)
-            }
         }
 
         // Draw EQ visualization
@@ -1700,6 +1928,9 @@
                                 <div class="value"><span class="overall-value">--</span></div>
                                 <div class="subtitle">dBFS</div>
                             </div>
+                            <div class="level-meter-box">
+                                <canvas class="level-meter-canvas" id="level-meter-${nodeId}"></canvas>
+                            </div>
                             <div class="gain-control">
                                 <label>Mic Gain</label>
                                 <div class="knob-container" id="mic-knob-${nodeId}">
@@ -1730,7 +1961,7 @@
                                                id="threshold-input-${nodeId}"
                                                class="threshold-text-input"
                                                value="-20"
-                                               step="0.1"
+                                               step="0.5"
                                                min="-80"
                                                max="0">
                                         <span style="color: #8b92a8;">dBFS</span>
@@ -1741,7 +1972,8 @@
                                            value="-20"
                                            min="-80"
                                            max="0"
-                                           step="0.1">
+                                           step="0.5">
+                                    <div class="threshold-slider-marks" id="threshold-marks-${nodeId}"></div>
                                 </div>
                             </div>
                         </div>
@@ -1823,9 +2055,9 @@
                             </div>
                         </div>
                         <div class="node-actions">
-                            <button class="audio-control" onclick="showOTADialog('${nodeId}')" title="Update Firmware">📡 Update</button>
+                            <button class="audio-control" onclick="showOTADialog('${nodeId}')" title="Update Firmware">↑ Update</button>
                             <button class="audio-control" onclick="rebootNode('${nodeId}')" title="Reboot Node">↻ Reboot</button>
-                            <button class="audio-control" onclick="sleepNode('${nodeId}')" title="Deep Sleep (Power Off)">⏻ Sleep</button>
+                            <button class="audio-control" onclick="sleepNode('${nodeId}')" title="Deep Sleep (Power Off)">☾ Sleep</button>
                             <button class="audio-control" onclick="disconnectNode('${nodeId}')" title="Disconnect Node">✕ Disconnect</button>
                         </div>
                     `;
@@ -1880,6 +2112,7 @@
                     const smoothed = getSmoothedLevel(nodeId, data.current.overall_dbfs);
                     const displayDbfs = Math.max(-80, smoothed);
                     card.querySelector('.overall-value').textContent = Math.round(displayDbfs);
+                    drawLevelMeter(nodeId, displayDbfs);
 
                     // Update EQ visualization
                     if (data.current.bands) {
@@ -1924,10 +2157,15 @@
 
         // Update chart with historical data
         async function updateChart() {
+            updateHistoryNodeSelector();
             const datasets = [];
             const allNodeData = [];
 
-            for (const nodeId of Object.keys(nodesData)) {
+            const nodesToShow = historySelectedNode === 'all'
+                ? Object.keys(nodesData)
+                : [historySelectedNode].filter(id => nodesData[id]);
+
+            for (const nodeId of nodesToShow) {
                 try {
                     const response = await fetch(`/api/history/${nodeId}`);
                     const data = await response.json();
