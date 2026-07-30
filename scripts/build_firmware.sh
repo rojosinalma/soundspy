@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Build firmware — only injects FIRMWARE_VERSION from .env
-# All other config (WiFi, MQTT, WS) is hardcoded in node_firmware.ino
+# Build firmware — injects secrets and network config from .env into placeholders
+# Version is hardcoded in the .ino source.
 #
 # Usage: ./scripts/build_firmware.sh [NODE_ID]
-#   NODE_ID: Optional override for output filename (default: reads from .ino)
+#   NODE_ID: Optional override (default: from .env)
 
 set -e
 
@@ -13,7 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_ROOT"
 
-# Load environment for version
+# Load environment
 if [ ! -f .env ]; then
     echo "Error: .env file not found in project root."
     exit 1
@@ -21,11 +21,15 @@ fi
 
 source .env
 
-# Determine NODE_ID for output filename
+# Extract version from .ino source (it's the one hardcoded value)
+FIRMWARE_VERSION=$(grep 'const char\* FIRMWARE_VERSION' node_firmware/node_firmware.ino | sed 's/.*= "//;s/".*//')
+
+# NODE_ID comes from .env, CLI arg overrides
 if [ -n "$1" ]; then
     NODE_ID="$1"
-else
-    NODE_ID=$(grep 'const char\* NODE_ID' node_firmware/node_firmware.ino | sed 's/.*= "//;s/".*//')
+elif [ -z "$NODE_ID" ]; then
+    echo "Error: NODE_ID not set in .env and not passed as argument."
+    exit 1
 fi
 
 echo "=========================================="
@@ -43,10 +47,18 @@ mkdir -p "$TEMP_SKETCH_DIR"
 TEMP_INO="$TEMP_SKETCH_DIR/${TEMP_SKETCH_NAME}.ino"
 INPUT_INO="node_firmware/node_firmware.ino"
 
-# Inject version and WiFi password (secrets stay in .env, not in committed source)
-sed -e "s/const char\* FIRMWARE_VERSION = \".*\"/const char* FIRMWARE_VERSION = \"$FIRMWARE_VERSION\"/" \
-    -e "s/const char\* WIFI_PASS.*= \".*\"/const char* WIFI_PASS  = \"$WIFI_PASSWORD\"/" \
+# Inject all config from .env into placeholders
+sed -e "s/PLACEHOLDER_NODE_ID/$NODE_ID/" \
+    -e "s/PLACEHOLDER_WIFI_SSID/$WIFI_SSID/" \
+    -e "s/PLACEHOLDER_WIFI_PASS/$WIFI_PASSWORD/" \
+    -e "s/PLACEHOLDER_MQTT_HOST/$FIRMWARE_MQTT_HOST/" \
+    -e "s/PLACEHOLDER_MQTT_PORT/$FIRMWARE_MQTT_PORT/" \
+    -e "s/PLACEHOLDER_WS_HOST/$FIRMWARE_WS_HOST/" \
+    -e "s/PLACEHOLDER_WS_PORT/$FIRMWARE_WS_PORT/" \
     "$INPUT_INO" > "$TEMP_INO"
+
+# Also write a rendered .ino for manual Arduino IDE flashing
+cp "$TEMP_INO" "${INPUT_INO%.ino}.rendered.ino"
 
 # Check if arduino-cli is available (project bin or system PATH)
 if [ -x "$PROJECT_ROOT/bin/arduino-cli" ]; then

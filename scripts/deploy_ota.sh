@@ -30,7 +30,7 @@ if [ -z "$1" ]; then
 fi
 
 NODE_ID="$1"
-DASHBOARD_URL="http://${MQTT_HOST}:${DASHBOARD_PORT}"
+DASHBOARD_URL="http://${FIRMWARE_MQTT_HOST}:${DASHBOARD_PORT}"
 
 # Determine firmware binary
 if [ -n "$2" ]; then

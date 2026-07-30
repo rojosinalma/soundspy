@@ -23,6 +23,8 @@ MQTT_PORT = int(os.environ.get("MQTT_PORT", 1883))
 FREQ_THRESHOLD_DBFS = float(os.environ.get("FREQ_THRESHOLD_DBFS", -20))
 TOPIC_DATA = "soundspy/+/data"
 TOPIC_VERSION = "soundspy/+/version"
+TOPIC_LOG = "soundspy/+/log"
+TOPIC_BOOT = "soundspy/+/boot"
 
 # Store last 1 hour of data per node (1 point/second = 3600 points)
 HISTORY_SIZE = 3600
@@ -50,6 +52,8 @@ def on_connect(client, userdata, flags, rc):
     print(f"Dashboard connected to MQTT broker (rc={rc})", flush=True)
     client.subscribe(TOPIC_DATA)
     client.subscribe(TOPIC_VERSION)
+    client.subscribe(TOPIC_LOG)
+    client.subscribe(TOPIC_BOOT)
 
 
 def on_message(client, userdata, msg):
@@ -64,6 +68,30 @@ def on_message(client, userdata, msg):
             with data_lock:
                 node_data[node_id]["firmware_version"] = firmware_version
             print(f"[version] {node_id}: firmware {firmware_version}", flush=True)
+            return
+
+        # Handle log messages (system logs from the node)
+        if msg.topic.endswith("/log"):
+            socketio.emit('node_log', {
+                'node_id': node_id,
+                'type': 'system',
+                'payload': payload,
+                'timestamp': time.time()
+            }, namespace='/')
+            return
+
+        # Handle boot messages
+        if msg.topic.endswith("/boot"):
+            socketio.emit('node_log', {
+                'node_id': node_id,
+                'type': 'system',
+                'payload': {
+                    'level': 'boot',
+                    'msg': f"Boot: partition={payload.get('partition','?')} reset={payload.get('reset_reason','?')} heap={payload.get('free_heap','?')}",
+                    **payload
+                },
+                'timestamp': time.time()
+            }, namespace='/')
             return
 
         # Handle data messages

@@ -5,21 +5,21 @@
 #include <WebSocketsClient.h>
 #include <HTTPUpdate.h>
 #include <HTTPClient.h>
+#include <esp_ota_ops.h>
 #include <driver/i2s.h>
 #include <math.h>
 #include <base64.h>
 #include <ArduinoJson.h>
 
-// Version injected by build_firmware.sh from .env
-const char* FIRMWARE_VERSION = "PLACEHOLDER";
+const char* FIRMWARE_VERSION = "1.2.1";
 
-const char* NODE_ID    = "node1";
-const char* WIFI_SSID  = "rojo_IoT";
-const char* WIFI_PASS  = "CHANGE_ME";
-const char* MQTT_HOST  = "10.10.10.20";
-const int   MQTT_PORT  = 1883;
-const char* WS_HOST    = "10.10.10.20";
-const int   WS_PORT    = 8091;
+const char* NODE_ID    = "PLACEHOLDER_NODE_ID";
+const char* WIFI_SSID  = "PLACEHOLDER_WIFI_SSID";
+const char* WIFI_PASS  = "PLACEHOLDER_WIFI_PASS";
+const char* MQTT_HOST  = "PLACEHOLDER_MQTT_HOST";
+const int   MQTT_PORT  = PLACEHOLDER_MQTT_PORT;
+const char* WS_HOST    = "PLACEHOLDER_WS_HOST";
+const int   WS_PORT    = PLACEHOLDER_WS_PORT;
 
 // I2S pins
 #define I2S_WS   25
@@ -46,6 +46,31 @@ float audioGain = 4.0f;  // Default gain (12dB)
 WiFiClient espClient;
 PubSubClient mqtt(espClient);
 WebSocketsClient webSocket;
+
+void remoteLog(const char* level, const char* msg) {
+  Serial.printf("[%s] %s\n", level, msg);
+  if (mqtt.connected()) {
+    char payload[384];
+    snprintf(payload, sizeof(payload),
+      "{\"node\":\"%s\",\"level\":\"%s\",\"msg\":\"%s\",\"uptime_ms\":%lu,\"firmware\":\"%s\"}",
+      NODE_ID, level, msg, millis(), FIRMWARE_VERSION);
+    String topic = String("soundspy/") + NODE_ID + "/log";
+    mqtt.publish(topic.c_str(), payload);
+  }
+}
+
+void publishBootReport() {
+  const esp_partition_t* running = esp_ota_get_running_partition();
+  char payload[384];
+  snprintf(payload, sizeof(payload),
+    "{\"node\":\"%s\",\"firmware\":\"%s\",\"reset_reason\":%d,\"partition\":\"%s\",\"free_heap\":%u,\"ip\":\"%s\"}",
+    NODE_ID, FIRMWARE_VERSION, (int)esp_reset_reason(),
+    running ? running->label : "unknown",
+    ESP.getFreeHeap(),
+    WiFi.localIP().toString().c_str());
+  String topic = String("soundspy/") + NODE_ID + "/boot";
+  mqtt.publish(topic.c_str(), payload);
+}
 
 // 2nd-order biquad filter
 struct Biquad {
@@ -91,11 +116,10 @@ unsigned long bootTime = 0;
 int i2sReinitCount = 0;
 
 void reinitI2S() {
-  Serial.println("[IMPORTANT] I2S watchdog: reinitializing bus");
+  remoteLog("warn", "I2S watchdog: reinitializing bus");
   i2s_driver_uninstall(I2S_PORT);
   delay(200);
   setupI2S();
-  // Discard first few DMA buffers (mic settling time)
   size_t discard;
   for (int i = 0; i < 4; i++) {
     i2s_read(I2S_PORT, i2s_read_buf, sizeof(i2s_read_buf), &discard, 100);
@@ -224,9 +248,17 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
   // Handle reboot command
   if (doc.containsKey("reboot") && doc["reboot"] == true) {
-    Serial.println("[IMPORTANT] Reboot requested");
-    delay(100);
+    remoteLog("info", "Reboot requested");
+    delay(200);
     ESP.restart();
+  }
+
+  // Handle deep sleep (power off) — only wakes on physical reset
+  if (doc.containsKey("sleep") && doc["sleep"] == true) {
+    remoteLog("info", "Entering deep sleep (power off)");
+    mqtt.loop();
+    delay(200);
+    esp_deep_sleep_start();
   }
 
   // Handle gain control
@@ -241,6 +273,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 }
 
 void connectMQTT() {
+  mqtt.setBufferSize(512);
   mqtt.setServer(MQTT_HOST, MQTT_PORT);
   mqtt.setCallback(mqttCallback);
 
@@ -308,15 +341,23 @@ void setup() {
   Serial.println(NODE_ID);
   Serial.println("[IMPORTANT] ========================================\n");
 
-  configureBands();
-  setupI2S();
   connectWiFi();
   connectMQTT();
+
+  // Confirm OTA partition is valid — if this never runs, bootloader rolls back
+  esp_ota_mark_app_valid_cancel_rollback();
+  publishBootReport();
+  remoteLog("boot", "Stage 1 OK: WiFi + MQTT connected");
+  mqtt.loop();
+
+  configureBands();
+  setupI2S();
   connectWebSocket();
   lastPublish = millis();
   bootTime = millis();
 
-  Serial.println("[IMPORTANT] Initialization complete, starting main loop\n");
+  remoteLog("boot", "Stage 2 OK: I2S + WebSocket initialized");
+  mqtt.loop();
 }
 
 void loop() {
@@ -366,9 +407,9 @@ void loop() {
     if (dbfsOverall < I2S_WATCHDOG_DBFS_FLOOR && millis() - bootTime > I2S_STARTUP_GRACE_MS) {
       i2sLockupCount++;
       if (i2sReinitCount >= 3) {
-        Serial.println("[IMPORTANT] I2S watchdog: 3 reinits failed, rebooting");
-        delay(100);
-        ESP.restart();
+        // Don't reboot — stay alive so MQTT control (OTA, diag) still works
+        i2sLockupCount = 0;
+        return;
       } else if (i2sLockupCount >= I2S_WATCHDOG_THRESHOLD) {
         reinitI2S();
         i2sLockupCount = 0;

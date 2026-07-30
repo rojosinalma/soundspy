@@ -159,9 +159,9 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-start;
+            justify-content: center;
             gap: 6px;
-            padding: 10px 10px 8px 10px;
+            padding: 12px;
             background: #0f1426;
             border-radius: 6px;
             height: 120px;
@@ -169,16 +169,17 @@
         }
 
         .gain-control label {
-            font-size: 0.7em;
+            font-size: 0.75em;
             color: #8b92a8;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            line-height: 1;
         }
 
         .knob-container {
             position: relative;
-            width: 70px;
-            height: 70px;
+            width: 60px;
+            height: 60px;
             cursor: pointer;
             flex-shrink: 0;
         }
@@ -238,8 +239,6 @@
             font-size: 0.7em;
             color: #666;
             text-align: center;
-            margin-top: auto;
-            padding-bottom: 6px;
         }
 
         .audio-indicator {
@@ -276,9 +275,9 @@
 
         .controls-section {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             flex-wrap: wrap;
-            margin-top: 15px;
+            margin-top: 12px;
         }
 
         .control-box {
@@ -301,6 +300,7 @@
             letter-spacing: 0.5px;
             margin-bottom: 8px;
             text-align: center;
+            line-height: 1;
         }
 
         .control-box .value {
@@ -363,8 +363,8 @@
         }
 
         .eq-container {
-            margin-top: 15px;
-            padding: 15px;
+            margin-top: 8px;
+            padding: 12px;
             background: #0f1426;
             border-radius: 6px;
         }
@@ -373,12 +373,12 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
 
         .eq-mode-toggle {
             display: flex;
-            gap: 5px;
+            gap: 4px;
             background: #0a0e1f;
             padding: 4px;
             border-radius: 4px;
@@ -414,25 +414,8 @@
             display: flex;
         }
 
-        .eq-y-axis {
-            width: 40px;
-            background: #0a0e1f;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 5px 0;
-            border-right: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .eq-y-label {
-            font-size: 0.6em;
-            color: #666;
-            text-align: right;
-            padding-right: 5px;
-        }
-
         .eq-canvas {
-            flex: 1;
+            width: 100%;
             height: 100%;
         }
 
@@ -566,7 +549,7 @@
         .threshold-input-group {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
 
         .threshold-text-input {
@@ -627,13 +610,6 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
 
-        .last-update {
-            font-size: 0.8em;
-            color: #666;
-            text-align: center;
-            margin-top: 10px;
-        }
-
         .node-actions {
             display: flex;
             gap: 8px;
@@ -663,6 +639,7 @@
             font-size: 1.3em;
             font-weight: 600;
             color: #fff;
+            cursor: pointer;
         }
 
         .log-arrow {
@@ -692,14 +669,84 @@
             background: #2a3350;
         }
 
-        .log-content {
-            background: #0a0e27;
+        .log-body {
+            display: flex;
+            gap: 0;
             border-radius: 8px;
+            overflow: hidden;
+            background: #0a0e27;
+        }
+
+        .log-sidebar {
+            width: 140px;
+            min-width: 140px;
+            background: #0d1229;
+            border-right: 1px solid #1e2744;
+            padding: 8px 0;
+            overflow-y: auto;
+        }
+
+        .log-sidebar-item {
+            padding: 8px 14px;
+            color: #8b92a8;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-weight: 500;
+            transition: background 0.15s, color 0.15s;
+            border-left: 3px solid transparent;
+        }
+
+        .log-sidebar-item:hover {
+            background: #151b33;
+            color: #e0e6ed;
+        }
+
+        .log-sidebar-item.active {
+            background: #151b33;
+            color: #48bb78;
+            border-left-color: #48bb78;
+        }
+
+        .log-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .log-tabs {
+            display: flex;
+            background: #0d1229;
+            border-bottom: 1px solid #1e2744;
+            padding: 0 12px;
+        }
+
+        .log-tab {
+            padding: 10px 16px;
+            color: #8b92a8;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+            transition: color 0.15s, border-color 0.15s;
+        }
+
+        .log-tab:hover {
+            color: #e0e6ed;
+        }
+
+        .log-tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .log-content {
             padding: 15px;
             overflow-y: auto;
             font-family: 'Courier New', monospace;
             font-size: 0.85em;
             line-height: 1.6;
+            flex: 1;
         }
 
         .log-content::-webkit-scrollbar {
@@ -728,6 +775,11 @@
             border-left: 3px solid #4a5568;
         }
 
+        .log-entry.level-boot { border-left-color: #667eea; }
+        .log-entry.level-info { border-left-color: #48bb78; }
+        .log-entry.level-warn { border-left-color: #f59e0b; }
+        .log-entry.level-error { border-left-color: #ef4444; }
+
         .log-timestamp {
             color: #667eea;
             margin-right: 10px;
@@ -748,6 +800,18 @@
         .log-data {
             color: #e0e6ed;
         }
+
+        .log-level {
+            font-weight: 600;
+            margin-right: 10px;
+            text-transform: uppercase;
+            font-size: 0.9em;
+        }
+
+        .log-level.boot { color: #667eea; }
+        .log-level.info { color: #48bb78; }
+        .log-level.warn { color: #f59e0b; }
+        .log-level.error { color: #ef4444; }
 
         /* Modal styles */
         .modal-overlay {
@@ -920,14 +984,25 @@
 
     <div class="log-container">
         <div class="log-header">
-            <div class="log-title" onclick="toggleLog()" style="cursor: pointer;"><span class="log-arrow" id="logArrow">&#9656;</span> Live Log</div>
+            <div class="log-title" onclick="toggleLog()"><span class="log-arrow" id="logArrow">&#9656;</span> Live Logs</div>
             <div style="display: flex; gap: 8px; align-items: center;">
                 <button class="log-clear" id="logResumeBtn" onclick="resumeLogScroll()" style="display: none;">Resume ▼</button>
                 <button class="log-clear" onclick="clearLog()">Clear</button>
             </div>
         </div>
-        <div class="log-content" id="logContent" style="display: none;">
-            <div style="color: #666; text-align: center; padding: 20px;">Waiting for data...</div>
+        <div class="log-body" id="logBody" style="display: none;">
+            <div class="log-sidebar" id="logSidebar">
+                <div class="log-sidebar-item active" data-node="all" onclick="selectLogNode('all')">All Nodes</div>
+            </div>
+            <div class="log-main">
+                <div class="log-tabs">
+                    <div class="log-tab active" data-tab="app" onclick="selectLogTab('app')">App</div>
+                    <div class="log-tab" data-tab="system" onclick="selectLogTab('system')">System</div>
+                </div>
+                <div class="log-content" id="logContent">
+                    <div style="color: #666; text-align: center; padding: 20px;">Waiting for data...</div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1298,10 +1373,11 @@
                     beforeDraw(chart) {
                         const {ctx, chartArea, scales: {y}} = chart;
                         if (!chartArea) return;
+                        const yellowStart = thresholdValue - 10;
                         const zones = [
-                            {from: -80, to: -20, color: 'rgba(34, 197, 94, 0.08)'},
-                            {from: -20, to: -10, color: 'rgba(245, 158, 11, 0.12)'},
-                            {from: -10, to: 0,   color: 'rgba(239, 68, 68, 0.15)'}
+                            {from: -80, to: yellowStart, color: 'rgba(34, 197, 94, 0.15)'},
+                            {from: yellowStart, to: thresholdValue, color: 'rgba(245, 158, 11, 0.22)'},
+                            {from: thresholdValue, to: 0, color: 'rgba(239, 68, 68, 0.25)'}
                         ];
                         zones.forEach(zone => {
                             const yTop = y.getPixelForValue(zone.to);
@@ -1354,68 +1430,82 @@
             const mode = eqModes[nodeId] || 'bars';
             const ctx = canvas.getContext('2d');
 
-            // Get parent container size (canvas is now flex child)
+            // Get parent container size
             const parent = canvas.parentElement;
-            const width = canvas.clientWidth;
-            const height = canvas.clientHeight;
+            const totalWidth = canvas.clientWidth;
+            const totalHeight = canvas.clientHeight;
 
-            if (width === 0 || height === 0) {
-                console.warn(`Canvas ${nodeId} has zero size: ${width}x${height}`);
+            if (totalWidth === 0 || totalHeight === 0) {
+                console.warn(`Canvas ${nodeId} has zero size: ${totalWidth}x${totalHeight}`);
                 return;
             }
 
             // Set canvas resolution to match display size
-            canvas.width = width;
-            canvas.height = height;
+            canvas.width = totalWidth;
+            canvas.height = totalHeight;
+
+            // Reserve margins for labels
+            const yAxisWidth = 36;
+            const yPadding = 8;
+            const width = totalWidth - yAxisWidth;
+            const height = totalHeight - (yPadding * 2);
 
             // Clear canvas
             ctx.fillStyle = '#0a0e1f';
-            ctx.fillRect(0, 0, width, height);
+            ctx.fillRect(0, 0, totalWidth, totalHeight);
+
+            // Offset drawing by yPadding so 0 and -80 labels aren't clipped
+            ctx.save();
+            ctx.translate(0, yPadding);
 
             // dBFS scale: -80 to 0 dBFS (full monitoring range including clipping zone)
             const dbfsMin = -80;
             const dbfsMax = 0;
 
-            // Draw colored background zones (quiet residential monitoring)
-            // Green zone: < -40 dBFS (ambient/quiet)
-            // Yellow zone: -40 to -30 dBFS (noticeable noise)
-            // Red zone: > -30 dBFS (loud/disruptive)
+            const yellowStart = thresholdValue - 10;
 
-            const drawZone = (fromDb, toDb, color) => {
+            const drawZoneOffset = (fromDb, toDb, color) => {
                 const yFrom = height - ((Math.min(toDb, dbfsMax) - dbfsMin) / (dbfsMax - dbfsMin)) * height;
                 const yTo = height - ((Math.max(fromDb, dbfsMin) - dbfsMin) / (dbfsMax - dbfsMin)) * height;
                 const zoneHeight = yTo - yFrom;
                 if (zoneHeight > 0) {
                     ctx.fillStyle = color;
-                    ctx.fillRect(0, yFrom, width, zoneHeight);
+                    ctx.fillRect(yAxisWidth, yFrom, width, zoneHeight);
                 }
             };
 
-            drawZone(-10, 0, 'rgba(239, 68, 68, 0.15)');    // Red: > -10 dBFS
-            drawZone(-20, -10, 'rgba(245, 158, 11, 0.12)'); // Yellow: -20 to -10 dBFS
-            drawZone(-80, -20, 'rgba(34, 197, 94, 0.08)');  // Green: < -20 dBFS
+            drawZoneOffset(thresholdValue, 0, 'rgba(239, 68, 68, 0.25)');
+            drawZoneOffset(yellowStart, thresholdValue, 'rgba(245, 158, 11, 0.22)');
+            drawZoneOffset(-80, yellowStart, 'rgba(34, 197, 94, 0.15)');
 
-            // Draw grid lines (dB markers)
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
-            ctx.lineWidth = 1;
-            for (let db = -70; db <= 0; db += 10) {
+            // Draw grid lines and Y-axis labels (0 to -80, every 10)
+            ctx.font = '10px monospace';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            for (let db = -80; db <= 0; db += 10) {
                 const y = height - ((db - dbfsMin) / (dbfsMax - dbfsMin)) * height;
+                // Grid line
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+                ctx.lineWidth = 1;
                 ctx.beginPath();
-                ctx.moveTo(0, y);
-                ctx.lineTo(width, y);
+                ctx.moveTo(yAxisWidth, y);
+                ctx.lineTo(totalWidth, y);
                 ctx.stroke();
+                // Label
+                ctx.fillStyle = '#666';
+                ctx.fillText(`${db}`, yAxisWidth - 4, y);
             }
 
             // Draw threshold line at alert threshold
             const thresholdY = height - ((thresholdValue - dbfsMin) / (dbfsMax - dbfsMin)) * height;
-            ctx.strokeStyle = 'rgba(245, 158, 11, 0.3)';
+            ctx.strokeStyle = 'rgba(239, 68, 68, 0.5)';
             ctx.lineWidth = 2;
             ctx.setLineDash([5, 5]);
             ctx.beginPath();
-            ctx.moveTo(0, thresholdY);
-            ctx.lineTo(width, thresholdY);
+            ctx.moveTo(yAxisWidth, thresholdY);
+            ctx.lineTo(totalWidth, thresholdY);
             ctx.stroke();
-            ctx.setLineDash([]);  // Reset to solid lines
+            ctx.setLineDash([]);
 
             // Convert band values to heights (0 = bottom, 1 = top)
             const heights = bandValues.map(dbfs => {
@@ -1439,7 +1529,7 @@
                 const spacing = (width / numBands) * 0.3;
 
                 for (let i = 0; i < numBands; i++) {
-                    const x = (i * width / numBands) + (spacing / 2);
+                    const x = yAxisWidth + (i * width / numBands) + (spacing / 2);
                     const barHeight = heights[i] * height;
                     const dbfsValue = bandValues[i];
 
@@ -1516,8 +1606,8 @@
 
                 // Fill gradient matches zone colors (red top, yellow mid, green bottom)
                 const gradient = ctx.createLinearGradient(0, 0, 0, height);
-                const redLine = (dbfsMax - (-10)) / (dbfsMax - dbfsMin);
-                const yellowLine = (dbfsMax - (-20)) / (dbfsMax - dbfsMin);
+                const redLine = Math.max(0, Math.min(1, (dbfsMax - thresholdValue) / (dbfsMax - dbfsMin)));
+                const yellowLine = Math.max(0, Math.min(1, (dbfsMax - (thresholdValue - 10)) / (dbfsMax - dbfsMin)));
                 gradient.addColorStop(0, 'rgba(239, 68, 68, 0.4)');
                 gradient.addColorStop(redLine, 'rgba(239, 68, 68, 0.35)');
                 gradient.addColorStop(yellowLine, 'rgba(245, 158, 11, 0.3)');
@@ -1525,24 +1615,24 @@
 
                 // Draw smooth curve through points
                 ctx.beginPath();
-                ctx.moveTo(0, height);
-                ctx.lineTo(0, height - heights[0] * height);
+                ctx.moveTo(yAxisWidth, height);
+                ctx.lineTo(yAxisWidth, height - heights[0] * height);
 
                 // Draw smooth curves using quadratic interpolation
                 for (let i = 0; i < numBands - 1; i++) {
-                    const x1 = i * segmentWidth;
+                    const x1 = yAxisWidth + i * segmentWidth;
                     const y1 = height - heights[i] * height;
-                    const x2 = (i + 1) * segmentWidth;
+                    const x2 = yAxisWidth + (i + 1) * segmentWidth;
                     const y2 = height - heights[i + 1] * height;
                     const cpX = (x1 + x2) / 2;
                     const cpY = (y1 + y2) / 2;
                     ctx.quadraticCurveTo(x1, y1, cpX, cpY);
                 }
 
-                const lastX = (numBands - 1) * segmentWidth;
+                const lastX = yAxisWidth + (numBands - 1) * segmentWidth;
                 const lastY = height - heights[numBands - 1] * height;
                 ctx.lineTo(lastX, lastY);
-                ctx.lineTo(width, height);
+                ctx.lineTo(yAxisWidth + width, height);
                 ctx.closePath();
                 ctx.fillStyle = gradient;
                 ctx.fill();
@@ -1555,11 +1645,11 @@
                 strokeGradient.addColorStop(1, '#22c55e');
 
                 ctx.beginPath();
-                ctx.moveTo(0, height - heights[0] * height);
+                ctx.moveTo(yAxisWidth, height - heights[0] * height);
                 for (let i = 0; i < numBands - 1; i++) {
-                    const x1 = i * segmentWidth;
+                    const x1 = yAxisWidth + i * segmentWidth;
                     const y1 = height - heights[i] * height;
-                    const x2 = (i + 1) * segmentWidth;
+                    const x2 = yAxisWidth + (i + 1) * segmentWidth;
                     const y2 = height - heights[i + 1] * height;
                     const cpX = (x1 + x2) / 2;
                     const cpY = (y1 + y2) / 2;
@@ -1570,6 +1660,8 @@
                 ctx.lineWidth = 3;
                 ctx.stroke();
             }
+
+            ctx.restore();
         }
 
         // Update node cards
@@ -1629,38 +1721,7 @@
                                 <div class="knob-range" id="volume-percent-${nodeId}">50%</div>
                             </div>
                         </div>
-                        <div class="eq-container">
-                            <div class="eq-header">
-                                <div style="font-size: 0.75em; color: #8b92a8; text-transform: uppercase; letter-spacing: 0.5px;">Spectrum</div>
-                                <div class="eq-mode-toggle">
-                                    <button class="eq-mode-btn active" onclick="setEQMode('${nodeId}', 'bars')" id="eq-mode-bars-${nodeId}">Bars</button>
-                                    <button class="eq-mode-btn" onclick="setEQMode('${nodeId}', 'wave')" id="eq-mode-wave-${nodeId}">Wave</button>
-                                </div>
-                            </div>
-                            <div class="eq-canvas-wrapper">
-                                <div class="eq-y-axis">
-                                    <div class="eq-y-label">0</div>
-                                    <div class="eq-y-label">-10</div>
-                                    <div class="eq-y-label">-20</div>
-                                    <div class="eq-y-label">-30</div>
-                                    <div class="eq-y-label">-40</div>
-                                    <div class="eq-y-label">-50</div>
-                                    <div class="eq-y-label">-60</div>
-                                    <div class="eq-y-label">-70</div>
-                                    <div class="eq-y-label">-80</div>
-                                </div>
-                                <canvas class="eq-canvas" id="eq-canvas-${nodeId}"></canvas>
-                            </div>
-                            <div class="eq-labels">
-                                <div class="eq-label" style="margin-left: 40px;">50-120Hz</div>
-                                <div class="eq-label">120-250Hz</div>
-                                <div class="eq-label">250-500Hz</div>
-                                <div class="eq-label">500Hz-2k</div>
-                                <div class="eq-label">2k-6kHz</div>
-                                <div class="eq-label">6k-20kHz</div>
-                            </div>
-                        </div>
-                        <div class="controls-section" style="margin-top: 10px;">
+                        <div class="controls-section">
                             <div class="control-box">
                                 <label>Alert Threshold</label>
                                 <div class="threshold-control">
@@ -1682,6 +1743,26 @@
                                            max="0"
                                            step="0.1">
                                 </div>
+                            </div>
+                        </div>
+                        <div class="eq-container">
+                            <div class="eq-header">
+                                <div style="font-size: 0.75em; color: #8b92a8; text-transform: uppercase; letter-spacing: 0.5px;">Spectrum</div>
+                                <div class="eq-mode-toggle">
+                                    <button class="eq-mode-btn active" onclick="setEQMode('${nodeId}', 'bars')" id="eq-mode-bars-${nodeId}">Bars</button>
+                                    <button class="eq-mode-btn" onclick="setEQMode('${nodeId}', 'wave')" id="eq-mode-wave-${nodeId}">Wave</button>
+                                </div>
+                            </div>
+                            <div class="eq-canvas-wrapper">
+                                <canvas class="eq-canvas" id="eq-canvas-${nodeId}"></canvas>
+                            </div>
+                            <div class="eq-labels">
+                                <div class="eq-label" style="margin-left: 40px;">50-120Hz</div>
+                                <div class="eq-label">120-250Hz</div>
+                                <div class="eq-label">250-500Hz</div>
+                                <div class="eq-label">500Hz-2k</div>
+                                <div class="eq-label">2k-6kHz</div>
+                                <div class="eq-label">6k-20kHz</div>
                             </div>
                         </div>
                         <div class="spectrum-container" style="display:none;">
@@ -1741,10 +1822,10 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="last-update">Last update: <span class="last-update-time">--</span></div>
                         <div class="node-actions">
                             <button class="audio-control" onclick="showOTADialog('${nodeId}')" title="Update Firmware">📡 Update</button>
                             <button class="audio-control" onclick="rebootNode('${nodeId}')" title="Reboot Node">↻ Reboot</button>
+                            <button class="audio-control" onclick="sleepNode('${nodeId}')" title="Deep Sleep (Power Off)">⏻ Sleep</button>
                             <button class="audio-control" onclick="disconnectNode('${nodeId}')" title="Disconnect Node">✕ Disconnect</button>
                         </div>
                     `;
@@ -1817,11 +1898,6 @@
                     }
                 }
 
-                // Update last update time
-                if (data.last_update) {
-                    const secondsAgo = Math.floor((Date.now() / 1000) - data.last_update);
-                    card.querySelector('.last-update-time').textContent = `${secondsAgo}s ago`;
-                }
             });
         }
 
@@ -1841,8 +1917,8 @@
         }
 
         function getZoneColor(dbfs) {
-            if (dbfs >= -10) return '#ef4444';
-            if (dbfs >= -20) return '#f59e0b';
+            if (dbfs >= thresholdValue) return '#ef4444';
+            if (dbfs >= thresholdValue - 10) return '#f59e0b';
             return '#22c55e';
         }
 
@@ -1909,7 +1985,8 @@
                         borderWidth: 2.5,
                         borderDash: [6, 4],
                         pointRadius: 0,
-                        tension: 0
+                        tension: 0,
+                        order: -1
                     });
                 }
             }
@@ -1951,9 +2028,13 @@
         fetchNodes();  // Initial fetch only
         startChartUpdates();
 
-        // Add log entry
+        // Log panel state
         let logAutoScroll = true;
         let logScrolledByCode = false;
+        let logSelectedNode = 'all';
+        let logSelectedTab = 'app';
+        const logStore = {};  // { nodeId: { app: [entries], system: [entries] } }
+        const logKnownNodes = new Set();
 
         document.getElementById('logContent').addEventListener('scroll', function() {
             if (logScrolledByCode) return;
@@ -1965,22 +2046,66 @@
             }
         });
 
-        function resumeLogScroll() {
-            logAutoScroll = true;
-            const logContent = document.getElementById('logContent');
-            while (logContent.children.length > MAX_LOG_ENTRIES) {
-                logContent.removeChild(logContent.firstChild);
+        function ensureLogNode(nodeId) {
+            if (!logKnownNodes.has(nodeId)) {
+                logKnownNodes.add(nodeId);
+                if (!logStore[nodeId]) logStore[nodeId] = { app: [], system: [] };
+                const sidebar = document.getElementById('logSidebar');
+                const item = document.createElement('div');
+                item.className = 'log-sidebar-item';
+                item.dataset.node = nodeId;
+                item.textContent = nodeId;
+                item.onclick = () => selectLogNode(nodeId);
+                sidebar.appendChild(item);
             }
+        }
+
+        function selectLogNode(nodeId) {
+            logSelectedNode = nodeId;
+            document.querySelectorAll('.log-sidebar-item').forEach(el => {
+                el.classList.toggle('active', el.dataset.node === nodeId);
+            });
+            renderLog();
+        }
+
+        function selectLogTab(tab) {
+            logSelectedTab = tab;
+            document.querySelectorAll('.log-tab').forEach(el => {
+                el.classList.toggle('active', el.dataset.tab === tab);
+            });
+            renderLog();
+        }
+
+        function renderLog() {
+            const logContent = document.getElementById('logContent');
+            logContent.innerHTML = '';
+
+            let entries = [];
+            if (logSelectedNode === 'all') {
+                Object.keys(logStore).forEach(nid => {
+                    entries = entries.concat(logStore[nid][logSelectedTab] || []);
+                });
+                entries.sort((a, b) => a.ts - b.ts);
+            } else {
+                entries = (logStore[logSelectedNode] && logStore[logSelectedNode][logSelectedTab]) || [];
+            }
+
+            const visible = entries.slice(-MAX_LOG_ENTRIES);
+            if (visible.length === 0) {
+                logContent.innerHTML = '<div style="color: #666; text-align: center; padding: 20px;">No logs yet.</div>';
+                return;
+            }
+
+            visible.forEach(e => logContent.appendChild(e.el.cloneNode(true)));
             logScrolledByCode = true;
             logContent.scrollTop = logContent.scrollHeight;
             logScrolledByCode = false;
-            document.getElementById('logResumeBtn').style.display = 'none';
         }
 
-        function addLogEntry(nodeId, data, timestamp) {
+        function addAppLogEntry(nodeId, data, timestamp) {
+            ensureLogNode(nodeId);
             const now = new Date(timestamp * 1000);
             const timeStr = now.toLocaleTimeString('en-US', { hour12: false });
-
 
             const entry = document.createElement('div');
             entry.className = 'log-entry';
@@ -1991,7 +2116,6 @@
                     .map(([name, value]) => `${name}=${value.toFixed(1)}`)
                     .join(', ');
             }
-
             const seqStr = data.seq !== undefined ? `#${data.seq}` : '';
 
             entry.innerHTML = `
@@ -2001,13 +2125,47 @@
                 <span class="log-data">overall=${data.overall_dbfs?.toFixed(1) || '--'} dBFS | ${bandsStr}</span>
             `;
 
-            const logContent = document.getElementById('logContent');
+            logStore[nodeId].app.push({ ts: timestamp, el: entry });
+            if (logStore[nodeId].app.length > MAX_LOG_ENTRIES) logStore[nodeId].app.shift();
 
+            if (logSelectedTab === 'app' && (logSelectedNode === 'all' || logSelectedNode === nodeId)) {
+                appendToVisibleLog(entry);
+            }
+        }
+
+        function addSystemLogEntry(nodeId, payload, timestamp) {
+            ensureLogNode(nodeId);
+            const now = new Date(timestamp * 1000);
+            const timeStr = now.toLocaleTimeString('en-US', { hour12: false });
+            const level = payload.level || 'info';
+            const msg = payload.msg || JSON.stringify(payload);
+
+            const entry = document.createElement('div');
+            entry.className = `log-entry level-${level}`;
+            entry.innerHTML = `
+                <span class="log-timestamp">[${timeStr}]</span>
+                <span class="log-node">${nodeId}</span>
+                <span class="log-level ${level}">${level}</span>
+                <span class="log-data">${msg}</span>
+            `;
+
+            logStore[nodeId].system.push({ ts: timestamp, el: entry });
+            if (logStore[nodeId].system.length > MAX_LOG_ENTRIES) logStore[nodeId].system.shift();
+
+            if (logSelectedTab === 'system' && (logSelectedNode === 'all' || logSelectedNode === nodeId)) {
+                appendToVisibleLog(entry);
+            }
+        }
+
+        function appendToVisibleLog(entry) {
+            const logContent = document.getElementById('logContent');
             if (logContent.children.length === 1 && logContent.children[0].textContent.includes('Waiting')) {
                 logContent.innerHTML = '';
             }
-
-            logContent.appendChild(entry);
+            if (logContent.children.length === 1 && logContent.children[0].textContent.includes('No logs')) {
+                logContent.innerHTML = '';
+            }
+            logContent.appendChild(entry.cloneNode(true));
 
             if (logAutoScroll) {
                 while (logContent.children.length > MAX_LOG_ENTRIES) {
@@ -2019,39 +2177,47 @@
             }
         }
 
+        function resumeLogScroll() {
+            logAutoScroll = true;
+            renderLog();
+            document.getElementById('logResumeBtn').style.display = 'none';
+        }
+
         function clearLog() {
-            document.getElementById('logContent').innerHTML = '<div style="color: #666; text-align: center; padding: 20px;">Log cleared. Waiting for data...</div>';
+            if (logSelectedNode === 'all') {
+                Object.keys(logStore).forEach(nid => { logStore[nid][logSelectedTab] = []; });
+            } else if (logStore[logSelectedNode]) {
+                logStore[logSelectedNode][logSelectedTab] = [];
+            }
+            renderLog();
             logAutoScroll = true;
             document.getElementById('logResumeBtn').style.display = 'none';
         }
 
         function toggleLog() {
-            const logContent = document.getElementById('logContent');
+            const logBody = document.getElementById('logBody');
             const logArrow = document.getElementById('logArrow');
 
-            if (logContent.style.display === 'none') {
-                logContent.style.display = 'block';
+            if (logBody.style.display === 'none') {
+                logBody.style.display = 'flex';
                 logArrow.classList.add('expanded');
+                renderLog();
                 resizeLog();
             } else {
-                logContent.style.display = 'none';
-                logContent.style.maxHeight = '';
+                logBody.style.display = 'none';
                 logArrow.classList.remove('expanded');
             }
         }
 
         function resizeLog() {
-            const logContent = document.getElementById('logContent');
-            if (logContent.style.display === 'none') return;
+            const logBody = document.getElementById('logBody');
+            if (logBody.style.display === 'none') return;
             const footer = document.querySelector('.footer');
-            const container = document.querySelector('.log-container');
             const footerTop = footer.getBoundingClientRect().top;
-            const logContentTop = logContent.getBoundingClientRect().top;
-            const containerPadding = 20;
-            const containerBorder = 2;
-            const gap = 12;
-            const available = footerTop - logContentTop - containerPadding - containerBorder - gap;
-            logContent.style.maxHeight = Math.max(100, available) + 'px';
+            const logBodyTop = logBody.getBoundingClientRect().top;
+            const gap = 32;
+            const available = footerTop - logBodyTop - gap;
+            logBody.style.height = Math.max(200, available) + 'px';
         }
 
         window.addEventListener('resize', resizeLog);
@@ -2075,7 +2241,6 @@
 
         // WebSocket for real-time updates (replaces SSE for lower latency)
         socket.on('sensor_data', function(update) {
-            // Initialize node if it doesn't exist
             if (!nodesData[update.node_id]) {
                 nodesData[update.node_id] = {
                     online: true,
@@ -2088,7 +2253,11 @@
             nodesData[update.node_id].last_update = update.timestamp;
             nodesData[update.node_id].online = true;
             updateNodeCards(nodesData);
-            addLogEntry(update.node_id, update.data, update.timestamp);
+            addAppLogEntry(update.node_id, update.data, update.timestamp);
+        });
+
+        socket.on('node_log', function(update) {
+            addSystemLogEntry(update.node_id, update.payload, update.timestamp);
         });
         let confirmResolve = null;
         function showConfirm(title, message) {
@@ -2112,6 +2281,18 @@
                 nodesData[nodeId].online = false;
                 updateNodeCards(nodesData);
             }).catch(err => console.error('Reboot failed:', err));
+        }
+
+        async function sleepNode(nodeId) {
+            if (!await showConfirm('Deep Sleep', `Put ${nodeId} to sleep? It will only wake on physical reset.`)) return;
+            fetch('/api/control', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({node_id: nodeId, command: {sleep: true}})
+            }).then(() => {
+                nodesData[nodeId].online = false;
+                updateNodeCards(nodesData);
+            }).catch(err => console.error('Sleep failed:', err));
         }
 
         async function disconnectNode(nodeId) {
