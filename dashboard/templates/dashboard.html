@@ -155,6 +155,18 @@
             font-size: 0.9em;
         }
 
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: #080e0a;
+            border: 1px solid #1a2e24;
+            border-radius: 4px;
+            padding: 6px 12px;
+            font-size: 0.85em;
+            color: #8b92a8;
+        }
+
         .audio-control {
             background: #1a2e24;
             border: none;
@@ -164,6 +176,10 @@
             cursor: pointer;
             font-size: 0.85em;
             transition: all 0.2s;
+        }
+
+        .audio-control.audio-toggle {
+            min-width: 90px;
         }
 
         .audio-control:hover {
@@ -182,7 +198,8 @@
             justify-content: center;
             gap: 6px;
             padding: 12px;
-            background: #0f1a14;
+            background: #080e0a;
+            border: 1px solid #1a2e24;
             border-radius: 6px;
             height: 120px;
             box-sizing: border-box;
@@ -190,7 +207,7 @@
 
         .gain-control label {
             font-size: 0.75em;
-            color: #8b92a8;
+            color: #6b9e7a;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             line-height: 1;
@@ -257,7 +274,7 @@
 
         .knob-range {
             font-size: 0.7em;
-            color: #666;
+            color: #a3e6b8;
             text-align: center;
         }
 
@@ -305,7 +322,8 @@
             flex: 1;
             min-width: 110px;
             padding: 12px;
-            background: #0f1a14;
+            background: #080e0a;
+            border: 1px solid #1a2e24;
             border-radius: 6px;
             display: flex;
             flex-direction: column;
@@ -316,7 +334,7 @@
 
         .control-box label {
             font-size: 0.75em;
-            color: #8b92a8;
+            color: #6b9e7a;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             margin-bottom: 8px;
@@ -371,6 +389,8 @@
             font-family: monospace;
             position: relative;
             z-index: 1;
+            min-width: 3ch;
+            text-align: center;
         }
 
         .control-box.overall-level .subtitle {
@@ -383,6 +403,7 @@
             cursor: pointer;
             user-select: none;
             transition: color 0.2s;
+            color: #6b9e7a;
         }
 
         .weighting-toggle:hover {
@@ -394,11 +415,13 @@
             min-width: 36px;
             height: 120px;
             padding: 8px 6px;
-            background: #0f1a14;
+            background: #080e0a;
+            border: 1px solid #1a2e24;
             border-radius: 6px;
             display: flex;
             align-items: stretch;
             justify-content: center;
+            margin-right: -4px;
         }
 
         .level-meter-canvas {
@@ -549,6 +572,13 @@
             height: 300px;
         }
 
+        .threshold-box {
+            justify-content: flex-start;
+            padding-top: 16px;
+            height: auto;
+            min-height: 120px;
+        }
+
         .threshold-control {
             display: flex;
             flex-direction: column;
@@ -570,7 +600,7 @@
             background: #0a0f0c;
             border: 2px solid #1e3a28;
             border-radius: 6px;
-            color: #f59e0b;
+            color: #a3e6b8;
             font-size: 1.2em;
             font-weight: 600;
             text-align: center;
@@ -587,7 +617,7 @@
 
         .threshold-text-input:focus {
             outline: none;
-            border-color: #f59e0b;
+            border-color: #44dd66;
         }
 
         .threshold-slider {
@@ -705,16 +735,12 @@
             cursor: pointer;
         }
 
-        .log-arrow {
+        .log-toggle-icon {
             display: inline-block;
-            font-size: 1.2em;
-            color: #8b92a8;
-            transition: transform 0.2s;
-            margin-right: 6px;
-        }
-
-        .log-arrow.expanded {
-            transform: rotate(90deg);
+            font-size: 1em;
+            color: #6b9e7a;
+            margin-left: 6px;
+            font-weight: 400;
         }
 
         .log-clear {
@@ -855,7 +881,7 @@
         }
 
         .log-seq {
-            color: #f59e0b;
+            color: #a3e6b8;
             font-weight: 600;
             margin-right: 10px;
         }
@@ -1059,7 +1085,7 @@
 
     <div class="log-container">
         <div class="log-header">
-            <div class="log-title" onclick="toggleLog()"><span class="log-arrow" id="logArrow">&#9656;</span> Live Logs</div>
+            <div class="log-title" onclick="toggleLog()"><span class="log-toggle-icon" id="logArrow">+</span> Live Logs</div>
             <div style="display: flex; gap: 8px; align-items: center;">
                 <button class="log-clear" id="logResumeBtn" onclick="resumeLogScroll()" style="display: none;">Resume ▼</button>
                 <button class="log-clear" onclick="clearLog()">Clear</button>
@@ -1090,8 +1116,9 @@
     <script>
         let historyChart;
         let nodesData = {};
-        let thresholdValue = -20;
-        const nodeThresholds = {};  // { nodeId: value }
+        let thresholdValue = -20;  // Always in dBFS after calibration; -20 is the dBA display default
+        const nodeThresholds = {};  // { nodeId: dBFS value | null (uncalibrated) }
+        const DEFAULT_THRESHOLD_DBA = -20;
         const nodeDisplayNames = {};  // { chipId: displayName }
         let historySelectedNode = 'all';
 
@@ -1191,17 +1218,20 @@
         // Get threshold in display unit for a node (null = use effective/global threshold)
         function thresholdInDisplayUnit(nodeId) {
             if (!nodeId) {
-                const values = Object.values(nodeThresholds);
-                const dbfs = values.length > 0 ? Math.min(...values) : thresholdValue;
-                // Use average offset across all cached nodes
+                const values = Object.values(nodeThresholds).filter(v => v !== null);
+                if (values.length === 0) return DEFAULT_THRESHOLD_DBA;
+                const dbfs = Math.min(...values);
                 const offsets = Object.values(aWeightOffsets);
                 const offset = useAWeighting && offsets.length > 0
                     ? offsets.reduce((a, b) => a + b, 0) / offsets.length : 0;
                 return dbfs + offset;
             }
-            const dbfs = nodeThresholds[nodeId] ?? thresholdValue;
+            // null = not yet calibrated; return dBA default regardless of mode
+            if (nodeThresholds[nodeId] === null || nodeThresholds[nodeId] === undefined) {
+                return DEFAULT_THRESHOLD_DBA;
+            }
             const offset = useAWeighting ? (aWeightOffsets[nodeId] || 0) : 0;
-            return dbfs + offset;
+            return nodeThresholds[nodeId] + offset;
         }
 
         function toggleWeighting() {
@@ -1225,6 +1255,13 @@
             const slider = document.getElementById(`threshold-slider-${nodeId}`);
             const input = document.getElementById(`threshold-input-${nodeId}`);
             if (!slider || !input) return;
+            // If threshold not yet calibrated, treat input as dBA and convert to dBFS
+            // Force A-weighted conversion regardless of current mode
+            if (nodeThresholds[nodeId] === null) {
+                const displayVal = parseFloat(input.value) || thresholdValue;
+                const offset = aWeightOffsets[nodeId] || 0;
+                nodeThresholds[nodeId] = Math.max(-80, Math.min(0, displayVal - offset));
+            }
             const displayVal = Math.round(thresholdInDisplayUnit(nodeId) * 2) / 2;
             slider.value = displayVal;
             input.value = displayVal;
@@ -1303,7 +1340,7 @@
                 const yTop = height - ((Math.min(zone.to, dbfsMax) - dbfsMin) / (dbfsMax - dbfsMin)) * height;
                 const yBot = height - ((Math.max(zone.from, dbfsMin) - dbfsMin) / (dbfsMax - dbfsMin)) * height;
                 ctx.fillStyle = zone.color;
-                ctx.fillRect(0, yTop, width, yBot - yTop);
+                ctx.fillRect(2, yTop, width - 4, yBot - yTop);
             });
 
             // Draw segmented bar from bottom up
@@ -1575,6 +1612,8 @@
 
             const initialValue = parseFloat(input.value);
             updateValue(isNaN(initialValue) ? -20 : initialValue);
+            // Mark as needing recalibration — stored as display value until bands arrive
+            nodeThresholds[nodeId] = null;
         }
 
         function toggleAudio(nodeId) {
@@ -1583,10 +1622,10 @@
 
             const btn = document.getElementById(`audio-btn-${nodeId}`);
             if (audioPlayers[nodeId].muted) {
-                btn.textContent = '◁ Muted';
+                btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:3px"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>Muted';
                 btn.classList.remove('active');
             } else {
-                btn.textContent = '◁ Playing';
+                btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:3px"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>Playing';
                 btn.classList.add('active');
                 // Resume audio context if suspended (browser autoplay policy)
                 if (audioContext.state === 'suspended') {
@@ -1817,7 +1856,8 @@
             // Reserve margins for labels
             const yAxisWidth = 36;
             const yPadding = 8;
-            const width = totalWidth - yAxisWidth;
+            const xPadding = 8;
+            const width = totalWidth - yAxisWidth - xPadding;
             const height = totalHeight - (yPadding * 2);
 
             // Clear canvas
@@ -1860,7 +1900,7 @@
                 ctx.lineWidth = 1;
                 ctx.beginPath();
                 ctx.moveTo(yAxisWidth, y);
-                ctx.lineTo(totalWidth, y);
+                ctx.lineTo(yAxisWidth + width, y);
                 ctx.stroke();
                 // Label
                 ctx.fillStyle = '#666';
@@ -1874,7 +1914,7 @@
             ctx.setLineDash([5, 5]);
             ctx.beginPath();
             ctx.moveTo(yAxisWidth, thresholdY);
-            ctx.lineTo(totalWidth, thresholdY);
+            ctx.lineTo(yAxisWidth + width, thresholdY);
             ctx.stroke();
             ctx.setLineDash([]);
 
@@ -2060,22 +2100,24 @@
                                 </div>
                             </div>
                             <div class="node-status">
-                                <button class="audio-control" onclick="toggleAudio('${nodeId}')" id="audio-btn-${nodeId}">
-                                    ◁ Muted
-                                </button>
                                 <span class="audio-indicator" id="audio-indicator-${nodeId}"></span>
-                                <div class="status-dot"></div>
-                                <span class="status-text">Online</span>
+                                <button class="audio-control audio-toggle" onclick="toggleAudio('${nodeId}')" id="audio-btn-${nodeId}">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:3px"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>Muted
+                                </button>
+                                <div class="status-pill">
+                                    <div class="status-dot"></div>
+                                    <span class="status-text">Online</span>
+                                </div>
                             </div>
                         </div>
                         <div class="controls-section">
+                            <div class="level-meter-box">
+                                <canvas class="level-meter-canvas" id="level-meter-${nodeId}"></canvas>
+                            </div>
                             <div class="control-box overall-level">
                                 <label>Level</label>
                                 <div class="value"><span class="overall-value">--</span></div>
                                 <div class="subtitle weighting-toggle" onclick="toggleWeighting()" id="weighting-label">dBA</div>
-                            </div>
-                            <div class="level-meter-box">
-                                <canvas class="level-meter-canvas" id="level-meter-${nodeId}"></canvas>
                             </div>
                             <div class="gain-control">
                                 <label>Mic Gain</label>
@@ -2097,7 +2139,7 @@
                             </div>
                         </div>
                         <div class="controls-section">
-                            <div class="control-box">
+                            <div class="control-box threshold-box">
                                 <label>Alert Threshold</label>
                                 <div class="threshold-control">
                                     <div class="threshold-input-group">
@@ -2108,7 +2150,7 @@
                                                step="0.5"
                                                min="-80"
                                                max="0">
-                                        <span class="weighting-toggle" style="color: #8b92a8;">dBA</span>
+                                        <span class="weighting-toggle">dBA</span>
                                     </div>
                                     <input type="range"
                                            id="threshold-slider-${nodeId}"
@@ -2141,7 +2183,7 @@
                             </div>
                         </div>
                         <div class="node-actions">
-                            <button class="audio-control" onclick="showOTADialog('${nodeId}')" title="Update Firmware">↑ Update</button>
+                            <button class="audio-control" onclick="showOTADialog('${nodeId}')" title="Update Firmware"><span style="display:inline-block;transform:translateY(-1px)">↑</span> Update</button>
                             <button class="audio-control" onclick="rebootNode('${nodeId}')" title="Reboot Node">↻ Reboot</button>
                             <button class="audio-control" id="sleep-btn-${nodeId}" onclick="toggleSleep('${nodeId}')" title="Sleep / Wake">☾ Sleep</button>
                             <button class="audio-control" onclick="disconnectNode('${nodeId}')" title="Disconnect Node">✕ Disconnect</button>
@@ -2587,12 +2629,12 @@
 
             if (logBody.style.display === 'none') {
                 logBody.style.display = 'flex';
-                logArrow.classList.add('expanded');
+                logArrow.textContent = '−';
                 renderLog();
                 resizeLog();
             } else {
                 logBody.style.display = 'none';
-                logArrow.classList.remove('expanded');
+                logArrow.textContent = '+';
             }
         }
 

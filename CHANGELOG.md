@@ -14,6 +14,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-07-30
+
+### Added
+- Status pill for online/sleeping/offline — boxed background matching button style, not interactive
+- Speaker SVG icon for mute/unmute button (fixed width so button doesn't resize on toggle)
+
+### Changed
+- Level meter bar moved to left of number display
+- Level meter box: darker `#080e0a` background with green border
+- Spectrum: 8px right padding to match top/bottom margins
+- Control boxes (knobs, threshold): darker background + green border for instrument panel feel
+- Alert threshold: top-padding and auto-height so markers stay inside box
+- Threshold input, knob percentage, log seq number: `#a3e6b8` mint color
+- Control box labels: `#6b9e7a` muted green (was blue-grey `#8b92a8`)
+- dBA/dBFS toggle label: `#6b9e7a`, brightens to `#44dd66` on hover
+- Level number: fixed `3ch` min-width so minus sign doesn't shift display off-center
+- Update button ↑ icon vertically aligned with text
+- Live logs toggle: `+`/`−` on left instead of arrow
+- Level meter bar zone backgrounds inset to match segment width (fixes wider-at-top illusion)
+
+### Fixed
+- Alert threshold defaults to -20 dBA; calibrates to dBFS on first band data arrival
+- Toggling dBFS↔dBA no longer drifts the threshold value
+- PCB file: removed invalid `;;` comments that prevented KiCad import
+
 ## [1.4.1] - 2026-07-30
 
 ### Added
