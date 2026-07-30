@@ -10,14 +10,15 @@
 #include <base64.h>
 #include <ArduinoJson.h>
 
-// Injected by build_firmware.sh from .env — do not hardcode
+// Version injected by build_firmware.sh from .env
 const char* FIRMWARE_VERSION = "PLACEHOLDER";
-const char* NODE_ID    = "PLACEHOLDER";
-const char* WIFI_SSID  = "PLACEHOLDER";
-const char* WIFI_PASS  = "PLACEHOLDER";
-const char* MQTT_HOST  = "PLACEHOLDER";
+
+const char* NODE_ID    = "node1";
+const char* WIFI_SSID  = "rojo_IoT";
+const char* WIFI_PASS  = "CHANGE_ME";
+const char* MQTT_HOST  = "10.10.10.20";
 const int   MQTT_PORT  = 1883;
-const char* WS_HOST    = "PLACEHOLDER";
+const char* WS_HOST    = "10.10.10.20";
 const int   WS_PORT    = 8091;
 
 // I2S pins
