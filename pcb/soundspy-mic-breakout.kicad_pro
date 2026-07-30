@@ -1,0 +1,57 @@
+{
+  "board": {
+    "3dviewports": [],
+    "design_settings": {
+      "defaults": {
+        "board_outline_line_width": 0.1,
+        "copper_line_width": 0.2,
+        "copper_text_size_h": 1.5,
+        "copper_text_size_v": 1.5,
+        "copper_text_thickness": 0.3,
+        "other_line_width": 0.15,
+        "silk_line_width": 0.15,
+        "silk_text_size_h": 1.0,
+        "silk_text_size_v": 1.0,
+        "silk_text_thickness": 0.15
+      },
+      "rules": {
+        "min_clearance": 0.2,
+        "min_track_width": 0.25,
+        "min_via_diameter": 0.6,
+        "min_via_drill": 0.3
+      }
+    },
+    "layer_presets": []
+  },
+  "boards": [],
+  "project": {
+    "active_layer": 0,
+    "active_layer_preset": "",
+    "auto_delete_old_schematics": false,
+    "files": [],
+    "meta": {
+      "filename": "soundspy-mic-breakout.kicad_pro",
+      "version": 1
+    },
+    "net_settings": {
+      "classes": [
+        {
+          "clearance": 0.2,
+          "name": "Default",
+          "track_width": 0.3,
+          "via_diameter": 0.6,
+          "via_drill": 0.3
+        }
+      ]
+    },
+    "schematics": {},
+    "sheets": []
+  },
+  "schematic": {
+    "drawing": {},
+    "meta": {
+      "version": 1
+    }
+  },
+  "text_variables": {}
+}
