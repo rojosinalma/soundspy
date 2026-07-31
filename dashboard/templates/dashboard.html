@@ -328,10 +328,9 @@
         }
 
         .status-dot.offline {
-            background: radial-gradient(circle at 35% 35%, #3a6a4a, #1a2e24);
-            border: 1px solid #1a3020;
-            box-shadow: inset 0 1px 1px rgba(0,0,0,0.5);
-            box-shadow: none;
+            background: radial-gradient(circle at 35% 35%, #e53e3e, #742a2a);
+            border: 1px solid #742a2a;
+            box-shadow: 0 0 5px rgba(229, 62, 62, 0.8), 0 0 10px rgba(229, 62, 62, 0.4);
             animation: none;
         }
 
@@ -1210,9 +1209,8 @@
     <script>
         let historyChart;
         let nodesData = {};
-        let thresholdValue = -20;  // Always in dBFS after calibration; -20 is the dBA display default
-        const nodeThresholds = {};  // { nodeId: dBFS value | null (uncalibrated) }
-        const DEFAULT_THRESHOLD_DBA = -20;
+        const nodeThresholds = {};  // { nodeId: threshold value as set by user }
+        const DEFAULT_THRESHOLD = -20;
         const nodeDisplayNames = {};  // { chipId: displayName }
         let historySelectedNode = 'all';
 
@@ -1290,19 +1288,6 @@
 
         let useAWeighting = true;
 
-        // Convert a dBFS value to the active display unit using cached offset for nodeId
-        function dbfsToDisplay(dbfs, nodeId) {
-            if (!useAWeighting) return dbfs;
-            return dbfs + (aWeightOffsets[nodeId] || 0);
-        }
-
-        // Convert a display-unit value back to dBFS using cached offset for nodeId
-        function displayToDbfs(display, nodeId) {
-            if (!useAWeighting) return display;
-            return display - (aWeightOffsets[nodeId] || 0);
-        }
-
-        // Cached A-weighting offset per node — computed once when bands first arrive or threshold changes
         const aWeightOffsets = {};
 
         function computeAndCacheAWeightOffset(nodeId, bands) {
@@ -1317,23 +1302,12 @@
             aWeightOffsets[nodeId] = 10 * Math.log10(weightedPower + 1e-18) - 10 * Math.log10(rawPower + 1e-18);
         }
 
-        // Get threshold in display unit for a node (null = use effective/global threshold)
-        function thresholdInDisplayUnit(nodeId) {
+        function thresholdForNode(nodeId) {
             if (!nodeId) {
-                const values = Object.values(nodeThresholds).filter(v => v !== null);
-                if (values.length === 0) return DEFAULT_THRESHOLD_DBA;
-                const dbfs = Math.min(...values);
-                const offsets = Object.values(aWeightOffsets);
-                const offset = useAWeighting && offsets.length > 0
-                    ? offsets.reduce((a, b) => a + b, 0) / offsets.length : 0;
-                return dbfs + offset;
+                const values = Object.values(nodeThresholds).filter(v => v != null);
+                return values.length > 0 ? Math.min(...values) : DEFAULT_THRESHOLD;
             }
-            // null = not yet calibrated; return dBA default regardless of mode
-            if (nodeThresholds[nodeId] === null || nodeThresholds[nodeId] === undefined) {
-                return DEFAULT_THRESHOLD_DBA;
-            }
-            const offset = useAWeighting ? (aWeightOffsets[nodeId] || 0) : 0;
-            return nodeThresholds[nodeId] + offset;
+            return nodeThresholds[nodeId] != null ? nodeThresholds[nodeId] : DEFAULT_THRESHOLD;
         }
 
         function toggleWeighting() {
@@ -1346,29 +1320,17 @@
                 historyChart.options.scales.y.title.text = unit;
                 historyChart.update();
             }
-            // Re-render threshold controls in new unit for all nodes
-            for (const nodeId of Object.keys(nodesData)) {
-                refreshThresholdDisplay(nodeId);
-            }
         }
 
-        // Update slider/input to show threshold in active display unit
         function refreshThresholdDisplay(nodeId) {
             const slider = document.getElementById(`threshold-slider-${nodeId}`);
             const input = document.getElementById(`threshold-input-${nodeId}`);
             if (!slider || !input) return;
-            // If threshold not yet calibrated, treat input as dBA and convert to dBFS
-            // Force A-weighted conversion regardless of current mode
-            if (nodeThresholds[nodeId] === null) {
-                const displayVal = parseFloat(input.value) || thresholdValue;
-                const offset = aWeightOffsets[nodeId] || 0;
-                nodeThresholds[nodeId] = Math.max(-80, Math.min(0, displayVal - offset));
-            }
-            const displayVal = Math.round(thresholdInDisplayUnit(nodeId) * 2) / 2;
-            slider.value = displayVal;
-            input.value = displayVal;
-            updateSliderGradient(slider, displayVal);
-            updateSliderMarks(nodeId, displayVal);
+            const val = thresholdForNode(nodeId);
+            slider.value = val;
+            input.value = val;
+            updateSliderGradient(slider, val);
+            updateSliderMarks(nodeId, val);
         }
 
         function applyAWeighting(bands) {
@@ -1402,7 +1364,7 @@
         const METER_PEAK_FADE = 500;
 
         function getBarColor(dbfs, thresh) {
-            const t = thresh !== undefined ? thresh : thresholdInDisplayUnit();
+            const t = thresh !== undefined ? thresh : thresholdForNode();
             if (dbfs >= t) return '#ef4444';
             if (dbfs >= t - 10) return '#f59e0b';
             return '#22c55e';
@@ -1431,7 +1393,7 @@
             const filledSegs = Math.round(normalized * segCount);
 
             // Zone backgrounds
-            const displayThresh = thresholdInDisplayUnit(nodeId);
+            const displayThresh = thresholdForNode(nodeId);
             const yellowStart = displayThresh - 10;
             const zones = [
                 { from: dbfsMin, to: yellowStart, color: 'rgba(34, 197, 94, 0.15)' },
@@ -1653,6 +1615,14 @@
             container.innerHTML = html;
         }
 
+        function persistThreshold(nodeId, dbfsValue) {
+            fetch('/api/node/threshold', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({chip_id: nodeId, value: dbfsValue})
+            }).catch(err => console.error('Failed to persist threshold:', err));
+        }
+
         function initThresholdControls(nodeId) {
             const slider = document.getElementById(`threshold-slider-${nodeId}`);
             const input = document.getElementById(`threshold-input-${nodeId}`);
@@ -1668,54 +1638,54 @@
                 const parsed = parseFloat(value);
                 const raw = isNaN(parsed) ? -20 : Math.round(parsed * 2) / 2;
                 const snapped = snapToMark(raw);
-                const displayClamped = Math.max(-80, Math.min(0, snapped));
-                // Store internally as dBFS
-                const dbfsClamped = Math.max(-80, Math.min(0, displayToDbfs(displayClamped, nodeId)));
-                input.value = displayClamped;
-                slider.value = displayClamped;
-                thresholdValue = dbfsClamped;
-                nodeThresholds[nodeId] = dbfsClamped;
-                updateSliderGradient(slider, displayClamped);
-                updateSliderMarks(nodeId, displayClamped);
-                return dbfsClamped;
+                const clamped = Math.max(-80, Math.min(0, snapped));
+                input.value = clamped;
+                slider.value = clamped;
+                nodeThresholds[nodeId] = clamped;
+                updateSliderGradient(slider, clamped);
+                updateSliderMarks(nodeId, clamped);
+                return clamped;
             };
 
             slider.addEventListener('input', (e) => {
                 updateValue(e.target.value);
             });
 
+            slider.addEventListener('change', (e) => {
+                const v = updateValue(e.target.value);
+                persistThreshold(nodeId, v);
+            });
+
             slider.addEventListener('dblclick', () => {
-                updateValue(-20);
+                const v = updateValue(-20);
+                persistThreshold(nodeId, v);
             });
 
             input.addEventListener('input', (e) => {
                 const value = parseFloat(e.target.value);
                 if (!isNaN(value)) {
-                    const displayClamped = Math.max(-80, Math.min(0, value));
-                    const dbfsClamped = Math.max(-80, Math.min(0, displayToDbfs(displayClamped, nodeId)));
-                    slider.value = displayClamped;
-                    thresholdValue = dbfsClamped;
-                    nodeThresholds[nodeId] = dbfsClamped;
-                    updateSliderGradient(slider, displayClamped);
-                    updateSliderMarks(nodeId, displayClamped);
+                    const clamped = Math.max(-80, Math.min(0, value));
+                    slider.value = clamped;
+                    nodeThresholds[nodeId] = clamped;
+                    updateSliderGradient(slider, clamped);
+                    updateSliderMarks(nodeId, clamped);
                 }
             });
 
             input.addEventListener('blur', (e) => {
-                updateValue(e.target.value);
+                const v = updateValue(e.target.value);
+                persistThreshold(nodeId, v);
             });
 
             input.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
-                    updateValue(e.target.value);
+                    const v = updateValue(e.target.value);
+                    persistThreshold(nodeId, v);
                     e.target.blur();
                 }
             });
 
-            const initialValue = parseFloat(input.value);
-            updateValue(isNaN(initialValue) ? -20 : initialValue);
-            // Mark as needing recalibration — stored as display value until bands arrive
-            nodeThresholds[nodeId] = null;
+            refreshThresholdDisplay(nodeId);
         }
 
         function toggleAudio(nodeId) {
@@ -1894,7 +1864,7 @@
                     beforeDraw(chart) {
                         const {ctx, chartArea, scales: {y}} = chart;
                         if (!chartArea) return;
-                        const t = thresholdInDisplayUnit(historySelectedNode !== 'all' ? historySelectedNode : null);
+                        const t = thresholdForNode(historySelectedNode !== 'all' ? historySelectedNode : null);
                         const yellowStart = t - 10;
                         const zones = [
                             {from: -80, to: yellowStart, color: 'rgba(34, 197, 94, 0.15)'},
@@ -1979,7 +1949,7 @@
             const dbfsMin = -80;
             const dbfsMax = 0;
 
-            const eqDisplayThresh = thresholdInDisplayUnit(nodeId);
+            const eqDisplayThresh = thresholdForNode(nodeId);
             const yellowStart = eqDisplayThresh - 10;
 
             const drawZoneOffset = (fromDb, toDb, color) => {
@@ -2367,11 +2337,10 @@
                     }
                 }
 
-                // Cache A-weight offset and refresh threshold display when bands first arrive
+                // Cache A-weight offset when bands first arrive
                 if (data.current.bands && !card.dataset.bandsReady) {
                     card.dataset.bandsReady = '1';
                     computeAndCacheAWeightOffset(nodeId, data.current.bands);
-                    refreshThresholdDisplay(nodeId);
                 }
 
                 // Drop level and spectrum to floor when offline/sleeping
@@ -2405,7 +2374,7 @@
                         drawEQ(nodeId, bandValues);
 
                         // LED uses raw level for instant response; card class removed (LED handles it)
-                        const isAlert = rawLevels[nodeId] > thresholdInDisplayUnit(nodeId);
+                        const isAlert = rawLevels[nodeId] > thresholdForNode(nodeId);
                         card.classList.toggle('alert', isAlert);
                         const led = document.getElementById(`alert-led-${nodeId}`);
                         if (led) led.classList.toggle('on', isAlert);
@@ -2431,7 +2400,7 @@
         }
 
         function getZoneColor(dbfs) {
-            const t = thresholdInDisplayUnit(historySelectedNode !== 'all' ? historySelectedNode : null);
+            const t = thresholdForNode(historySelectedNode !== 'all' ? historySelectedNode : null);
             if (dbfs >= t) return '#ef4444';
             if (dbfs >= t - 10) return '#f59e0b';
             return '#22c55e';
@@ -2550,7 +2519,13 @@
                 const data = await response.json();
 
                 nodesData = data.nodes;
-                thresholdValue = data.threshold;
+
+                // Load persisted per-node thresholds
+                if (data.node_thresholds) {
+                    Object.entries(data.node_thresholds).forEach(([nodeId, val]) => {
+                        nodeThresholds[nodeId] = val;
+                    });
+                }
 
                 // Pre-populate display names so selectors show names immediately on load
                 Object.entries(data.nodes).forEach(([nodeId, node]) => {
@@ -2825,6 +2800,21 @@
         socket.on('node_log', function(update) {
             addSystemLogEntry(update.node_id, update.payload, update.timestamp);
         });
+
+        setInterval(() => {
+            const now = Date.now() / 1000;
+            let changed = false;
+            Object.entries(nodesData).forEach(([nodeId, data]) => {
+                if (data.sleeping) return;
+                const stale = data.last_update && (now - data.last_update) > 10;
+                if (stale && data.online) {
+                    data.online = false;
+                    changed = true;
+                }
+            });
+            if (changed) updateNodeCards(nodesData);
+        }, 3000);
+
         let confirmResolve = null;
         function showConfirm(title, message) {
             document.getElementById('confirm-title').textContent = title;

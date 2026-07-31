@@ -29,6 +29,7 @@ TOPIC_HEARTBEAT = "soundspy/+/heartbeat"
 
 # Node name persistence
 NODE_NAMES_FILE = "/app/data/node_names.json"
+NODE_THRESHOLDS_FILE = "/app/data/node_thresholds.json"
 
 
 def load_node_names():
@@ -43,6 +44,20 @@ def save_node_names(names):
     os.makedirs(os.path.dirname(NODE_NAMES_FILE), exist_ok=True)
     with open(NODE_NAMES_FILE, "w") as f:
         json.dump(names, f, indent=2)
+
+
+def load_node_thresholds():
+    try:
+        with open(NODE_THRESHOLDS_FILE, "r") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def save_node_thresholds(thresholds):
+    os.makedirs(os.path.dirname(NODE_THRESHOLDS_FILE), exist_ok=True)
+    with open(NODE_THRESHOLDS_FILE, "w") as f:
+        json.dump(thresholds, f, indent=2)
 
 
 def get_node_name(chip_id):
@@ -257,7 +272,8 @@ def api_nodes():
 
         return jsonify({
             "nodes": result,
-            "threshold": FREQ_THRESHOLD_DBFS
+            "threshold": FREQ_THRESHOLD_DBFS,
+            "node_thresholds": load_node_thresholds()
         })
 
 
@@ -277,6 +293,24 @@ def api_rename_node():
 
     print(f"Node {chip_id} renamed to '{new_name}'", flush=True)
     return jsonify({"success": True, "chip_id": chip_id, "name": new_name})
+
+
+@app.route("/api/node/threshold", methods=["POST"])
+def api_set_threshold():
+    """Set threshold for a node (persisted across reloads)."""
+    data = request.get_json()
+    chip_id = data.get("chip_id")
+    value = data.get("value")
+
+    if not chip_id or value is None:
+        return jsonify({"error": "Missing chip_id or value"}), 400
+
+    value = max(-80, min(0, float(value)))
+    thresholds = load_node_thresholds()
+    thresholds[chip_id] = value
+    save_node_thresholds(thresholds)
+
+    return jsonify({"success": True, "chip_id": chip_id, "value": value})
 
 
 @app.route("/api/history/<node_id>")
