@@ -13,9 +13,11 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <HTTPUpdateServer.h>
+#include <HTTPUpdate.h>
 #include <Preferences.h>
 #include <esp_ota_ops.h>
-#include <driver/adc.h>
+#include <PubSubClient.h>
+#include <ArduinoJson.h>
 
 #define RECOVERY_VERSION "1.0.0"
 #define AP_SSID          "soundspy-recovery"
@@ -28,6 +30,8 @@ char NODE_ID[13];
 Preferences prefs;
 WebServer server(80);
 HTTPUpdateServer updater;
+WiFiClient mqttWifiClient;
+PubSubClient mqtt(mqttWifiClient);
 
 bool staMode = false;
 String wifiSsid, wifiPass, mqttHost, mqttPort, wsHost, wsPort;
@@ -199,6 +203,38 @@ void handleBoot() {
   }
 }
 
+void performOTA(const char* url) {
+  Serial.println("[recovery] OTA update requested: " + String(url));
+  WiFiClient client;
+  t_httpUpdate_return ret = httpUpdate.update(client, url);
+  if (ret == HTTP_UPDATE_OK) {
+    Serial.println("[recovery] OTA success, rebooting");
+    esp_restart();
+  } else {
+    Serial.println("[recovery] OTA failed: " + httpUpdate.getLastErrorString());
+  }
+}
+
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
+  StaticJsonDocument<256> doc;
+  if (deserializeJson(doc, payload, length)) return;
+  if (doc.containsKey("ota_url")) {
+    performOTA(doc["ota_url"]);
+  }
+}
+
+void connectMQTT() {
+  if (mqttHost.isEmpty()) return;
+  mqtt.setServer(mqttHost.c_str(), mqttPort.toInt());
+  mqtt.setCallback(mqttCallback);
+  String clientId = String("recovery-") + NODE_ID;
+  if (mqtt.connect(clientId.c_str())) {
+    String controlTopic = String("soundspy/") + NODE_ID + "/control";
+    mqtt.subscribe(controlTopic.c_str());
+    Serial.println("[recovery] MQTT connected, subscribed to " + controlTopic);
+  }
+}
+
 void setupServer() {
   updater.setup(&server, "/update");
   server.on("/", HTTP_GET, handleRoot);
@@ -265,6 +301,7 @@ void setup() {
   if (!staMode) startAP();
 
   setupServer();
+  if (staMode) connectMQTT();
   publishRecoveryStatus();
 
   // Slow blink to indicate portal is running
@@ -273,6 +310,10 @@ void setup() {
 
 void loop() {
   server.handleClient();
+  if (staMode) {
+    if (!mqtt.connected()) connectMQTT();
+    mqtt.loop();
+  }
   // Slow heartbeat blink
   static unsigned long lastBlink = 0;
   if (millis() - lastBlink > 2000) {
