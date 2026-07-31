@@ -158,9 +158,9 @@ def settings():
 @app.route("/api/nodes")
 def api_nodes():
     db_nodes = db.get_all_nodes()
-    all_node_ids = set(node_state.get_all_nodes().keys()) | set(db_nodes.keys())
+    live_node_ids = node_state.get_all_nodes().keys()
     result = {}
-    for node_id in all_node_ids:
+    for node_id in live_node_ids:
         result[node_id] = node_state.get_node_status(node_id, db_nodes)
 
     return jsonify({
