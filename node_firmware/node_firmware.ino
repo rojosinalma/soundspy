@@ -13,7 +13,7 @@
 #include <driver/adc.h>
 #include <Preferences.h>
 
-const char* FIRMWARE_VERSION = "1.6.0";
+const char* FIRMWARE_VERSION = "1.7.0";
 
 // --- NVS credentials (written by recovery portal or build_firmware.sh on first flash) ---
 #define PIN_BOOT 0  // built-in BOOT button, active LOW
