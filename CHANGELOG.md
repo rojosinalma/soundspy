@@ -14,6 +14,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-07-31
+
+### Added
+- EQ spectrum peak markers: always visible, fade after 2s by default
+- Peaks toggle: hide/show peak markers per node
+- Peak Hold toggle: keep markers indefinitely until exceeded again; enabling hold auto-enables peaks, disabling peaks auto-disables hold
+- Per-node threshold persistence across page reloads (`data/node_thresholds.json`)
+- System logs persist across reload: server keeps last 200, replays to new clients on connect
+- Node name shown alongside chip ID in all log entries
+
+### Changed
+- Default mic gain raised to 100% (10x) for accurate level reporting
+- Node chip ID now uses full 6-byte MAC (was lower 4 bytes) — fixes duplicate IDs on boards from same batch
+- Threshold stored exactly as set by user — removed dBFS/dBA recalculation that caused drift on reload
+- Offline status LED is now static red with glow (was dim green)
+- Node history chart colors changed to blues/purples/pinks (avoids conflict with green/yellow/red zone colors)
+
+### Fixed
+- Node cards no longer flash: staleness check now uses browser clock (`Date.now()`) instead of server timestamp — eliminates clock-skew false positives
+- Canvas no longer resets every frame: DPR dimensions rounded to integer, preventing always-true size mismatch
+- DOM writes guarded against no-op updates; sensor data batched via `requestAnimationFrame`
+- App log no longer causes layout thrashing at 50Hz — throttled to 1s renders
+
+## [1.5.0] - 2026-07-31
+
+### Changed
+- Node chip ID now uses full 6-byte MAC (was lower 4 bytes) — fixes duplicate IDs on boards from same batch
+
+### Fixed
+- Release workflow no longer attempts to package PCB files (handled separately by `pcb-release.yml`)
+
 ## [1.4.9] - 2026-07-30
 
 ### Added
