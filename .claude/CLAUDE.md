@@ -117,6 +117,20 @@ Hardware carrier board for ESP32 + INMP441 mic. Files in `pcb/inmp441/`.
 - **PCB versioning:** `pcb/<model>/VERSION` — bump to trigger `pcb-release.yml` workflow which builds and releases a per-model zip
 - Current status: v1.3, user routing manually in KiCad
 
+## Firmware Architecture
+
+The ESP32 uses FreeRTOS dual-core task splitting:
+- **Core 1** (`loop()`): audio DSP, I2S reads, MQTT, WebSocket, heartbeat — all time-critical work
+- **Core 0** (`hwControlTask`): button debounce, potentiometer ADC reads — any hardware I/O that could block the audio loop
+
+New hardware peripherals go on Core 0. Do not add blocking operations to `loop()`.
+
+## Coding Standards
+
+- No hardcoded magic values — define named constants once and reference everywhere (applies to both firmware C++ and frontend JS)
+- Default mic gain: `DEFAULT_MIC_GAIN_PCT = 100` (frontend), `audioGain = 10.0f` (firmware)
+- Default alert threshold: `DEFAULT_THRESHOLD = -20` (dB)
+
 ## Git Rules
 
 - All commits must be GPG-signed: `git commit -S`

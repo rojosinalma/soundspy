@@ -9,15 +9,84 @@
 #include <math.h>
 #include <base64.h>
 #include <ArduinoJson.h>
+#include <esp_system.h>
+#include <driver/adc.h>
+#include <Preferences.h>
 
 const char* FIRMWARE_VERSION = "1.6.0";
 
-const char* WIFI_SSID  = "PLACEHOLDER_WIFI_SSID";
-const char* WIFI_PASS  = "PLACEHOLDER_WIFI_PASS";
-const char* MQTT_HOST  = "PLACEHOLDER_MQTT_HOST";
-const int   MQTT_PORT  = PLACEHOLDER_MQTT_PORT;
-const char* WS_HOST    = "PLACEHOLDER_WS_HOST";
-const int   WS_PORT    = PLACEHOLDER_WS_PORT;
+// --- NVS credentials (written by recovery portal or build_firmware.sh on first flash) ---
+#define PIN_BOOT 0  // built-in BOOT button, active LOW
+
+static char WIFI_SSID_BUF[64];
+static char WIFI_PASS_BUF[64];
+static char MQTT_HOST_BUF[64];
+static int  MQTT_PORT_VAL = 1883;
+static char WS_HOST_BUF[64];
+static int  WS_PORT_VAL  = 8091;
+
+const char* WIFI_SSID  = WIFI_SSID_BUF;
+const char* WIFI_PASS  = WIFI_PASS_BUF;
+const char* MQTT_HOST  = MQTT_HOST_BUF;
+const char* WS_HOST    = WS_HOST_BUF;
+
+void loadCredentials() {
+  Preferences prefs;
+  prefs.begin("soundspy", true);
+  strlcpy(WIFI_SSID_BUF, prefs.getString("wifi_ssid", "PLACEHOLDER_WIFI_SSID").c_str(), sizeof(WIFI_SSID_BUF));
+  strlcpy(WIFI_PASS_BUF, prefs.getString("wifi_pass", "PLACEHOLDER_WIFI_PASS").c_str(), sizeof(WIFI_PASS_BUF));
+  strlcpy(MQTT_HOST_BUF, prefs.getString("mqtt_host", "PLACEHOLDER_MQTT_HOST").c_str(), sizeof(MQTT_HOST_BUF));
+  MQTT_PORT_VAL = prefs.getInt("mqtt_port", PLACEHOLDER_MQTT_PORT);
+  strlcpy(WS_HOST_BUF,   prefs.getString("ws_host",   "PLACEHOLDER_WS_HOST").c_str(), sizeof(WS_HOST_BUF));
+  WS_PORT_VAL = prefs.getInt("ws_port", PLACEHOLDER_WS_PORT);
+  prefs.end();
+}
+
+// --- Crash counter in RTC (counts boots; cleared after successful MQTT connect) ---
+#define CRASH_BOOT_LIMIT 3
+
+RTC_DATA_ATTR uint32_t crashBootCount = 0;
+RTC_DATA_ATTR uint32_t crashBootMagic = 0;
+#define CRASH_MAGIC 0xDEAD1234
+
+void bootIntoRecovery() {
+  Serial.println("[IMPORTANT] Crash limit reached — booting into recovery");
+  const esp_partition_t* factory = esp_partition_find_first(
+    ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_FACTORY, NULL);
+  if (factory) {
+    esp_ota_set_boot_partition(factory);
+    delay(200);
+    ESP.restart();
+  }
+  // If no factory partition, just hang — USB flash required
+  Serial.println("[IMPORTANT] No factory partition found — connect via USB");
+  while (true) delay(1000);
+}
+
+// --- Boot attempt tracking via RTC memory (survives reboot, not power loss) ---
+#define BOOT_MAGIC 0xB007CA11
+
+#define BOOT_STAGE_INIT    0
+#define BOOT_STAGE_WIFI    1
+#define BOOT_STAGE_MQTT    2
+#define BOOT_STAGE_OTA_OK  3
+#define BOOT_STAGE_I2S     4
+#define BOOT_STAGE_VALID   0xFF  // fully validated
+
+struct BootRecord {
+  uint32_t magic;
+  char firmware[16];
+  uint8_t stage;
+  uint8_t attempt;
+};
+
+RTC_DATA_ATTR BootRecord rtcBoot;     // current boot attempt
+RTC_DATA_ATTR BootRecord rtcPrevBoot; // copy of last attempt before we overwrite it
+RTC_DATA_ATTR bool rtcPrevValid;      // true if rtcPrevBoot has data worth reporting
+
+void bootStage(uint8_t stage) {
+  rtcBoot.stage = stage;
+}
 
 // Node ID derived from chip's unique ID (lower 4 bytes of MAC)
 char NODE_ID[13];
@@ -46,6 +115,25 @@ float audioGain = 10.0f;  // Default gain (20dB)
 // Sleep mode — keeps WiFi+MQTT alive but stops I2S processing
 bool sleeping = false;
 
+// Hardware controls
+#define PIN_BUTTON  34
+#define PIN_POT     35
+#define BUTTON_HOLD_MS     3000  // hold duration for hard reboot
+#define BUTTON_DEBOUNCE_MS   50  // ignore transitions shorter than this
+#define POT_CHANGE_THRESHOLD 0.5f
+
+unsigned long buttonPressTime = 0;
+unsigned long buttonLastChange = 0;
+bool buttonWasPressed = false;
+bool buttonStableState = HIGH;
+volatile bool requestMqttReconnect = false;
+float lastPublishedGain = -1.0f;
+
+// Triple-press detection for recovery mode
+uint8_t buttonPressCount = 0;
+unsigned long buttonFirstPressTime = 0;
+#define TRIPLE_PRESS_WINDOW_MS 2000
+
 // Heartbeat interval (ms)
 #define HEARTBEAT_INTERVAL_MS 30000
 unsigned long lastHeartbeat = 0;
@@ -68,13 +156,24 @@ void remoteLog(const char* level, const char* msg) {
 
 void publishBootReport() {
   const esp_partition_t* running = esp_ota_get_running_partition();
-  char payload[384];
-  snprintf(payload, sizeof(payload),
-    "{\"node\":\"%s\",\"firmware\":\"%s\",\"reset_reason\":%d,\"partition\":\"%s\",\"free_heap\":%u,\"ip\":\"%s\"}",
+  char payload[512];
+  int len = snprintf(payload, sizeof(payload),
+    "{\"node\":\"%s\",\"firmware\":\"%s\",\"reset_reason\":%d,\"partition\":\"%s\",\"free_heap\":%u,\"ip\":\"%s\"",
     NODE_ID, FIRMWARE_VERSION, (int)esp_reset_reason(),
     running ? running->label : "unknown",
     ESP.getFreeHeap(),
     WiFi.localIP().toString().c_str());
+
+  if (rtcPrevValid && rtcPrevBoot.magic == BOOT_MAGIC && rtcPrevBoot.stage != BOOT_STAGE_VALID) {
+    const char* stageNames[] = {"init","wifi","mqtt","ota_ok","i2s"};
+    const char* stageName = (rtcPrevBoot.stage < 5) ? stageNames[rtcPrevBoot.stage] : "unknown";
+    len += snprintf(payload + len, sizeof(payload) - len,
+      ",\"prev_failed_boot\":{\"firmware\":\"%s\",\"stage\":\"%s\",\"stage_id\":%d}",
+      rtcPrevBoot.firmware, stageName, rtcPrevBoot.stage);
+    rtcPrevValid = false;  // clear after reporting
+  }
+
+  snprintf(payload + len, sizeof(payload) - len, "}");
   String topic = String("soundspy/") + NODE_ID + "/boot";
   mqtt.publish(topic.c_str(), payload);
 }
@@ -292,7 +391,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
 void connectMQTT() {
   mqtt.setBufferSize(512);
-  mqtt.setServer(MQTT_HOST, MQTT_PORT);
+  mqtt.setServer(MQTT_HOST, MQTT_PORT_VAL);
   mqtt.setCallback(mqttCallback);
 
   while (!mqtt.connected()) {
@@ -334,7 +433,7 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 }
 
 void connectWebSocket() {
-  webSocket.begin(WS_HOST, WS_PORT, "/ws/audio");
+  webSocket.begin(WS_HOST, WS_PORT_VAL, "/ws/audio");
   webSocket.onEvent(webSocketEvent);
   webSocket.setReconnectInterval(5000);
 }
@@ -352,12 +451,35 @@ void sendAudioChunk() {
 
 void setup() {
   Serial.begin(115200);
+  pinMode(PIN_BOOT, INPUT_PULLUP);
 
   // Derive node ID from chip's full 6-byte fuse MAC (deterministic, no config needed)
   uint64_t mac = ESP.getEfuseMac();
   snprintf(NODE_ID, sizeof(NODE_ID), "%02x%02x%02x%02x%02x%02x",
     (uint8_t)(mac), (uint8_t)(mac >> 8), (uint8_t)(mac >> 16),
     (uint8_t)(mac >> 24), (uint8_t)(mac >> 32), (uint8_t)(mac >> 40));
+
+  // Check BOOT button — if held at startup, go to recovery immediately
+  if (digitalRead(PIN_BOOT) == LOW) {
+    Serial.println("[IMPORTANT] BOOT button held — entering recovery mode");
+    delay(100);
+    bootIntoRecovery();
+  }
+
+  // Crash counter — if crashed too many times, enter recovery
+  if (crashBootMagic != CRASH_MAGIC) {
+    crashBootMagic = CRASH_MAGIC;
+    crashBootCount = 0;
+  }
+  crashBootCount++;
+  Serial.printf("[IMPORTANT] Boot attempt %u/%u\n", crashBootCount, CRASH_BOOT_LIMIT);
+  if (crashBootCount > CRASH_BOOT_LIMIT) {
+    crashBootCount = 0;
+    bootIntoRecovery();
+  }
+
+  // Load credentials from NVS
+  loadCredentials();
 
   Serial.println("\n\n[IMPORTANT] ========================================");
   Serial.print("[IMPORTANT] soundspy node starting - Firmware v");
@@ -366,20 +488,52 @@ void setup() {
   Serial.println(NODE_ID);
   Serial.println("[IMPORTANT] ========================================\n");
 
+  pinMode(PIN_BUTTON, INPUT);  // external 10k pull-up, active LOW
+  // GPIO35 = ADC1 channel 7 — use legacy IDF driver (no conflict with analogRead)
+  adc1_config_width(ADC_WIDTH_BIT_12);
+  adc1_config_channel_atten(ADC1_CHANNEL_7, ADC_ATTEN_DB_12);  // full 0-3.3V range
+
+  // Save previous boot record before overwriting
+  if (rtcBoot.magic == BOOT_MAGIC && rtcBoot.stage != BOOT_STAGE_VALID) {
+    rtcPrevBoot = rtcBoot;
+    rtcPrevValid = true;
+  } else {
+    rtcPrevValid = false;
+  }
+
+  // Initialise new boot record
+  rtcBoot.magic = BOOT_MAGIC;
+  strncpy(rtcBoot.firmware, FIRMWARE_VERSION, sizeof(rtcBoot.firmware) - 1);
+  rtcBoot.firmware[sizeof(rtcBoot.firmware) - 1] = '\0';
+  rtcBoot.stage = BOOT_STAGE_INIT;
+  rtcBoot.attempt = (rtcPrevValid ? rtcPrevBoot.attempt + 1 : 0);
+
   connectWiFi();
+  bootStage(BOOT_STAGE_WIFI);
+
   connectMQTT();
+  bootStage(BOOT_STAGE_MQTT);
 
   // Confirm OTA partition is valid — if this never runs, bootloader rolls back
   esp_ota_mark_app_valid_cancel_rollback();
+  crashBootCount = 0;  // successful boot — reset crash counter
+  bootStage(BOOT_STAGE_OTA_OK);
+
   publishBootReport();
   remoteLog("boot", "Stage 1 OK: WiFi + MQTT connected");
   mqtt.loop();
 
   configureBands();
   setupI2S();
+  bootStage(BOOT_STAGE_I2S);
   connectWebSocket();
   lastPublish = millis();
   bootTime = millis();
+
+  // All stages passed — mark as fully valid
+  bootStage(BOOT_STAGE_VALID);
+  // Start hardware control task on Core 0 (audio loop runs on Core 1)
+  xTaskCreatePinnedToCore(hwControlTask, "hwControl", 8192, NULL, 1, NULL, 0);
 
   remoteLog("boot", "Stage 2 OK: I2S + WebSocket initialized");
   mqtt.loop();
@@ -396,7 +550,104 @@ void sendHeartbeat() {
   mqtt.publish(topic.c_str(), payload);
 }
 
+void handleButton() {
+  bool reading = (digitalRead(PIN_BUTTON) == LOW);
+  unsigned long now = millis();
+
+  // Debounce: only accept state change after it's stable for BUTTON_DEBOUNCE_MS
+  if (reading != buttonStableState) {
+    if (now - buttonLastChange >= BUTTON_DEBOUNCE_MS) {
+      buttonStableState = reading;
+      buttonLastChange = now;
+
+      if (buttonStableState == HIGH && buttonWasPressed) {
+        // Released — determine click vs hold
+        unsigned long held = now - buttonPressTime;
+        buttonWasPressed = false;
+        if (held >= BUTTON_HOLD_MS) {
+          remoteLog("info", "Button held — hard reboot");
+          delay(100);
+          ESP.restart();
+        } else {
+          // Triple-press check
+          unsigned long now2 = millis();
+          if (buttonPressCount == 0 || (now2 - buttonFirstPressTime) > TRIPLE_PRESS_WINDOW_MS) {
+            buttonPressCount = 1;
+            buttonFirstPressTime = now2;
+          } else {
+            buttonPressCount++;
+          }
+          if (buttonPressCount >= 3) {
+            buttonPressCount = 0;
+            remoteLog("info", "Triple-press — entering recovery mode");
+            delay(200);
+            bootIntoRecovery();
+          } else {
+            remoteLog("info", "Button clicked — requesting MQTT reconnect");
+            requestMqttReconnect = true;
+          }
+        }
+      } else if (buttonStableState == LOW) {
+        buttonPressTime = now;
+        buttonWasPressed = true;
+      }
+    }
+  } else {
+    buttonLastChange = now;
+    // Still held — trigger reboot immediately once threshold crossed
+    if (buttonWasPressed && buttonStableState == LOW && (now - buttonPressTime >= BUTTON_HOLD_MS)) {
+      remoteLog("info", "Button held — hard reboot");
+      delay(100);
+      ESP.restart();
+    }
+  }
+}
+
+void handlePot() {
+  // Called from Core 0 task — runs independently of audio loop
+
+  // Average 16 reads to reduce ADC noise
+  int sum = 0;
+  for (int i = 0; i < 16; i++) sum += adc1_get_raw(ADC1_CHANNEL_7);
+  int raw = sum / 16;
+
+  // Map 0-4095 → 0.0-10.0 gain
+  float gain = (raw / 4095.0f) * 10.0f;
+
+  // Apply immediately to audio
+  audioGain = gain;
+
+  // Only publish when change is significant (avoids flooding at 50Hz)
+  if (lastPublishedGain < 0 || fabsf(gain - lastPublishedGain) >= POT_CHANGE_THRESHOLD) {
+    lastPublishedGain = gain;
+
+    char payload[128];
+    snprintf(payload, sizeof(payload),
+      "{\"node\":\"%s\",\"gain\":%.2f}", NODE_ID, gain);
+    mqtt.publish((String("soundspy/") + NODE_ID + "/gain").c_str(), payload);
+
+    char logMsg[64];
+    snprintf(logMsg, sizeof(logMsg), "Knob gain: %.1fx (%.0f%%)", gain, gain * 10.0f);
+    remoteLog("info", logMsg);
+  }
+}
+
+// Core 0 task: handles hardware controls (button + pot) without blocking audio loop
+void hwControlTask(void* pvParameters) {
+  for (;;) {
+    handleButton();
+    handlePot();
+    vTaskDelay(pdMS_TO_TICKS(20));  // 50Hz poll rate, non-blocking
+  }
+}
+
 void loop() {
+  if (requestMqttReconnect) {
+    requestMqttReconnect = false;
+    mqtt.disconnect();
+    delay(100);
+    connectMQTT();
+  }
   if (!mqtt.connected()) connectMQTT();
   mqtt.loop();
   sendHeartbeat();
