@@ -10,7 +10,7 @@
 #include <base64.h>
 #include <ArduinoJson.h>
 
-const char* FIRMWARE_VERSION = "1.4.0";
+const char* FIRMWARE_VERSION = "1.5.0";
 
 const char* WIFI_SSID  = "PLACEHOLDER_WIFI_SSID";
 const char* WIFI_PASS  = "PLACEHOLDER_WIFI_PASS";
@@ -20,7 +20,7 @@ const char* WS_HOST    = "PLACEHOLDER_WS_HOST";
 const int   WS_PORT    = PLACEHOLDER_WS_PORT;
 
 // Node ID derived from chip's unique ID (lower 4 bytes of MAC)
-char NODE_ID[9];
+char NODE_ID[13];
 
 // I2S pins
 #define I2S_WS   25
@@ -353,10 +353,11 @@ void sendAudioChunk() {
 void setup() {
   Serial.begin(115200);
 
-  // Derive node ID from chip's unique fuse MAC (deterministic, no config needed)
+  // Derive node ID from chip's full 6-byte fuse MAC (deterministic, no config needed)
   uint64_t mac = ESP.getEfuseMac();
-  snprintf(NODE_ID, sizeof(NODE_ID), "%02x%02x%02x%02x",
-    (uint8_t)(mac), (uint8_t)(mac >> 8), (uint8_t)(mac >> 16), (uint8_t)(mac >> 24));
+  snprintf(NODE_ID, sizeof(NODE_ID), "%02x%02x%02x%02x%02x%02x",
+    (uint8_t)(mac), (uint8_t)(mac >> 8), (uint8_t)(mac >> 16),
+    (uint8_t)(mac >> 24), (uint8_t)(mac >> 32), (uint8_t)(mac >> 40));
 
   Serial.println("\n\n[IMPORTANT] ========================================");
   Serial.print("[IMPORTANT] soundspy node starting - Firmware v");
