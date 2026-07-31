@@ -41,7 +41,7 @@ int16_t audioStreamBuffer[STREAM_CHUNK_SIZE];
 int audioStreamIndex = 0;
 
 // Remote-controllable gain
-float audioGain = 4.0f;  // Default gain (12dB)
+float audioGain = 10.0f;  // Default gain (20dB)
 
 // Sleep mode — keeps WiFi+MQTT alive but stops I2S processing
 bool sleeping = false;
