@@ -147,7 +147,7 @@ def handle_disconnect():
 
 @app.route("/")
 def index():
-    return render_template("dashboard.html")
+    return render_template("dashboard.html", dashboard_version=DASHBOARD_VERSION)
 
 
 @app.route("/settings")
