@@ -1380,8 +1380,12 @@
             const totalHeight = canvas.clientHeight;
             if (totalWidth === 0 || totalHeight === 0) return;
 
-            canvas.width = totalWidth;
-            canvas.height = totalHeight;
+            if (canvas.width !== totalWidth || canvas.height !== totalHeight) {
+                canvas.width = totalWidth;
+                canvas.height = totalHeight;
+            } else {
+                ctx.clearRect(0, 0, totalWidth, totalHeight);
+            }
 
             const dbfsMin = -80, dbfsMax = 0;
             const width = totalWidth;
@@ -1924,10 +1928,16 @@
 
             // Set canvas resolution accounting for device pixel ratio (prevents blurry text)
             const dpr = window.devicePixelRatio || 1;
-            canvas.width = totalWidth * dpr;
-            canvas.height = totalHeight * dpr;
-            canvas.style.width = totalWidth + 'px';
-            canvas.style.height = totalHeight + 'px';
+            const targetW = Math.round(totalWidth * dpr);
+            const targetH = Math.round(totalHeight * dpr);
+            if (canvas.width !== targetW || canvas.height !== targetH) {
+                canvas.width = targetW;
+                canvas.height = targetH;
+                canvas.style.width = totalWidth + 'px';
+                canvas.style.height = totalHeight + 'px';
+            }
+            ctx.resetTransform();
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.scale(dpr, dpr);
 
             // Reserve margins for labels
@@ -2159,9 +2169,13 @@
 
         // Update node cards
         function updateNodeCards(nodes) {
-            const grid = document.getElementById('nodesGrid');
-
             Object.entries(nodes).forEach(([nodeId, data]) => {
+                updateSingleNode(nodeId, data);
+            });
+        }
+
+        function updateSingleNode(nodeId, data) {
+            const grid = document.getElementById('nodesGrid');
                 let card = document.getElementById(`node-${nodeId}`);
 
                 let isNewCard = false;
@@ -2294,45 +2308,52 @@
                 // Update display name if changed
                 const nameEl = document.getElementById(`node-display-name-${nodeId}`);
                 if (nameEl && nodeDisplayNames[nodeId] && nameEl.contentEditable !== 'true') {
-                    nameEl.textContent = nodeDisplayNames[nodeId];
+                    if (nameEl.textContent !== nodeDisplayNames[nodeId]) {
+                        nameEl.textContent = nodeDisplayNames[nodeId];
+                    }
                 }
 
-                // Update status
+                // Update status (only touch DOM when state changes)
                 const isOnline = data.online;
                 const isSleeping = data.sleeping;
                 const statusDot = card.querySelector('.status-dot');
                 const statusText = card.querySelector('.status-text');
+                const prevStatus = card.dataset.status;
+                const newStatus = isSleeping ? 'sleeping' : (isOnline ? 'online' : 'offline');
 
-                if (isSleeping) {
-                    card.classList.remove('offline');
-                    statusDot.classList.remove('offline');
-                    statusText.textContent = 'Sleeping';
-                    sleepingNodes.add(nodeId);
-                    const btn = document.getElementById(`sleep-btn-${nodeId}`);
-                    if (btn) btn.textContent = '☀ Wake';
-                } else if (isOnline) {
-                    card.classList.remove('offline');
-                    statusDot.classList.remove('offline');
-                    statusText.textContent = 'Online';
-                    sleepingNodes.delete(nodeId);
-                    const btn = document.getElementById(`sleep-btn-${nodeId}`);
-                    if (btn) btn.textContent = '☾ Sleep';
-                } else {
-                    card.classList.add('offline');
-                    statusDot.classList.add('offline');
-                    statusText.textContent = 'Offline';
+                if (prevStatus !== newStatus) {
+                    card.dataset.status = newStatus;
+                    if (isSleeping) {
+                        card.classList.remove('offline');
+                        statusDot.classList.remove('offline');
+                        statusText.textContent = 'Sleeping';
+                        sleepingNodes.add(nodeId);
+                        const btn = document.getElementById(`sleep-btn-${nodeId}`);
+                        if (btn) btn.textContent = '☀ Wake';
+                    } else if (isOnline) {
+                        card.classList.remove('offline');
+                        statusDot.classList.remove('offline');
+                        statusText.textContent = 'Online';
+                        sleepingNodes.delete(nodeId);
+                        const btn = document.getElementById(`sleep-btn-${nodeId}`);
+                        if (btn) btn.textContent = '☾ Sleep';
+                    } else {
+                        card.classList.add('offline');
+                        statusDot.classList.add('offline');
+                        statusText.textContent = 'Offline';
+                    }
                 }
 
-                // Update firmware version and IP
+                // Update firmware version and IP (only when changed)
                 if (data.firmware_version) {
                     const fwElem = document.getElementById(`fw-version-${nodeId}`);
-                    if (fwElem) {
+                    if (fwElem && fwElem.textContent !== `v${data.firmware_version}`) {
                         fwElem.textContent = `v${data.firmware_version}`;
                     }
                 }
                 if (data.current.ip) {
                     const ipElem = document.getElementById(`node-ip-${nodeId}`);
-                    if (ipElem) {
+                    if (ipElem && ipElem.textContent !== data.current.ip) {
                         ipElem.textContent = data.current.ip;
                     }
                 }
@@ -2345,7 +2366,9 @@
 
                 // Drop level and spectrum to floor when offline/sleeping
                 if (!isOnline || isSleeping) {
-                    card.querySelector('.overall-value').innerHTML = fmtLevel(-80);
+                    const levelEl = card.querySelector('.overall-value');
+                    const floorHtml = fmtLevel(-80);
+                    if (levelEl.innerHTML !== floorHtml) levelEl.innerHTML = floorHtml;
                     drawLevelMeter(nodeId, -80);
                     drawEQ(nodeId, [-80, -80, -80, -80, -80, -80]);
                     card.classList.remove('alert');
@@ -2361,8 +2384,9 @@
                     rawLevels[nodeId] = Math.max(-80, rawLevel);
                     const smoothed = getSmoothedLevel(nodeId, rawLevel);
                     const displayDbfs = Math.max(-80, smoothed);
-                    card.querySelector('.overall-value').innerHTML = fmtLevel(displayDbfs);
-                    // Peak tracks smoothed level; bar follows raw
+                    const levelEl = card.querySelector('.overall-value');
+                    const newHtml = fmtLevel(displayDbfs);
+                    if (levelEl.innerHTML !== newHtml) levelEl.innerHTML = newHtml;
                     drawLevelMeter(nodeId, displayDbfs, rawLevels[nodeId]);
 
                     // Update EQ visualization
@@ -2373,21 +2397,19 @@
 
                         drawEQ(nodeId, bandValues);
 
-                        // LED uses raw level for instant response; card class removed (LED handles it)
+                        // LED uses raw level for instant response
                         const isAlert = rawLevels[nodeId] > thresholdForNode(nodeId);
                         card.classList.toggle('alert', isAlert);
                         const led = document.getElementById(`alert-led-${nodeId}`);
                         if (led) led.classList.toggle('on', isAlert);
                     }
                 }
-
-            });
         }
 
         // Node color palette (supports many nodes)
         const nodeColors = [
-            '#44dd66', '#06b6d4', '#84cc16', '#14b8a6',
-            '#eab308', '#33bb55', '#2dd4bf', '#a3e635'
+            '#0ea5e9', '#a855f7', '#ec4899', '#6366f1',
+            '#d946ef', '#8b5cf6', '#06b6d4', '#3b82f6'
         ];
         let nodeColorMap = {};
         let nodeColorIndex = 0;
@@ -2527,9 +2549,11 @@
                     });
                 }
 
-                // Pre-populate display names so selectors show names immediately on load
+                // Pre-populate display names and seed last_seen for online nodes
+                const initNow = Date.now();
                 Object.entries(data.nodes).forEach(([nodeId, node]) => {
                     if (node.display_name) nodeDisplayNames[nodeId] = node.display_name;
+                    if (node.online) nodesData[nodeId].last_seen = initNow;
                 });
 
                 updateNodeCards(data.nodes);
@@ -2558,6 +2582,7 @@
         let logScrolledByCode = false;
         let logSelectedNode = 'all';
         let logSelectedTab = 'app';
+        let appLogRenderScheduled = false;
         const logStore = {};  // { nodeId: { app: [entries], system: [entries] } }
         const logKnownNodes = new Set();
 
@@ -2627,6 +2652,11 @@
             logScrolledByCode = false;
         }
 
+        function logNodeLabel(nodeId) {
+            const name = nodeDisplayNames[nodeId];
+            return name ? `${name} (${nodeId})` : nodeId;
+        }
+
         function addAppLogEntry(nodeId, data, timestamp) {
             ensureLogNode(nodeId);
             const now = new Date(timestamp * 1000);
@@ -2645,7 +2675,7 @@
 
             entry.innerHTML = `
                 <span class="log-timestamp">[${timeStr}]</span>
-                <span class="log-node">${nodeId}</span>
+                <span class="log-node">${logNodeLabel(nodeId)}</span>
                 <span class="log-seq">${seqStr}</span>
                 <span class="log-data">overall=${data.overall_dbfs?.toFixed(1) || '--'} dBFS | ${bandsStr}</span>
             `;
@@ -2654,7 +2684,13 @@
             if (logStore[nodeId].app.length > MAX_LOG_ENTRIES) logStore[nodeId].app.shift();
 
             if (logSelectedTab === 'app' && (logSelectedNode === 'all' || logSelectedNode === nodeId)) {
-                appendToVisibleLog(entry);
+                if (!appLogRenderScheduled) {
+                    appLogRenderScheduled = true;
+                    setTimeout(() => {
+                        appLogRenderScheduled = false;
+                        renderLog();
+                    }, 1000);
+                }
             }
         }
 
@@ -2669,7 +2705,7 @@
             entry.className = `log-entry level-${level}`;
             entry.innerHTML = `
                 <span class="log-timestamp">[${timeStr}]</span>
-                <span class="log-node">${nodeId}</span>
+                <span class="log-node">${logNodeLabel(nodeId)}</span>
                 <span class="log-level ${level}">${level}</span>
                 <span class="log-data">${msg}</span>
             `;
@@ -2774,6 +2810,17 @@
         }
 
         // WebSocket for real-time updates (replaces SSE for lower latency)
+        const pendingUpdates = {};
+        let rafScheduled = false;
+
+        function flushUpdates() {
+            rafScheduled = false;
+            for (const nodeId of Object.keys(pendingUpdates)) {
+                updateSingleNode(nodeId, nodesData[nodeId]);
+                delete pendingUpdates[nodeId];
+            }
+        }
+
         socket.on('sensor_data', function(update) {
             if (!nodesData[update.node_id]) {
                 nodesData[update.node_id] = {
@@ -2789,11 +2836,16 @@
 
             nodesData[update.node_id].current = update.data;
             nodesData[update.node_id].last_update = update.timestamp;
+            nodesData[update.node_id].last_seen = Date.now();
             nodesData[update.node_id].online = true;
             if (update.firmware_version) {
                 nodesData[update.node_id].firmware_version = update.firmware_version;
             }
-            updateNodeCards(nodesData);
+            pendingUpdates[update.node_id] = true;
+            if (!rafScheduled) {
+                rafScheduled = true;
+                requestAnimationFrame(flushUpdates);
+            }
             addAppLogEntry(update.node_id, update.data, update.timestamp);
         });
 
@@ -2802,17 +2854,15 @@
         });
 
         setInterval(() => {
-            const now = Date.now() / 1000;
-            let changed = false;
+            const now = Date.now();
             Object.entries(nodesData).forEach(([nodeId, data]) => {
                 if (data.sleeping) return;
-                const stale = data.last_update && (now - data.last_update) > 10;
+                const stale = data.last_seen && (now - data.last_seen) > 10000;
                 if (stale && data.online) {
                     data.online = false;
-                    changed = true;
+                    updateSingleNode(nodeId, data);
                 }
             });
-            if (changed) updateNodeCards(nodesData);
         }, 3000);
 
         let confirmResolve = null;

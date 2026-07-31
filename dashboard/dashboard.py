@@ -19,7 +19,7 @@ from werkzeug.utils import secure_filename
 MQTT_HOST = os.environ.get("MQTT_HOST", "localhost")
 MQTT_PORT = int(os.environ.get("MQTT_PORT", 1883))
 FREQ_THRESHOLD_DBFS = float(os.environ.get("FREQ_THRESHOLD_DBFS", -20))
-DASHBOARD_VERSION = "1.4.9"
+DASHBOARD_VERSION = "1.5.0"
 
 TOPIC_DATA = "soundspy/+/data"
 TOPIC_VERSION = "soundspy/+/version"
@@ -79,6 +79,7 @@ def get_node_name(chip_id):
 
 # Store last 1 hour of data per node (1 point/second = 3600 points)
 HISTORY_SIZE = 3600
+MAX_SYSTEM_LOGS = 200
 node_data = defaultdict(lambda: {
     "last_update": None,
     "last_heartbeat": None,
@@ -88,6 +89,7 @@ node_data = defaultdict(lambda: {
     "firmware_version": "unknown",
     "sleeping": False
 })
+system_logs = deque(maxlen=MAX_SYSTEM_LOGS)
 data_lock = Lock()
 
 app = Flask(__name__)
@@ -126,17 +128,19 @@ def on_message(client, userdata, msg):
 
         # Handle log messages (system logs from the node)
         if msg.topic.endswith("/log"):
-            socketio.emit('node_log', {
+            log_entry = {
                 'node_id': node_id,
                 'type': 'system',
                 'payload': payload,
                 'timestamp': time.time()
-            }, namespace='/')
+            }
+            system_logs.append(log_entry)
+            socketio.emit('node_log', log_entry, namespace='/')
             return
 
         # Handle boot messages
         if msg.topic.endswith("/boot"):
-            socketio.emit('node_log', {
+            log_entry = {
                 'node_id': node_id,
                 'type': 'system',
                 'payload': {
@@ -145,7 +149,9 @@ def on_message(client, userdata, msg):
                     **payload
                 },
                 'timestamp': time.time()
-            }, namespace='/')
+            }
+            system_logs.append(log_entry)
+            socketio.emit('node_log', log_entry, namespace='/')
             return
 
         # Handle heartbeat messages
@@ -437,6 +443,8 @@ def serve_firmware(filename):
 @socketio.on('connect')
 def handle_connect():
     print(f"Client connected to audio stream", flush=True)
+    for log_entry in list(system_logs):
+        emit('node_log', log_entry)
 
 
 @socketio.on('disconnect')
