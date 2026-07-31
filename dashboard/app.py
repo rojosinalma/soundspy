@@ -27,6 +27,7 @@ TOPIC_VERSION = "soundspy/+/version"
 TOPIC_LOG = "soundspy/+/log"
 TOPIC_BOOT = "soundspy/+/boot"
 TOPIC_HEARTBEAT = "soundspy/+/heartbeat"
+TOPIC_GAIN = "soundspy/+/gain"
 
 MAX_SYSTEM_LOGS = 200
 system_logs: deque = deque(maxlen=MAX_SYSTEM_LOGS)
@@ -47,7 +48,7 @@ mqtt_client = mqtt.Client()
 
 def on_connect(client, userdata, flags, rc):
     print(f"Dashboard connected to MQTT broker (rc={rc})", flush=True)
-    for topic in [TOPIC_DATA, TOPIC_VERSION, TOPIC_LOG, TOPIC_BOOT, TOPIC_HEARTBEAT]:
+    for topic in [TOPIC_DATA, TOPIC_VERSION, TOPIC_LOG, TOPIC_BOOT, TOPIC_HEARTBEAT, TOPIC_GAIN]:
         client.subscribe(topic)
 
 
@@ -86,6 +87,12 @@ def on_message(client, userdata, msg):
 
         if msg.topic.endswith("/heartbeat"):
             node_state.update_heartbeat(node_id, payload.get("sleeping", False))
+            return
+
+        if msg.topic.endswith("/gain"):
+            gain = payload.get("gain")
+            if gain is not None:
+                socketio.emit("hw_gain", {"node_id": node_id, "gain": gain}, namespace="/")
             return
 
         # Data message
@@ -229,11 +236,9 @@ def api_ota_upload():
     filename = secure_filename(f.filename or "soundspy_latest.bin")
     save_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
     f.save(save_path)
-    latest = os.path.join(app.config["UPLOAD_FOLDER"], "soundspy_latest.bin")
-    if os.path.islink(latest):
-        os.remove(latest)
-    os.symlink(filename, latest)
-    return jsonify({"success": True, "filename": filename, "url": f"/firmware/{filename}"})
+    host = request.host
+    url = f"http://{host}/firmware/{filename}"
+    return jsonify({"success": True, "filename": filename, "url": url})
 
 
 @app.route("/api/ota/trigger", methods=["POST"])

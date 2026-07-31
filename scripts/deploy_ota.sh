@@ -38,20 +38,14 @@ DASHBOARD_URL="http://${FIRMWARE_MQTT_HOST}:${DASHBOARD_PORT}"
 if [ -n "$2" ]; then
     FIRMWARE_BIN="$2"
 else
-    LATEST_LINK="builds/soundspy_latest.bin"
-    if [ -L "$LATEST_LINK" ] && [ -f "$LATEST_LINK" ]; then
-        FIRMWARE_BIN="$LATEST_LINK"
-        REAL_FILE=$(readlink -f "$FIRMWARE_BIN")
-        echo "Using latest firmware: $REAL_FILE"
-    else
-        FIRMWARE_BIN=$(ls -t builds/soundspy_v*.bin 2>/dev/null | head -1)
-        if [ -z "$FIRMWARE_BIN" ]; then
-            echo "Error: No firmware found in builds/"
-            echo "Run: ./scripts/build_firmware.sh"
-            exit 1
-        fi
-        echo "Auto-detected firmware: $FIRMWARE_BIN"
+    # Always resolve to the actual versioned file, never use the symlink directly
+    FIRMWARE_BIN=$(ls -t builds/soundspy_v*.bin 2>/dev/null | head -1)
+    if [ -z "$FIRMWARE_BIN" ]; then
+        echo "Error: No firmware found in builds/"
+        echo "Run: ./scripts/build_firmware.sh"
+        exit 1
     fi
+    echo "Using latest firmware: $FIRMWARE_BIN"
 fi
 
 if [ ! -f "$FIRMWARE_BIN" ]; then
@@ -75,7 +69,12 @@ UPLOAD_RESPONSE=$(curl -s -X POST -F "firmware=@$FIRMWARE_BIN" "$DASHBOARD_URL/a
 echo "Upload response: $UPLOAD_RESPONSE"
 
 # Extract firmware URL from response
-FIRMWARE_URL=$(echo "$UPLOAD_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['url'])" 2>/dev/null)
+FIRMWARE_URL_PATH=$(echo "$UPLOAD_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['url'])" 2>/dev/null)
+# Make absolute if the server returned a relative path
+case "$FIRMWARE_URL_PATH" in
+  http://*|https://*) FIRMWARE_URL="$FIRMWARE_URL_PATH" ;;
+  *) FIRMWARE_URL="${DASHBOARD_URL}${FIRMWARE_URL_PATH}" ;;
+esac
 
 if [ -z "$FIRMWARE_URL" ]; then
     echo "Error: Failed to upload firmware"

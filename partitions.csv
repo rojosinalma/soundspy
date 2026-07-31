@@ -1,0 +1,12 @@
+# soundspy custom partition table — 4MB flash
+# factory: recovery firmware, never overwritten by OTA
+# ota_0/ota_1: main firmware slots (OTA alternates between them)
+#
+# Name,     Type, SubType,  Offset,   Size,   Flags
+nvs,        data, nvs,      0x9000,   0x5000,
+otadata,    data, ota,      0xe000,   0x2000,
+factory,    app,  factory,  0x10000,  0x80000,
+ota_0,      app,  ota_0,    0x90000,  0x180000,
+ota_1,      app,  ota_1,    0x210000, 0x180000,
+nvs_key,    data, nvs_keys, 0x390000, 0x1000,
+coredump,   data, coredump, 0x391000, 0x10000,

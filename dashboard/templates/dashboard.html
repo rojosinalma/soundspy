@@ -1011,6 +1011,52 @@
             background: #1a2e24;
         }
 
+        .log-fullscreen-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            background: #080e0a;
+            flex-direction: column;
+        }
+
+        .log-fullscreen-overlay.open {
+            display: flex;
+        }
+
+        .log-fullscreen-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid #1a2e24;
+            flex-shrink: 0;
+        }
+
+        .log-fullscreen-body {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .log-fullscreen-overlay .log-sidebar {
+            width: 160px;
+            flex-shrink: 0;
+        }
+
+        .log-fullscreen-overlay .log-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .log-fullscreen-overlay .log-content {
+            flex: 1;
+            max-height: none;
+            height: 100%;
+        }
+
         .log-entry {
             margin-bottom: 8px;
             padding: 6px 10px;
@@ -1252,6 +1298,7 @@
             <div style="display: flex; gap: 8px; align-items: center;">
                 <button class="log-clear" id="logResumeBtn" onclick="resumeLogScroll()" style="display: none;">Resume ▼</button>
                 <button class="log-clear" onclick="clearLog()">Clear</button>
+                <button class="log-clear" onclick="openLogFullscreen()" title="Fullscreen">⛶</button>
             </div>
         </div>
         <div class="log-body" id="logBody" style="display: none;">
@@ -1282,6 +1329,7 @@
         let nodesData = {};
         const nodeThresholds = {};  // { nodeId: threshold value as set by user }
         const DEFAULT_THRESHOLD = -20;
+        const DEFAULT_MIC_GAIN_PCT = 100;
         const nodeDisplayNames = {};  // { chipId: displayName }
         let historySelectedNode = 'all';
 
@@ -1592,11 +1640,11 @@
             const knob = document.getElementById(`mic-knob-${nodeId}`);
             let isDragging = false;
             let lastY = 0;
-            let rawPercentage = 40;
+            let rawPercentage = DEFAULT_MIC_GAIN_PCT;
 
             knob.addEventListener('dblclick', (e) => {
-                rawPercentage = 40;
-                updateMicGain(nodeId, 40);
+                rawPercentage = DEFAULT_MIC_GAIN_PCT;
+                updateMicGain(nodeId, DEFAULT_MIC_GAIN_PCT);
                 e.preventDefault();
             });
 
@@ -2306,7 +2354,7 @@
                                         <div class="knob-indicator" id="mic-knob-indicator-${nodeId}"></div>
                                     </div>
                                 </div>
-                                <div class="knob-range" id="mic-gain-percent-${nodeId}">40%</div>
+                                <div class="knob-range" id="mic-gain-percent-${nodeId}">${DEFAULT_MIC_GAIN_PCT}%</div>
                             </div>
                             <div class="gain-control">
                                 <label>Volume</label>
@@ -2398,7 +2446,7 @@
 
                     // Set initial positions after DOM is ready
                     setTimeout(() => {
-                        updateMicGain(nodeId, 100);  // Set initial mic gain to 100% (10x)
+                        updateMicGain(nodeId, DEFAULT_MIC_GAIN_PCT);
                         updateBrowserVolume(nodeId, 50);  // Set initial volume to 50%
                         initThresholdControls(nodeId);  // Initialize threshold controls
                     }, 0);
@@ -2782,7 +2830,8 @@
             logStore[nodeId].app.push({ ts: timestamp, el: entry });
             if (logStore[nodeId].app.length > MAX_LOG_ENTRIES) logStore[nodeId].app.shift();
 
-            if (logSelectedTab === 'app' && (logSelectedNode === 'all' || logSelectedNode === nodeId)) {
+            const appVisible = logSelectedTab === 'app' && (logSelectedNode === 'all' || logSelectedNode === nodeId);
+            if (appVisible) {
                 if (!appLogRenderScheduled) {
                     appLogRenderScheduled = true;
                     setTimeout(() => {
@@ -2790,6 +2839,9 @@
                         renderLog();
                     }, 1000);
                 }
+            }
+            if (logFullscreenOpen && logSelectedTab === 'app' && (logSelectedNode === 'all' || logSelectedNode === nodeId)) {
+                appendToFsLog(entry);
             }
         }
 
@@ -2812,8 +2864,10 @@
             logStore[nodeId].system.push({ ts: timestamp, el: entry });
             if (logStore[nodeId].system.length > MAX_LOG_ENTRIES) logStore[nodeId].system.shift();
 
-            if (logSelectedTab === 'system' && (logSelectedNode === 'all' || logSelectedNode === nodeId)) {
-                appendToVisibleLog(entry);
+            const sysVisible = logSelectedTab === 'system' && (logSelectedNode === 'all' || logSelectedNode === nodeId);
+            if (sysVisible) appendToVisibleLog(entry);
+            if (logFullscreenOpen && logSelectedTab === 'system' && (logSelectedNode === 'all' || logSelectedNode === nodeId)) {
+                appendToFsLog(entry);
             }
         }
 
@@ -2835,12 +2889,88 @@
                 logContent.scrollTop = logContent.scrollHeight;
                 logScrolledByCode = false;
             }
+
+        }
+
+        function appendToFsLog(entry) {
+            const fsContent = document.getElementById('logContentFs');
+            if (!fsContent) return;
+            if (fsContent.children.length === 1 && (fsContent.children[0].textContent.includes('Waiting') || fsContent.children[0].textContent.includes('No logs'))) {
+                fsContent.innerHTML = '';
+            }
+            fsContent.appendChild(entry.cloneNode(true));
+            while (fsContent.children.length > MAX_LOG_ENTRIES) fsContent.removeChild(fsContent.firstChild);
+            fsContent.scrollTop = fsContent.scrollHeight;
         }
 
         function resumeLogScroll() {
             logAutoScroll = true;
             renderLog();
             document.getElementById('logResumeBtn').style.display = 'none';
+        }
+
+        let logFullscreenOpen = false;
+
+        function openLogFullscreen() {
+            const overlay = document.getElementById('logFullscreenOverlay');
+            overlay.classList.add('open');
+            logFullscreenOpen = true;
+            // Sync sidebar
+            renderLogFsSidebar();
+            // Sync content
+            renderLogFs();
+            // Keyboard close
+            document.addEventListener('keydown', _logFsKeyClose);
+        }
+
+        function closeLogFullscreen() {
+            document.getElementById('logFullscreenOverlay').classList.remove('open');
+            logFullscreenOpen = false;
+            document.removeEventListener('keydown', _logFsKeyClose);
+        }
+
+        function _logFsKeyClose(e) {
+            if (e.key === 'Escape') closeLogFullscreen();
+        }
+
+        function resumeLogScrollFs() {
+            logAutoScroll = true;
+            renderLogFs();
+            document.getElementById('logFsResumeBtn').style.display = 'none';
+        }
+
+        function renderLogFsSidebar() {
+            const sidebar = document.getElementById('logFsSidebar');
+            const mainSidebar = document.getElementById('logSidebar');
+            sidebar.innerHTML = mainSidebar.innerHTML;
+            sidebar.querySelectorAll('.log-sidebar-item').forEach(item => {
+                item.onclick = () => {
+                    selectLogNode(item.dataset.node);
+                    sidebar.querySelectorAll('.log-sidebar-item').forEach(i => i.classList.remove('active'));
+                    item.classList.add('active');
+                    renderLogFs();
+                };
+            });
+        }
+
+        function renderLogFs() {
+            const logContent = document.getElementById('logContentFs');
+            let entries = [];
+            if (logSelectedNode === 'all') {
+                Object.keys(logStore).forEach(nid => {
+                    entries = entries.concat(logStore[nid][logSelectedTab] || []);
+                });
+            } else if (logStore[logSelectedNode]) {
+                entries = logStore[logSelectedNode][logSelectedTab] || [];
+            }
+            entries.sort((a, b) => a.ts - b.ts);
+            logContent.innerHTML = '';
+            if (!entries.length) {
+                logContent.innerHTML = '<div style="color:#666;text-align:center;padding:20px;">No logs yet.</div>';
+                return;
+            }
+            entries.forEach(e => logContent.appendChild(e.el.cloneNode(true)));
+            logContent.scrollTop = logContent.scrollHeight;
         }
 
         function clearLog() {
@@ -2921,6 +3051,7 @@
         }
 
         socket.on('sensor_data', function(update) {
+            if (disconnectedNodes.has(update.node_id)) return;
             if (!nodesData[update.node_id]) {
                 nodesData[update.node_id] = {
                     online: true,
@@ -2950,6 +3081,18 @@
 
         socket.on('node_log', function(update) {
             addSystemLogEntry(update.node_id, update.payload, update.timestamp);
+        });
+
+        socket.on('hw_gain', function(update) {
+            // Hardware potentiometer changed gain — update knob display only, don't send back
+            const pct = (update.gain / 10) * 100;
+            const nodeId = update.node_id;
+            const roundedPct = Math.round(pct);
+            const el = document.getElementById(`mic-gain-percent-${nodeId}`);
+            if (el) el.textContent = roundedPct + '%';
+            const angle = (roundedPct / 100) * 300 - 150;
+            const indicator = document.getElementById(`mic-knob-indicator-${nodeId}`);
+            if (indicator) indicator.style.transform = `rotate(${angle}deg)`;
         });
 
         setInterval(() => {
@@ -3009,6 +3152,8 @@
             }).catch(err => console.error('Sleep/wake failed:', err));
         }
 
+        const disconnectedNodes = new Set();
+
         async function disconnectNode(nodeId) {
             if (!await showConfirm('Disconnect Node', `Disconnect ${nodeId}? It will disappear from the dashboard.`)) return;
             fetch('/api/disconnect', {
@@ -3016,8 +3161,10 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({node_id: nodeId})
             }).then(() => {
+                disconnectedNodes.add(nodeId);
                 delete nodesData[nodeId];
-                updateNodeCards(nodesData);
+                const card = document.getElementById(`node-${nodeId}`);
+                if (card) card.remove();
             }).catch(err => console.error('Disconnect failed:', err));
         }
 
@@ -3156,5 +3303,28 @@
         }
 
     </script>
+
+    <div class="log-fullscreen-overlay" id="logFullscreenOverlay">
+        <div class="log-fullscreen-header">
+            <span style="color:#44dd66;font-family:'Share Tech Mono',monospace;font-size:0.9em;letter-spacing:1px;">LIVE LOGS</span>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <button class="log-clear" id="logFsResumeBtn" onclick="resumeLogScrollFs()" style="display:none;">Resume ▼</button>
+                <button class="log-clear" onclick="clearLog()">Clear</button>
+                <button class="log-clear" onclick="closeLogFullscreen()">✕ Close</button>
+            </div>
+        </div>
+        <div class="log-fullscreen-body">
+            <div class="log-sidebar" id="logFsSidebar"></div>
+            <div class="log-main">
+                <div class="log-tabs">
+                    <div class="log-tab active" data-tab="app" onclick="selectLogTab('app', true)">App</div>
+                    <div class="log-tab" data-tab="system" onclick="selectLogTab('system', true)">System</div>
+                </div>
+                <div class="log-content" id="logContentFs">
+                    <div style="color:#666;text-align:center;padding:20px;">Waiting for data...</div>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
