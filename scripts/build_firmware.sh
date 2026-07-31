@@ -17,7 +17,7 @@ fi
 source .env
 
 FIRMWARE_VERSION=$(grep 'const char\* FIRMWARE_VERSION' node_firmware/node_firmware.ino | sed 's/.*= "//;s/".*//')
-RECOVERY_VERSION=$(grep 'RECOVERY_VERSION' recovery_firmware/recovery_firmware.ino | grep define | sed 's/.*"\(.*\)".*/\1/')
+RECOVERY_VERSION=$(grep 'RECOVERY_VERSION' node_firmware/recovery_firmware/recovery_firmware.ino | grep define | sed 's/.*"\(.*\)".*/\1/')
 
 # Find arduino-cli
 if [ -x "$PROJECT_ROOT/bin/arduino-cli" ]; then
@@ -80,7 +80,7 @@ echo "Compiling main firmware..."
 build_sketch "node_firmware/node_firmware.ino" "$OUTPUT_DIR/soundspy_v${FIRMWARE_VERSION}.bin" true
 
 echo "Compiling recovery firmware v${RECOVERY_VERSION}..."
-build_sketch "recovery_firmware/recovery_firmware.ino" "$OUTPUT_DIR/soundspy_recovery_v${RECOVERY_VERSION}.bin" false
+build_sketch "node_firmware/recovery_firmware/recovery_firmware.ino" "$OUTPUT_DIR/soundspy_recovery_v${RECOVERY_VERSION}.bin" false
 
 # Update latest symlink
 LATEST_LINK="$OUTPUT_DIR/soundspy_latest.bin"
