@@ -5,10 +5,14 @@
 
 BAUD=115200
 
+# Default to all available ttyUSB ports if none specified
 if [ $# -eq 0 ]; then
-    echo "Usage: $0 <port> [port ...]"
-    echo "Example: $0 0 1 2   (opens /dev/ttyUSB0, ttyUSB1, ttyUSB2)"
-    exit 1
+    ARGS=$(ls /dev/ttyUSB* 2>/dev/null | grep -o '[0-9]*$')
+    if [ -z "$ARGS" ]; then
+        echo "No /dev/ttyUSB* devices found."
+        exit 1
+    fi
+    set -- $ARGS
 fi
 
 for N in "$@"; do
