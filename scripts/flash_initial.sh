@@ -48,7 +48,7 @@ BOOT_APP0="$CORE_PATH/tools/partitions/boot_app0.bin"
 
 # Find built binaries
 FIRMWARE_VERSION=$(grep 'const char\* FIRMWARE_VERSION' node_firmware/node_firmware.ino | sed 's/.*= "//;s/".*//')
-RECOVERY_VERSION=$(grep 'define RECOVERY_VERSION' recovery_firmware/recovery_firmware.ino | sed 's/.*"//;s/".*//')
+RECOVERY_VERSION=$(grep 'define RECOVERY_VERSION' node_firmware/recovery_firmware/recovery_firmware.ino | sed 's/.*"//;s/".*//')
 MAIN_BIN="builds/soundspy_v${FIRMWARE_VERSION}.bin"
 RECOVERY_BIN="builds/soundspy_recovery_v${RECOVERY_VERSION}.bin"
 PARTITIONS_BIN=$(find ~/.arduino15/packages/esp32 -name "gen_esp32part.py" 2>/dev/null | head -1)
