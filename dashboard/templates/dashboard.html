@@ -2724,15 +2724,19 @@
         const logStore = {};  // { nodeId: { app: [entries], system: [entries] } }
         const logKnownNodes = new Set();
 
-        document.getElementById('logContent').addEventListener('scroll', function() {
+        function onLogScroll() {
             if (logScrolledByCode) return;
             const el = this;
             const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 30;
             if (!atBottom) {
                 logAutoScroll = false;
                 document.getElementById('logResumeBtn').style.display = 'block';
+                document.getElementById('logFsResumeBtn').style.display = 'block';
             }
-        });
+        }
+
+        document.getElementById('logContent').addEventListener('scroll', onLogScroll);
+        document.getElementById('logContentFs').addEventListener('scroll', onLogScroll);
 
         function ensureLogNode(nodeId) {
             if (!logKnownNodes.has(nodeId)) {
@@ -2891,13 +2895,15 @@
             }
             fsContent.appendChild(entry.cloneNode(true));
             while (fsContent.children.length > MAX_LOG_ENTRIES) fsContent.removeChild(fsContent.firstChild);
-            fsContent.scrollTop = fsContent.scrollHeight;
+            if (logAutoScroll) fsContent.scrollTop = fsContent.scrollHeight;
         }
 
         function resumeLogScroll() {
             logAutoScroll = true;
             renderLog();
+            if (logFullscreenOpen) renderLogFs();
             document.getElementById('logResumeBtn').style.display = 'none';
+            document.getElementById('logFsResumeBtn').style.display = 'none';
         }
 
         let logFullscreenOpen = false;
@@ -2955,7 +2961,7 @@
                 return;
             }
             entries.forEach(e => logContent.appendChild(e.el.cloneNode(true)));
-            logContent.scrollTop = logContent.scrollHeight;
+            if (logAutoScroll) logContent.scrollTop = logContent.scrollHeight;
         }
 
         function clearLog() {
@@ -3314,6 +3320,7 @@
         <div class="log-fullscreen-header">
             <span style="color:#44dd66;font-family:'Share Tech Mono',monospace;font-size:0.9em;letter-spacing:1px;">LIVE LOGS</span>
             <div style="display:flex;gap:8px;align-items:center;">
+                <button class="log-clear" id="logFsResumeBtn" onclick="resumeLogScroll()" style="display:none;">Resume ▼</button>
                 <button class="log-clear" onclick="clearLog()">Clear</button>
                 <button class="log-clear" onclick="closeLogFullscreen()">✕ Close</button>
             </div>
