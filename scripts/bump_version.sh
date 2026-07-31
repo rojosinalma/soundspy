@@ -22,7 +22,7 @@ case "${1}" in
 esac
 
 FIRMWARE="$ROOT/node_firmware/node_firmware.ino"
-DASHBOARD="$ROOT/dashboard/dashboard.py"
+DASHBOARD="$ROOT/dashboard/app.py"
 
 if [ "$NEW_VERSION" = "$OLD_VERSION" ]; then
     echo "Already at version $NEW_VERSION"

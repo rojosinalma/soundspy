@@ -174,12 +174,6 @@ def get_node_name(chip_id: str) -> str:
 
 # --- Threshold helpers ---
 
-def get_node_thresholds() -> dict:
-    with get_conn() as conn:
-        rows = conn.execute("SELECT chip_id, threshold FROM nodes").fetchall()
-    return {row["chip_id"]: row["threshold"] for row in rows}
-
-
 def set_node_threshold(chip_id: str, value: float):
     upsert_node(chip_id, threshold=value)
 
