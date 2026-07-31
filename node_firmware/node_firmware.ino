@@ -10,7 +10,7 @@
 #include <base64.h>
 #include <ArduinoJson.h>
 
-const char* FIRMWARE_VERSION = "1.5.0";
+const char* FIRMWARE_VERSION = "1.6.0";
 
 const char* WIFI_SSID  = "PLACEHOLDER_WIFI_SSID";
 const char* WIFI_PASS  = "PLACEHOLDER_WIFI_PASS";
