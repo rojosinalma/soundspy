@@ -134,14 +134,6 @@
             border-color: #3d2828;
         }
 
-        .node-card.alert {
-        }
-
-        @keyframes pulse {
-            0%, 100% { border-color: #d64545; }
-            50% { border-color: #ff6b6b; }
-        }
-
         .node-header {
             display: flex;
             justify-content: space-between;
@@ -1415,20 +1407,6 @@
 
         let useAWeighting = true;
 
-        const aWeightOffsets = {};
-
-        function computeAndCacheAWeightOffset(nodeId, bands) {
-            if (!bands) return;
-            const bandOrder = ['sub_bass', 'bass', 'low_mid', 'mid', 'high_mid', 'high'];
-            let rawPower = 0, weightedPower = 0;
-            for (const name of bandOrder) {
-                const v = bands[name] || -80;
-                rawPower += Math.pow(10, v / 10);
-                weightedPower += Math.pow(10, (v + (A_WEIGHT_OFFSETS[name] || 0)) / 10);
-            }
-            aWeightOffsets[nodeId] = 10 * Math.log10(weightedPower + 1e-18) - 10 * Math.log10(rawPower + 1e-18);
-        }
-
         function thresholdForNode(nodeId) {
             if (!nodeId) {
                 const values = Object.values(nodeThresholds).filter(v => v != null);
@@ -2524,12 +2502,6 @@
                     }
                 }
 
-                // Cache A-weight offset when bands first arrive
-                if (data.current.bands && !card.dataset.bandsReady) {
-                    card.dataset.bandsReady = '1';
-                    computeAndCacheAWeightOffset(nodeId, data.current.bands);
-                }
-
                 // Drop level and spectrum to floor when offline/sleeping
                 if (!isOnline || isSleeping) {
                     const levelEl = card.querySelector('.overall-value');
@@ -2952,12 +2924,6 @@
             if (e.key === 'Escape') closeLogFullscreen();
         }
 
-        function resumeLogScrollFs() {
-            logAutoScroll = true;
-            renderLogFs();
-            document.getElementById('logFsResumeBtn').style.display = 'none';
-        }
-
         function renderLogFsSidebar() {
             const sidebar = document.getElementById('logFsSidebar');
             const mainSidebar = document.getElementById('logSidebar');
@@ -3104,11 +3070,11 @@
 
         socket.on('node_recovery', function(update) {
             const nodeId = update.node_id;
-            let card = document.getElementById(`node-${nodeId}`);
-            if (!card) {
-                createNodeCard(nodeId, update.display_name);
-                card = document.getElementById(`node-${nodeId}`);
+            if (!nodesData[nodeId]) {
+                nodesData[nodeId] = { online: true, sleeping: false, in_recovery: true, display_name: update.display_name, current: {}, last_seen: Date.now() };
+                updateSingleNode(nodeId, nodesData[nodeId]);
             }
+            let card = document.getElementById(`node-${nodeId}`);
             if (!card) return;
             const statusDot = card.querySelector('.status-dot');
             const statusText = card.querySelector('.status-text');
@@ -3347,7 +3313,6 @@
         <div class="log-fullscreen-header">
             <span style="color:#44dd66;font-family:'Share Tech Mono',monospace;font-size:0.9em;letter-spacing:1px;">LIVE LOGS</span>
             <div style="display:flex;gap:8px;align-items:center;">
-                <button class="log-clear" id="logFsResumeBtn" onclick="resumeLogScrollFs()" style="display:none;">Resume ▼</button>
                 <button class="log-clear" onclick="clearLog()">Clear</button>
                 <button class="log-clear" onclick="closeLogFullscreen()">✕ Close</button>
             </div>
@@ -3356,8 +3321,8 @@
             <div class="log-sidebar" id="logFsSidebar"></div>
             <div class="log-main">
                 <div class="log-tabs">
-                    <div class="log-tab active" data-tab="app" onclick="selectLogTab('app', true)">App</div>
-                    <div class="log-tab" data-tab="system" onclick="selectLogTab('system', true)">System</div>
+                    <div class="log-tab active" data-tab="app" onclick="selectLogTab('app')">App</div>
+                    <div class="log-tab" data-tab="system" onclick="selectLogTab('system')">System</div>
                 </div>
                 <div class="log-content" id="logContentFs">
                     <div style="color:#666;text-align:center;padding:20px;">Waiting for data...</div>

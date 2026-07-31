@@ -22,14 +22,6 @@ _nodes = defaultdict(lambda: {
 })
 
 
-def get_lock():
-    return _lock
-
-
-def get_node(node_id: str) -> dict:
-    return _nodes[node_id]
-
-
 def get_all_nodes() -> dict:
     return dict(_nodes)
 
@@ -93,11 +85,6 @@ def update_recovery(node_id: str):
 def update_firmware_version(node_id: str, version: str):
     with _lock:
         _nodes[node_id]["firmware_version"] = version
-
-
-def set_node_offline(node_id: str):
-    with _lock:
-        _nodes[node_id]["last_update"] = None
 
 
 def get_node_status(node_id: str, db_nodes: dict) -> dict:
