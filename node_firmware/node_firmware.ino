@@ -12,13 +12,10 @@
 #include <esp_system.h>
 #include <Preferences.h>
 
-const char* FIRMWARE_VERSION = "1.7.4";
+const char* FIRMWARE_VERSION = "1.7.5";
 const char* FIRMWARE_BUILD   = __DATE__ " " __TIME__;  // e.g. "Jul 31 2026 20:45:12"
 
 // --- NVS credentials (written by recovery portal or build_firmware.sh on first flash) ---
-#define PIN_BOOT              0      // built-in BOOT button, active LOW
-#define BOOT_BTN_RECOVERY_MS  10000  // hold BOOT button this long to enter recovery
-
 static char WIFI_SSID_BUF[64];
 static char WIFI_PASS_BUF[64];
 static char MQTT_HOST_BUF[64];
@@ -463,7 +460,6 @@ void sendAudioChunk() {
 
 void setup() {
   Serial.begin(115200);
-  pinMode(PIN_BOOT, INPUT_PULLUP);
 
   // Derive node ID from chip's full 6-byte fuse MAC (deterministic, no config needed)
   uint64_t mac = ESP.getEfuseMac();
@@ -471,12 +467,6 @@ void setup() {
     (uint8_t)(mac), (uint8_t)(mac >> 8), (uint8_t)(mac >> 16),
     (uint8_t)(mac >> 24), (uint8_t)(mac >> 32), (uint8_t)(mac >> 40));
 
-  // Check BOOT button — if held at startup, go to recovery immediately
-  if (digitalRead(PIN_BOOT) == LOW) {
-    Serial.println("[IMPORTANT] BOOT button held — entering recovery mode");
-    delay(100);
-    bootIntoRecovery();
-  }
 
   // Crash counter — if crashed too many times, enter recovery
   crashCounterLoad();
@@ -537,8 +527,6 @@ void setup() {
 
   // All stages passed — mark as fully valid
   bootStage(BOOT_STAGE_VALID);
-  // Start hardware control task on Core 0 (audio loop runs on Core 1)
-  xTaskCreatePinnedToCore(hwControlTask, "hwControl", 8192, NULL, 1, NULL, 0);
 
   remoteLog("boot", "Stage 2 OK: I2S + WebSocket initialized");
   mqtt.loop();
@@ -555,24 +543,6 @@ void sendHeartbeat() {
   mqtt.publish(topic.c_str(), payload);
 }
 
-// Core 0 task: holds BOOT button for 10s → enter recovery
-void hwControlTask(void* pvParameters) {
-  static unsigned long bootBtnPressedAt = 0;
-  for (;;) {
-    // Hold BOOT button for 10s → enter recovery
-    if (digitalRead(PIN_BOOT) == LOW) {
-      if (bootBtnPressedAt == 0) bootBtnPressedAt = millis();
-      if (millis() - bootBtnPressedAt >= BOOT_BTN_RECOVERY_MS) {
-        remoteLog("info", "BOOT button held 10s — entering recovery");
-        delay(200);
-        bootIntoRecovery();
-      }
-    } else {
-      bootBtnPressedAt = 0;
-    }
-    vTaskDelay(pdMS_TO_TICKS(20));  // 50Hz poll rate, non-blocking
-  }
-}
 
 #define STABILITY_WINDOW_MS 60000  // must stay alive 60s before counting as clean boot
 
