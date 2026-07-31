@@ -62,7 +62,9 @@ jobs:
           VERSION="${{ steps.version.outputs.new }}"
           NOTES=$(awk "/^## \[$VERSION\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
           if [ -z "$NOTES" ]; then
-            NOTES="Release v$VERSION"
+            echo "ERROR: No changelog entry found for v$VERSION in CHANGELOG.md"
+            echo "Add a ## [$VERSION] section to CHANGELOG.md before bumping the version."
+            exit 1
           fi
           echo "$NOTES" > /tmp/release_notes.md
 
