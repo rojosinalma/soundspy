@@ -12,10 +12,12 @@
 #include <esp_system.h>
 #include <Preferences.h>
 
-const char* FIRMWARE_VERSION = "1.7.0";
+const char* FIRMWARE_VERSION = "1.7.4";
+const char* FIRMWARE_BUILD   = __DATE__ " " __TIME__;  // e.g. "Jul 31 2026 20:45:12"
 
 // --- NVS credentials (written by recovery portal or build_firmware.sh on first flash) ---
-#define PIN_BOOT 0  // built-in BOOT button, active LOW
+#define PIN_BOOT              0      // built-in BOOT button, active LOW
+#define BOOT_BTN_RECOVERY_MS  10000  // hold BOOT button this long to enter recovery
 
 static char WIFI_SSID_BUF[64];
 static char WIFI_PASS_BUF[64];
@@ -134,22 +136,6 @@ float audioGain = 10.0f;  // Default gain (20dB)
 
 // Sleep mode — keeps WiFi+MQTT alive but stops I2S processing
 bool sleeping = false;
-
-// Hardware controls
-#define PIN_BUTTON  34
-#define BUTTON_HOLD_MS     3000  // hold duration for hard reboot
-#define BUTTON_DEBOUNCE_MS  500  // ignore transitions shorter than this
-
-unsigned long buttonPressTime = 0;
-unsigned long buttonLastChange = 0;
-bool buttonWasPressed = false;
-bool buttonStableState = HIGH;
-volatile bool requestMqttReconnect = false;
-
-// Triple-press detection for recovery mode
-uint8_t buttonPressCount = 0;
-unsigned long buttonFirstPressTime = 0;
-#define TRIPLE_PRESS_WINDOW_MS 2000
 
 // Heartbeat interval (ms)
 #define HEARTBEAT_INTERVAL_MS 30000
@@ -345,6 +331,15 @@ void performOTA(const char* firmwareUrl) {
       break;
     case HTTP_UPDATE_OK:
       Serial.println("[IMPORTANT] Update successful, rebooting...");
+      if (mqtt.connected()) {
+        char otaPayload[192];
+        snprintf(otaPayload, sizeof(otaPayload),
+          "{\"node\":\"%s\",\"status\":\"success\",\"url\":\"%s\"}", NODE_ID, firmwareUrl);
+        String otaTopic = String("soundspy/") + NODE_ID + "/ota";
+        mqtt.publish(otaTopic.c_str(), otaPayload);
+        mqtt.loop();
+        delay(300);
+      }
       esp_restart();
       break;
   }
@@ -425,7 +420,7 @@ void connectMQTT() {
 
       // Publish version info on connect
       String versionTopic = String("soundspy/") + NODE_ID + "/version";
-      String versionPayload = String("{\"node\":\"") + NODE_ID + "\",\"firmware\":\"" + FIRMWARE_VERSION + "\"}";
+      String versionPayload = String("{\"node\":\"") + NODE_ID + "\",\"firmware\":\"" + FIRMWARE_VERSION + "\",\"build\":\"" + FIRMWARE_BUILD + "\"}";
       mqtt.publish(versionTopic.c_str(), versionPayload.c_str());
       Serial.print("[IMPORTANT] Published firmware version: ");
       Serial.println(FIRMWARE_VERSION);
@@ -502,7 +497,6 @@ void setup() {
   Serial.println(NODE_ID);
   Serial.println("[IMPORTANT] ========================================\n");
 
-  pinMode(PIN_BUTTON, INPUT);  // external 10k pull-up, active LOW
 
   // Save previous boot record before overwriting
   if (rtcBoot.magic == BOOT_MAGIC && rtcBoot.stage != BOOT_STAGE_VALID) {
@@ -527,7 +521,7 @@ void setup() {
 
   // Confirm OTA partition is valid — if this never runs, bootloader rolls back
   esp_ota_mark_app_valid_cancel_rollback();
-  crashCounterReset();  // successful boot — reset crash counter
+  // Don't reset crash counter yet — wait for stability window in loop()
   bootStage(BOOT_STAGE_OTA_OK);
 
   publishBootReport();
@@ -561,77 +555,44 @@ void sendHeartbeat() {
   mqtt.publish(topic.c_str(), payload);
 }
 
-void handleButton() {
-  bool reading = (digitalRead(PIN_BUTTON) == LOW);
-  unsigned long now = millis();
-
-  // Debounce: only accept state change after it's stable for BUTTON_DEBOUNCE_MS
-  if (reading != buttonStableState) {
-    if (now - buttonLastChange >= BUTTON_DEBOUNCE_MS) {
-      buttonStableState = reading;
-      buttonLastChange = now;
-
-      if (buttonStableState == HIGH && buttonWasPressed) {
-        // Released — determine click vs hold
-        unsigned long held = now - buttonPressTime;
-        buttonWasPressed = false;
-        if (held >= BUTTON_HOLD_MS) {
-          remoteLog("info", "Button held — hard reboot");
-          delay(100);
-          esp_restart();
-        } else {
-          // Triple-press check
-          unsigned long now2 = millis();
-          if (buttonPressCount == 0 || (now2 - buttonFirstPressTime) > TRIPLE_PRESS_WINDOW_MS) {
-            buttonPressCount = 1;
-            buttonFirstPressTime = now2;
-          } else {
-            buttonPressCount++;
-          }
-          if (buttonPressCount >= 3) {
-            buttonPressCount = 0;
-            remoteLog("info", "Triple-press — entering recovery mode");
-            delay(200);
-            bootIntoRecovery();
-          } else {
-            remoteLog("info", "Button clicked — requesting MQTT reconnect");
-            requestMqttReconnect = true;
-          }
-        }
-      } else if (buttonStableState == LOW) {
-        buttonPressTime = now;
-        buttonWasPressed = true;
-      }
-    }
-  } else {
-    buttonLastChange = now;
-    // Still held — trigger reboot immediately once threshold crossed
-    if (buttonWasPressed && buttonStableState == LOW && (now - buttonPressTime >= BUTTON_HOLD_MS)) {
-      remoteLog("info", "Button held — hard reboot");
-      delay(100);
-      esp_restart();
-    }
-  }
-}
-
-// Core 0 task: handles hardware controls (button) without blocking audio loop
+// Core 0 task: holds BOOT button for 10s → enter recovery
 void hwControlTask(void* pvParameters) {
+  static unsigned long bootBtnPressedAt = 0;
   for (;;) {
-    handleButton();
+    // Hold BOOT button for 10s → enter recovery
+    if (digitalRead(PIN_BOOT) == LOW) {
+      if (bootBtnPressedAt == 0) bootBtnPressedAt = millis();
+      if (millis() - bootBtnPressedAt >= BOOT_BTN_RECOVERY_MS) {
+        remoteLog("info", "BOOT button held 10s — entering recovery");
+        delay(200);
+        bootIntoRecovery();
+      }
+    } else {
+      bootBtnPressedAt = 0;
+    }
     vTaskDelay(pdMS_TO_TICKS(20));  // 50Hz poll rate, non-blocking
   }
 }
 
+#define STABILITY_WINDOW_MS 60000  // must stay alive 60s before counting as clean boot
+
+static bool stableBootConfirmed = false;
+static unsigned long mqttConnectedAt = 0;
+
 void loop() {
-  if (requestMqttReconnect) {
-    requestMqttReconnect = false;
-    mqtt.disconnect();
-    delay(100);
+  if (!mqtt.connected()) {
     connectMQTT();
+  } else if (!stableBootConfirmed) {
+    if (mqttConnectedAt == 0) mqttConnectedAt = millis();
+    if (millis() - mqttConnectedAt >= STABILITY_WINDOW_MS) {
+      stableBootConfirmed = true;
+      crashCounterReset();
+      remoteLog("info", "Boot confirmed stable — crash counter reset");
+    }
   }
-  if (!mqtt.connected()) connectMQTT();
   mqtt.loop();
   sendHeartbeat();
+
 
   if (sleeping) {
     delay(100);
