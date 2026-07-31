@@ -10,7 +10,6 @@
 #include <base64.h>
 #include <ArduinoJson.h>
 #include <esp_system.h>
-#include <driver/adc.h>
 #include <Preferences.h>
 
 const char* FIRMWARE_VERSION = "1.7.0";
@@ -42,12 +41,33 @@ void loadCredentials() {
   prefs.end();
 }
 
-// --- Crash counter in RTC (counts boots; cleared after successful MQTT connect) ---
+// --- Crash counter in NVS (survives all resets including hard reboot + power loss) ---
 #define CRASH_BOOT_LIMIT 3
 
-RTC_DATA_ATTR uint32_t crashBootCount = 0;
-RTC_DATA_ATTR uint32_t crashBootMagic = 0;
-#define CRASH_MAGIC 0xDEAD1234
+uint32_t crashBootCount = 0;
+
+void crashCounterLoad() {
+  Preferences prefs;
+  prefs.begin("soundspy_boot", false);
+  crashBootCount = prefs.getUInt("crash_count", 0);
+  prefs.end();
+}
+
+void crashCounterIncrement() {
+  Preferences prefs;
+  prefs.begin("soundspy_boot", false);
+  crashBootCount++;
+  prefs.putUInt("crash_count", crashBootCount);
+  prefs.end();
+}
+
+void crashCounterReset() {
+  crashBootCount = 0;
+  Preferences prefs;
+  prefs.begin("soundspy_boot", false);
+  prefs.putUInt("crash_count", 0);
+  prefs.end();
+}
 
 void bootIntoRecovery() {
   Serial.println("[IMPORTANT] Crash limit reached — booting into recovery");
@@ -56,7 +76,7 @@ void bootIntoRecovery() {
   if (factory) {
     esp_ota_set_boot_partition(factory);
     delay(200);
-    ESP.restart();
+    esp_restart();
   }
   // If no factory partition, just hang — USB flash required
   Serial.println("[IMPORTANT] No factory partition found — connect via USB");
@@ -117,17 +137,14 @@ bool sleeping = false;
 
 // Hardware controls
 #define PIN_BUTTON  34
-#define PIN_POT     35
 #define BUTTON_HOLD_MS     3000  // hold duration for hard reboot
-#define BUTTON_DEBOUNCE_MS   50  // ignore transitions shorter than this
-#define POT_CHANGE_THRESHOLD 0.5f
+#define BUTTON_DEBOUNCE_MS  500  // ignore transitions shorter than this
 
 unsigned long buttonPressTime = 0;
 unsigned long buttonLastChange = 0;
 bool buttonWasPressed = false;
 bool buttonStableState = HIGH;
 volatile bool requestMqttReconnect = false;
-float lastPublishedGain = -1.0f;
 
 // Triple-press detection for recovery mode
 uint8_t buttonPressCount = 0;
@@ -328,7 +345,7 @@ void performOTA(const char* firmwareUrl) {
       break;
     case HTTP_UPDATE_OK:
       Serial.println("[IMPORTANT] Update successful, rebooting...");
-      ESP.restart();
+      esp_restart();
       break;
   }
 }
@@ -356,7 +373,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   if (doc.containsKey("reboot") && doc["reboot"] == true) {
     remoteLog("info", "Reboot requested");
     delay(200);
-    ESP.restart();
+    esp_restart();
   }
 
   // Handle sleep/wake — stops I2S processing but keeps WiFi+MQTT alive
@@ -467,14 +484,11 @@ void setup() {
   }
 
   // Crash counter — if crashed too many times, enter recovery
-  if (crashBootMagic != CRASH_MAGIC) {
-    crashBootMagic = CRASH_MAGIC;
-    crashBootCount = 0;
-  }
-  crashBootCount++;
+  crashCounterLoad();
+  crashCounterIncrement();
   Serial.printf("[IMPORTANT] Boot attempt %u/%u\n", crashBootCount, CRASH_BOOT_LIMIT);
   if (crashBootCount > CRASH_BOOT_LIMIT) {
-    crashBootCount = 0;
+    crashCounterReset();
     bootIntoRecovery();
   }
 
@@ -489,9 +503,6 @@ void setup() {
   Serial.println("[IMPORTANT] ========================================\n");
 
   pinMode(PIN_BUTTON, INPUT);  // external 10k pull-up, active LOW
-  // GPIO35 = ADC1 channel 7 — use legacy IDF driver (no conflict with analogRead)
-  adc1_config_width(ADC_WIDTH_BIT_12);
-  adc1_config_channel_atten(ADC1_CHANNEL_7, ADC_ATTEN_DB_12);  // full 0-3.3V range
 
   // Save previous boot record before overwriting
   if (rtcBoot.magic == BOOT_MAGIC && rtcBoot.stage != BOOT_STAGE_VALID) {
@@ -516,7 +527,7 @@ void setup() {
 
   // Confirm OTA partition is valid — if this never runs, bootloader rolls back
   esp_ota_mark_app_valid_cancel_rollback();
-  crashBootCount = 0;  // successful boot — reset crash counter
+  crashCounterReset();  // successful boot — reset crash counter
   bootStage(BOOT_STAGE_OTA_OK);
 
   publishBootReport();
@@ -567,7 +578,7 @@ void handleButton() {
         if (held >= BUTTON_HOLD_MS) {
           remoteLog("info", "Button held — hard reboot");
           delay(100);
-          ESP.restart();
+          esp_restart();
         } else {
           // Triple-press check
           unsigned long now2 = millis();
@@ -598,45 +609,15 @@ void handleButton() {
     if (buttonWasPressed && buttonStableState == LOW && (now - buttonPressTime >= BUTTON_HOLD_MS)) {
       remoteLog("info", "Button held — hard reboot");
       delay(100);
-      ESP.restart();
+      esp_restart();
     }
   }
 }
 
-void handlePot() {
-  // Called from Core 0 task — runs independently of audio loop
-
-  // Average 16 reads to reduce ADC noise
-  int sum = 0;
-  for (int i = 0; i < 16; i++) sum += adc1_get_raw(ADC1_CHANNEL_7);
-  int raw = sum / 16;
-
-  // Map 0-4095 → 0.0-10.0 gain
-  float gain = (raw / 4095.0f) * 10.0f;
-
-  // Apply immediately to audio
-  audioGain = gain;
-
-  // Only publish when change is significant (avoids flooding at 50Hz)
-  if (lastPublishedGain < 0 || fabsf(gain - lastPublishedGain) >= POT_CHANGE_THRESHOLD) {
-    lastPublishedGain = gain;
-
-    char payload[128];
-    snprintf(payload, sizeof(payload),
-      "{\"node\":\"%s\",\"gain\":%.2f}", NODE_ID, gain);
-    mqtt.publish((String("soundspy/") + NODE_ID + "/gain").c_str(), payload);
-
-    char logMsg[64];
-    snprintf(logMsg, sizeof(logMsg), "Knob gain: %.1fx (%.0f%%)", gain, gain * 10.0f);
-    remoteLog("info", logMsg);
-  }
-}
-
-// Core 0 task: handles hardware controls (button + pot) without blocking audio loop
+// Core 0 task: handles hardware controls (button) without blocking audio loop
 void hwControlTask(void* pvParameters) {
   for (;;) {
     handleButton();
-    handlePot();
     vTaskDelay(pdMS_TO_TICKS(20));  // 50Hz poll rate, non-blocking
   }
 }

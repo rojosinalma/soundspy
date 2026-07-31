@@ -63,7 +63,7 @@ build_sketch() {
     "$ARDUINO_CLI" compile \
         --fqbn esp32:esp32:esp32 \
         --build-property "build.partitions=custom" \
-        --build-property "upload.maximum_size=1572864" \
+        --build-property "upload.maximum_size=1441792" \
         "$TEMP_SKETCH_DIR" \
         --output-dir "$OUTPUT_DIR"
 
