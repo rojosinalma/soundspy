@@ -7,49 +7,49 @@
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#0a0f0c;color:#8ec9a0;font-family:'Share Tech Mono',monospace;font-size:13px;padding:20px}
+body{background:#0a0f0c;color:#8ec9a0;font-family:'Share Tech Mono',monospace;font-size:15px;padding:20px}
 a{color:#44dd66;text-decoration:none}
 h1{font-size:1.3em;color:#44dd66;text-shadow:0 0 8px #44dd66;letter-spacing:2px;text-transform:uppercase}
-h2{font-size:0.9em;color:#8ec9a0;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;border-bottom:1px solid #1a2e24;padding-bottom:6px}
+h2{font-size:1em;color:#8ec9a0;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;border-bottom:1px solid #1a2e24;padding-bottom:6px}
 .header{display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:1px solid #1a2e24;margin-bottom:24px}
-.back{color:#4a7a5a;font-size:0.8em;transition:color 0.2s}.back:hover{color:#44dd66}
+.back{color:#4a7a5a;font-size:0.9em;transition:color 0.2s}.back:hover{color:#44dd66}
 .section{background:#0f1a14;border:1px solid #1a2e24;border-radius:8px;padding:16px;margin-bottom:20px}
 .row{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
-label{color:#4a7a5a;font-size:0.75em;min-width:80px}
-input,select,textarea{background:#080e0a;border:1px solid #2a4a34;color:#8ec9a0;padding:5px 8px;border-radius:3px;font-family:'Share Tech Mono',monospace;font-size:0.8em;outline:none}
+label{color:#4a7a5a;font-size:0.85em;min-width:80px}
+input,select,textarea{background:#080e0a;border:1px solid #2a4a34;color:#8ec9a0;padding:5px 8px;border-radius:3px;font-family:'Share Tech Mono',monospace;font-size:0.9em;outline:none}
 input:focus,select:focus{border-color:#44dd66}
 select option{background:#0a0f0c}
-.btn{background:transparent;border:1px solid #2a4a34;color:#44dd66;padding:5px 12px;border-radius:3px;cursor:pointer;font-family:'Share Tech Mono',monospace;font-size:0.75em;transition:all 0.2s}
+.btn{background:transparent;border:1px solid #2a4a34;color:#44dd66;padding:5px 12px;border-radius:3px;cursor:pointer;font-family:'Share Tech Mono',monospace;font-size:0.85em;transition:all 0.2s}
 .btn:hover{border-color:#44dd66;background:#1a2e24}
 .btn.danger{color:#e53e3e;border-color:#742a2a}.btn.danger:hover{background:#2a1010;border-color:#e53e3e}
 .btn.primary{background:#1a3a28;border-color:#44dd66}
-.btn.small{padding:3px 8px;font-size:0.7em}
-table{width:100%;border-collapse:collapse;font-size:0.78em}
+.btn.small{padding:3px 8px;font-size:0.8em}
+table{width:100%;border-collapse:collapse;font-size:0.9em}
 th{color:#4a7a5a;text-align:left;padding:6px 8px;border-bottom:1px solid #1a2e24;font-weight:400}
 td{padding:6px 8px;border-bottom:1px solid #0f1a14;vertical-align:middle}
 tr:hover td{background:#0f1a14}
-.badge{padding:2px 6px;border-radius:2px;font-size:0.7em}
+.badge{padding:2px 6px;border-radius:2px;font-size:0.8em}
 .badge.enabled{background:#1a3a28;color:#44dd66}
 .badge.disabled{background:#1a1a1a;color:#4a7a5a}
 .badge.info{background:#1a2a3a;color:#06b6d4}
 .badge.warning{background:#2a2010;color:#f59e0b}
 .badge.critical{background:#2a1010;color:#e53e3e}
-.empty{color:#2a4a34;text-align:center;padding:20px;font-size:0.8em}
+.empty{color:#2a4a34;text-align:center;padding:20px;font-size:0.9em}
 .form-section{background:#080e0a;border:1px solid #1a2e24;border-radius:6px;padding:14px;margin-top:12px;display:none}
 .form-section.open{display:block}
 .form-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:10px}
 .form-field{display:flex;flex-direction:column;gap:4px}
-.form-field label{color:#4a7a5a;font-size:0.72em}
+.form-field label{color:#4a7a5a;font-size:0.85em}
 .form-field input,.form-field select,.form-field textarea{width:100%}
 .form-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
 .condition-extra{display:none}
 .condition-extra.show{display:contents}
 #alertHistory td.level{font-variant-numeric:tabular-nums}
 .tabs{display:flex;gap:4px;margin-bottom:16px}
-.tab{padding:5px 14px;border:1px solid #2a4a34;border-radius:3px;cursor:pointer;color:#4a7a5a;font-size:0.78em;background:transparent;font-family:'Share Tech Mono',monospace}
+.tab{padding:5px 14px;border:1px solid #2a4a34;border-radius:3px;cursor:pointer;color:#4a7a5a;font-size:0.9em;background:transparent;font-family:'Share Tech Mono',monospace}
 .tab.active{background:#1a3a28;border-color:#44dd66;color:#44dd66}
 .tab-panel{display:none}.tab-panel.active{display:block}
-.hint{color:#2a6e3f;font-size:0.7em;margin-top:3px}
+.hint{color:#2a6e3f;font-size:0.8em;margin-top:3px}
 </style>
 </head>
 <body>
