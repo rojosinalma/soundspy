@@ -7,7 +7,6 @@ import json
 import time
 from collections import deque
 from threading import Thread
-from base64 import b64encode
 
 import paho.mqtt.client as mqtt
 from flask import Flask, render_template, jsonify, request, send_from_directory
@@ -317,44 +316,25 @@ def api_alert_history():
 
 # --- WebSocket audio relay ---
 
-audio_clients: list = []
-audio_clients_lock = __import__("threading").Lock()
-
-
 @sock.route("/ws/audio")
 def audio_websocket(ws):
     print("ESP32 audio WebSocket connected", flush=True)
-    node_id = None
     try:
-        first = ws.receive(timeout=5)
-        if first:
-            meta = json.loads(first)
-            node_id = meta.get("node_id")
-        with audio_clients_lock:
-            audio_clients.append(ws)
         while True:
-            data = ws.receive(timeout=30)
-            if data is None:
-                break
-            with audio_clients_lock:
-                dead = []
-                for client in audio_clients:
-                    if client is ws:
-                        continue
-                    try:
-                        client.send(data)
-                    except Exception:
-                        dead.append(client)
-                for d in dead:
-                    audio_clients.remove(d)
-            if node_id:
-                socketio.emit("audio_data", {"node_id": node_id, "audio": b64encode(data).decode()}, namespace="/")
+            data = ws.receive()
+            if data:
+                try:
+                    msg = json.loads(data)
+                    node_id = msg.get("node_id")
+                    audio_b64 = msg.get("audio")
+                    if node_id and audio_b64:
+                        socketio.emit("audio_data", {"node_id": node_id, "audio": audio_b64}, namespace="/")
+                        print(f"Relayed audio from {node_id}", flush=True)
+                except Exception as e:
+                    print(f"Audio processing error: {e}", flush=True)
     except Exception as e:
-        print(f"Audio WebSocket error: {e}", flush=True)
+        print(f"ESP32 audio WebSocket error: {e}", flush=True)
     finally:
-        with audio_clients_lock:
-            if ws in audio_clients:
-                audio_clients.remove(ws)
         print("ESP32 audio WebSocket disconnected", flush=True)
 
 
