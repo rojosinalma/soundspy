@@ -47,7 +47,6 @@ $ESPTOOL \
     --baud 921600 \
     --before default_reset \
     --after hard_reset \
-    --no-stub \
     write_flash \
     --flash_mode dio \
     --flash_freq 80m \
