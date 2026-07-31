@@ -2789,9 +2789,11 @@
             }
 
             visible.forEach(e => logContent.appendChild(e.el.cloneNode(true)));
-            logScrolledByCode = true;
-            logContent.scrollTop = logContent.scrollHeight;
-            logScrolledByCode = false;
+            if (logAutoScroll) {
+                logScrolledByCode = true;
+                logContent.scrollTop = logContent.scrollHeight;
+                logScrolledByCode = false;
+            }
         }
 
         function logNodeLabel(nodeId) {
