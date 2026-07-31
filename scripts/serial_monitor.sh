@@ -39,6 +39,12 @@ if [ ${#PORTS[@]} -eq 0 ]; then
 fi
 
 echo "--- Monitoring ${PORTS[*]} (Ctrl+C to stop) ---"
-tail -f "${PORTS[@]}" 2>/dev/null | while IFS= read -r line; do
-    echo "$line"
+
+for PORT in "${PORTS[@]}"; do
+    ( sudo cat "$PORT" | while IFS= read -r line; do
+        echo "[${PORT##*/}] $line"
+      done ) &
 done
+
+trap 'kill $(jobs -p) 2>/dev/null' EXIT INT
+wait
