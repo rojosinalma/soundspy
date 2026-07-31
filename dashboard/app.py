@@ -38,6 +38,7 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = "soundspy-secret"
 app.config["UPLOAD_FOLDER"] = "/app/firmware"
 app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024
+app.config["TEMPLATES_AUTO_RELOAD"] = True
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 sock = Sock(app)
 
