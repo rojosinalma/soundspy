@@ -2965,6 +2965,7 @@
                 logStore[logSelectedNode][logSelectedTab] = [];
             }
             renderLog();
+            if (logFullscreenOpen) renderLogFs();
             logAutoScroll = true;
             document.getElementById('logResumeBtn').style.display = 'none';
         }
