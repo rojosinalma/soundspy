@@ -12,20 +12,14 @@ _lock = Lock()
 _nodes = defaultdict(lambda: {
     "last_update": None,
     "last_heartbeat": None,
+    "last_recovery": None,
     "current": {"overall_dbfs": None, "freq_dbfs": None},
     "history": deque(maxlen=HISTORY_SIZE),
     "history_acc": {"sum_power": 0, "count": 0, "bands": {}, "last_sec": 0},
     "firmware_version": "unknown",
     "sleeping": False,
+    "in_recovery": False,
 })
-
-
-def get_lock():
-    return _lock
-
-
-def get_node(node_id: str) -> dict:
-    return _nodes[node_id]
 
 
 def get_all_nodes() -> dict:
@@ -79,16 +73,18 @@ def update_heartbeat(node_id: str, sleeping: bool):
     with _lock:
         _nodes[node_id]["last_heartbeat"] = time.time()
         _nodes[node_id]["sleeping"] = sleeping
+        _nodes[node_id]["in_recovery"] = False
+
+
+def update_recovery(node_id: str):
+    with _lock:
+        _nodes[node_id]["last_recovery"] = time.time()
+        _nodes[node_id]["in_recovery"] = True
 
 
 def update_firmware_version(node_id: str, version: str):
     with _lock:
         _nodes[node_id]["firmware_version"] = version
-
-
-def set_node_offline(node_id: str):
-    with _lock:
-        _nodes[node_id]["last_update"] = None
 
 
 def get_node_status(node_id: str, db_nodes: dict) -> dict:
@@ -99,7 +95,12 @@ def get_node_status(node_id: str, db_nodes: dict) -> dict:
         last_heartbeat = data["last_heartbeat"]
         is_sleeping = data["sleeping"]
 
-        if is_sleeping:
+        in_recovery = data.get("in_recovery", False)
+        last_recovery = data.get("last_recovery")
+
+        if in_recovery:
+            is_online = last_recovery and (now - last_recovery) < 30
+        elif is_sleeping:
             is_online = last_heartbeat and (now - last_heartbeat) < 60
         else:
             is_online = last_update and (now - last_update) < 10
@@ -108,6 +109,7 @@ def get_node_status(node_id: str, db_nodes: dict) -> dict:
         return {
             "online": is_online,
             "sleeping": is_sleeping,
+            "in_recovery": in_recovery and bool(last_recovery and (now - last_recovery) < 30),
             "last_update": last_update,
             "current": data["current"],
             "firmware_version": data.get("firmware_version", "unknown"),

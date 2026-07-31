@@ -38,20 +38,14 @@ DASHBOARD_URL="http://${FIRMWARE_MQTT_HOST}:${DASHBOARD_PORT}"
 if [ -n "$2" ]; then
     FIRMWARE_BIN="$2"
 else
-    LATEST_LINK="builds/soundspy_latest.bin"
-    if [ -L "$LATEST_LINK" ] && [ -f "$LATEST_LINK" ]; then
-        FIRMWARE_BIN="$LATEST_LINK"
-        REAL_FILE=$(readlink -f "$FIRMWARE_BIN")
-        echo "Using latest firmware: $REAL_FILE"
-    else
-        FIRMWARE_BIN=$(ls -t builds/soundspy_v*.bin 2>/dev/null | head -1)
-        if [ -z "$FIRMWARE_BIN" ]; then
-            echo "Error: No firmware found in builds/"
-            echo "Run: ./scripts/build_firmware.sh"
-            exit 1
-        fi
-        echo "Auto-detected firmware: $FIRMWARE_BIN"
+    # Always resolve to the actual versioned file, never use the symlink directly
+    FIRMWARE_BIN=$(ls -t builds/soundspy_v*.bin 2>/dev/null | head -1)
+    if [ -z "$FIRMWARE_BIN" ]; then
+        echo "Error: No firmware found in builds/"
+        echo "Run: ./scripts/build_firmware.sh"
+        exit 1
     fi
+    echo "Using latest firmware: $FIRMWARE_BIN"
 fi
 
 if [ ! -f "$FIRMWARE_BIN" ]; then
@@ -75,7 +69,12 @@ UPLOAD_RESPONSE=$(curl -s -X POST -F "firmware=@$FIRMWARE_BIN" "$DASHBOARD_URL/a
 echo "Upload response: $UPLOAD_RESPONSE"
 
 # Extract firmware URL from response
-FIRMWARE_URL=$(echo "$UPLOAD_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['url'])" 2>/dev/null)
+FIRMWARE_URL_PATH=$(echo "$UPLOAD_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['url'])" 2>/dev/null)
+# Make absolute if the server returned a relative path
+case "$FIRMWARE_URL_PATH" in
+  http://*|https://*) FIRMWARE_URL="$FIRMWARE_URL_PATH" ;;
+  *) FIRMWARE_URL="${DASHBOARD_URL}${FIRMWARE_URL_PATH}" ;;
+esac
 
 if [ -z "$FIRMWARE_URL" ]; then
     echo "Error: Failed to upload firmware"
@@ -102,14 +101,44 @@ fi
 
 echo ""
 echo "=========================================="
-echo "OTA update initiated successfully!"
+echo "OTA triggered — waiting for confirmation..."
 echo "=========================================="
+
+# Wait for OTA success confirmation and version reconnect
+# Snapshot current log line count so we only watch new entries
+LOG_OFFSET=$(docker logs soundspy_dashboard 2>&1 | wc -l)
+CONFIRMED=false
+TIMEOUT=120
+ELAPSED=0
+
+while [ $ELAPSED -lt $TIMEOUT ]; do
+    sleep 3
+    ELAPSED=$((ELAPSED + 3))
+
+    NEW_LOGS=$(docker logs soundspy_dashboard 2>&1 | tail -n +$LOG_OFFSET)
+
+    OTA_LOG=$(echo "$NEW_LOGS" | grep "\[ota\] $CHIP_ID" | tail -1)
+    VERSION_LOG=$(echo "$NEW_LOGS" | grep "\[version\] $CHIP_ID" | grep "build=" | tail -1)
+
+    if echo "$OTA_LOG" | grep -q "success"; then
+        echo "[${ELAPSED}s] OTA download confirmed by device"
+        CONFIRMED=true
+    fi
+
+    if [ "$CONFIRMED" = true ] && [ -n "$VERSION_LOG" ]; then
+        BUILD=$(echo "$VERSION_LOG" | grep -o 'build=.*' | cut -d= -f2-)
+        echo "[${ELAPSED}s] Device reconnected: $VERSION_LOG"
+        echo ""
+        echo "=========================================="
+        echo "OTA successful!"
+        echo "Build: $BUILD"
+        echo "=========================================="
+        exit 0
+    fi
+
+    printf "\r[${ELAPSED}s] Waiting..."
+done
+
 echo ""
-echo "The node will now:"
-echo "  1. Download firmware (~30 seconds)"
-echo "  2. Flash to memory (~10 seconds)"
-echo "  3. Reboot and reconnect (~10 seconds)"
-echo ""
-echo "Monitor progress:"
-echo "  Dashboard: $DASHBOARD_URL"
-echo "  Logs: docker logs -f soundspy_dashboard"
+echo "Timeout — check dashboard logs manually:"
+echo "  docker logs -f soundspy_dashboard"

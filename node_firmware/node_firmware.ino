@@ -9,15 +9,103 @@
 #include <math.h>
 #include <base64.h>
 #include <ArduinoJson.h>
+#include <esp_system.h>
+#include <Preferences.h>
 
-const char* FIRMWARE_VERSION = "1.6.0";
+const char* FIRMWARE_VERSION = "1.7.5";
+const char* FIRMWARE_BUILD   = __DATE__ " " __TIME__;  // e.g. "Jul 31 2026 20:45:12"
 
-const char* WIFI_SSID  = "PLACEHOLDER_WIFI_SSID";
-const char* WIFI_PASS  = "PLACEHOLDER_WIFI_PASS";
-const char* MQTT_HOST  = "PLACEHOLDER_MQTT_HOST";
-const int   MQTT_PORT  = PLACEHOLDER_MQTT_PORT;
-const char* WS_HOST    = "PLACEHOLDER_WS_HOST";
-const int   WS_PORT    = PLACEHOLDER_WS_PORT;
+// --- NVS credentials (written by recovery portal or build_firmware.sh on first flash) ---
+static char WIFI_SSID_BUF[64];
+static char WIFI_PASS_BUF[64];
+static char MQTT_HOST_BUF[64];
+static int  MQTT_PORT_VAL = 1883;
+static char WS_HOST_BUF[64];
+static int  WS_PORT_VAL  = 8091;
+
+const char* WIFI_SSID  = WIFI_SSID_BUF;
+const char* WIFI_PASS  = WIFI_PASS_BUF;
+const char* MQTT_HOST  = MQTT_HOST_BUF;
+const char* WS_HOST    = WS_HOST_BUF;
+
+void loadCredentials() {
+  Preferences prefs;
+  prefs.begin("soundspy", true);
+  strlcpy(WIFI_SSID_BUF, prefs.getString("wifi_ssid", "PLACEHOLDER_WIFI_SSID").c_str(), sizeof(WIFI_SSID_BUF));
+  strlcpy(WIFI_PASS_BUF, prefs.getString("wifi_pass", "PLACEHOLDER_WIFI_PASS").c_str(), sizeof(WIFI_PASS_BUF));
+  strlcpy(MQTT_HOST_BUF, prefs.getString("mqtt_host", "PLACEHOLDER_MQTT_HOST").c_str(), sizeof(MQTT_HOST_BUF));
+  MQTT_PORT_VAL = prefs.getInt("mqtt_port", PLACEHOLDER_MQTT_PORT);
+  strlcpy(WS_HOST_BUF,   prefs.getString("ws_host",   "PLACEHOLDER_WS_HOST").c_str(), sizeof(WS_HOST_BUF));
+  WS_PORT_VAL = prefs.getInt("ws_port", PLACEHOLDER_WS_PORT);
+  prefs.end();
+}
+
+// --- Crash counter in NVS (survives all resets including hard reboot + power loss) ---
+#define CRASH_BOOT_LIMIT 3
+
+uint32_t crashBootCount = 0;
+
+void crashCounterLoad() {
+  Preferences prefs;
+  prefs.begin("soundspy_boot", false);
+  crashBootCount = prefs.getUInt("crash_count", 0);
+  prefs.end();
+}
+
+void crashCounterIncrement() {
+  Preferences prefs;
+  prefs.begin("soundspy_boot", false);
+  crashBootCount++;
+  prefs.putUInt("crash_count", crashBootCount);
+  prefs.end();
+}
+
+void crashCounterReset() {
+  crashBootCount = 0;
+  Preferences prefs;
+  prefs.begin("soundspy_boot", false);
+  prefs.putUInt("crash_count", 0);
+  prefs.end();
+}
+
+void bootIntoRecovery() {
+  Serial.println("[IMPORTANT] Crash limit reached — booting into recovery");
+  const esp_partition_t* factory = esp_partition_find_first(
+    ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_FACTORY, NULL);
+  if (factory) {
+    esp_ota_set_boot_partition(factory);
+    delay(200);
+    esp_restart();
+  }
+  // If no factory partition, just hang — USB flash required
+  Serial.println("[IMPORTANT] No factory partition found — connect via USB");
+  while (true) delay(1000);
+}
+
+// --- Boot attempt tracking via RTC memory (survives reboot, not power loss) ---
+#define BOOT_MAGIC 0xB007CA11
+
+#define BOOT_STAGE_INIT    0
+#define BOOT_STAGE_WIFI    1
+#define BOOT_STAGE_MQTT    2
+#define BOOT_STAGE_OTA_OK  3
+#define BOOT_STAGE_I2S     4
+#define BOOT_STAGE_VALID   0xFF  // fully validated
+
+struct BootRecord {
+  uint32_t magic;
+  char firmware[16];
+  uint8_t stage;
+  uint8_t attempt;
+};
+
+RTC_DATA_ATTR BootRecord rtcBoot;     // current boot attempt
+RTC_DATA_ATTR BootRecord rtcPrevBoot; // copy of last attempt before we overwrite it
+RTC_DATA_ATTR bool rtcPrevValid;      // true if rtcPrevBoot has data worth reporting
+
+void bootStage(uint8_t stage) {
+  rtcBoot.stage = stage;
+}
 
 // Node ID derived from chip's unique ID (lower 4 bytes of MAC)
 char NODE_ID[13];
@@ -68,13 +156,24 @@ void remoteLog(const char* level, const char* msg) {
 
 void publishBootReport() {
   const esp_partition_t* running = esp_ota_get_running_partition();
-  char payload[384];
-  snprintf(payload, sizeof(payload),
-    "{\"node\":\"%s\",\"firmware\":\"%s\",\"reset_reason\":%d,\"partition\":\"%s\",\"free_heap\":%u,\"ip\":\"%s\"}",
+  char payload[512];
+  int len = snprintf(payload, sizeof(payload),
+    "{\"node\":\"%s\",\"firmware\":\"%s\",\"reset_reason\":%d,\"partition\":\"%s\",\"free_heap\":%u,\"ip\":\"%s\"",
     NODE_ID, FIRMWARE_VERSION, (int)esp_reset_reason(),
     running ? running->label : "unknown",
     ESP.getFreeHeap(),
     WiFi.localIP().toString().c_str());
+
+  if (rtcPrevValid && rtcPrevBoot.magic == BOOT_MAGIC && rtcPrevBoot.stage != BOOT_STAGE_VALID) {
+    const char* stageNames[] = {"init","wifi","mqtt","ota_ok","i2s"};
+    const char* stageName = (rtcPrevBoot.stage < 5) ? stageNames[rtcPrevBoot.stage] : "unknown";
+    len += snprintf(payload + len, sizeof(payload) - len,
+      ",\"prev_failed_boot\":{\"firmware\":\"%s\",\"stage\":\"%s\",\"stage_id\":%d}",
+      rtcPrevBoot.firmware, stageName, rtcPrevBoot.stage);
+    rtcPrevValid = false;  // clear after reporting
+  }
+
+  snprintf(payload + len, sizeof(payload) - len, "}");
   String topic = String("soundspy/") + NODE_ID + "/boot";
   mqtt.publish(topic.c_str(), payload);
 }
@@ -229,7 +328,16 @@ void performOTA(const char* firmwareUrl) {
       break;
     case HTTP_UPDATE_OK:
       Serial.println("[IMPORTANT] Update successful, rebooting...");
-      ESP.restart();
+      if (mqtt.connected()) {
+        char otaPayload[192];
+        snprintf(otaPayload, sizeof(otaPayload),
+          "{\"node\":\"%s\",\"status\":\"success\",\"url\":\"%s\"}", NODE_ID, firmwareUrl);
+        String otaTopic = String("soundspy/") + NODE_ID + "/ota";
+        mqtt.publish(otaTopic.c_str(), otaPayload);
+        mqtt.loop();
+        delay(300);
+      }
+      esp_restart();
       break;
   }
 }
@@ -257,7 +365,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   if (doc.containsKey("reboot") && doc["reboot"] == true) {
     remoteLog("info", "Reboot requested");
     delay(200);
-    ESP.restart();
+    esp_restart();
   }
 
   // Handle sleep/wake — stops I2S processing but keeps WiFi+MQTT alive
@@ -292,7 +400,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
 void connectMQTT() {
   mqtt.setBufferSize(512);
-  mqtt.setServer(MQTT_HOST, MQTT_PORT);
+  mqtt.setServer(MQTT_HOST, MQTT_PORT_VAL);
   mqtt.setCallback(mqttCallback);
 
   while (!mqtt.connected()) {
@@ -309,7 +417,7 @@ void connectMQTT() {
 
       // Publish version info on connect
       String versionTopic = String("soundspy/") + NODE_ID + "/version";
-      String versionPayload = String("{\"node\":\"") + NODE_ID + "\",\"firmware\":\"" + FIRMWARE_VERSION + "\"}";
+      String versionPayload = String("{\"node\":\"") + NODE_ID + "\",\"firmware\":\"" + FIRMWARE_VERSION + "\",\"build\":\"" + FIRMWARE_BUILD + "\"}";
       mqtt.publish(versionTopic.c_str(), versionPayload.c_str());
       Serial.print("[IMPORTANT] Published firmware version: ");
       Serial.println(FIRMWARE_VERSION);
@@ -334,7 +442,7 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 }
 
 void connectWebSocket() {
-  webSocket.begin(WS_HOST, WS_PORT, "/ws/audio");
+  webSocket.begin(WS_HOST, WS_PORT_VAL, "/ws/audio");
   webSocket.onEvent(webSocketEvent);
   webSocket.setReconnectInterval(5000);
 }
@@ -359,6 +467,19 @@ void setup() {
     (uint8_t)(mac), (uint8_t)(mac >> 8), (uint8_t)(mac >> 16),
     (uint8_t)(mac >> 24), (uint8_t)(mac >> 32), (uint8_t)(mac >> 40));
 
+
+  // Crash counter — if crashed too many times, enter recovery
+  crashCounterLoad();
+  crashCounterIncrement();
+  Serial.printf("[IMPORTANT] Boot attempt %u/%u\n", crashBootCount, CRASH_BOOT_LIMIT);
+  if (crashBootCount > CRASH_BOOT_LIMIT) {
+    crashCounterReset();
+    bootIntoRecovery();
+  }
+
+  // Load credentials from NVS
+  loadCredentials();
+
   Serial.println("\n\n[IMPORTANT] ========================================");
   Serial.print("[IMPORTANT] soundspy node starting - Firmware v");
   Serial.println(FIRMWARE_VERSION);
@@ -366,20 +487,46 @@ void setup() {
   Serial.println(NODE_ID);
   Serial.println("[IMPORTANT] ========================================\n");
 
+
+  // Save previous boot record before overwriting
+  if (rtcBoot.magic == BOOT_MAGIC && rtcBoot.stage != BOOT_STAGE_VALID) {
+    rtcPrevBoot = rtcBoot;
+    rtcPrevValid = true;
+  } else {
+    rtcPrevValid = false;
+  }
+
+  // Initialise new boot record
+  rtcBoot.magic = BOOT_MAGIC;
+  strncpy(rtcBoot.firmware, FIRMWARE_VERSION, sizeof(rtcBoot.firmware) - 1);
+  rtcBoot.firmware[sizeof(rtcBoot.firmware) - 1] = '\0';
+  rtcBoot.stage = BOOT_STAGE_INIT;
+  rtcBoot.attempt = (rtcPrevValid ? rtcPrevBoot.attempt + 1 : 0);
+
   connectWiFi();
+  bootStage(BOOT_STAGE_WIFI);
+
   connectMQTT();
+  bootStage(BOOT_STAGE_MQTT);
 
   // Confirm OTA partition is valid — if this never runs, bootloader rolls back
   esp_ota_mark_app_valid_cancel_rollback();
+  // Don't reset crash counter yet — wait for stability window in loop()
+  bootStage(BOOT_STAGE_OTA_OK);
+
   publishBootReport();
   remoteLog("boot", "Stage 1 OK: WiFi + MQTT connected");
   mqtt.loop();
 
   configureBands();
   setupI2S();
+  bootStage(BOOT_STAGE_I2S);
   connectWebSocket();
   lastPublish = millis();
   bootTime = millis();
+
+  // All stages passed — mark as fully valid
+  bootStage(BOOT_STAGE_VALID);
 
   remoteLog("boot", "Stage 2 OK: I2S + WebSocket initialized");
   mqtt.loop();
@@ -396,10 +543,26 @@ void sendHeartbeat() {
   mqtt.publish(topic.c_str(), payload);
 }
 
+
+#define STABILITY_WINDOW_MS 60000  // must stay alive 60s before counting as clean boot
+
+static bool stableBootConfirmed = false;
+static unsigned long mqttConnectedAt = 0;
+
 void loop() {
-  if (!mqtt.connected()) connectMQTT();
+  if (!mqtt.connected()) {
+    connectMQTT();
+  } else if (!stableBootConfirmed) {
+    if (mqttConnectedAt == 0) mqttConnectedAt = millis();
+    if (millis() - mqttConnectedAt >= STABILITY_WINDOW_MS) {
+      stableBootConfirmed = true;
+      crashCounterReset();
+      remoteLog("info", "Boot confirmed stable — crash counter reset");
+    }
+  }
   mqtt.loop();
   sendHeartbeat();
+
 
   if (sleeping) {
     delay(100);

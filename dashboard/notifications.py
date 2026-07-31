@@ -11,7 +11,6 @@ import threading
 from typing import Optional
 
 import db
-from helpers import BAND_ORDER
 
 
 # --- In-memory breach state (resets on restart) ---
@@ -30,11 +29,6 @@ def _get_state(rule_id: int) -> dict:
             "breach_count": 0,
         }
     return _breach_state[rule_id]
-
-
-def reset_breach_state(rule_id: int):
-    with _state_lock:
-        _breach_state.pop(rule_id, None)
 
 
 # --- Cooldown check ---

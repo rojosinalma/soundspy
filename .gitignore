@@ -37,6 +37,9 @@ node_firmware/*.rendered.ino
 # Arduino CLI binary
 bin/
 
+# Local sync script
+scripts/sync_watch.sh
+
 # IDE
 .vscode/
 .idea/
