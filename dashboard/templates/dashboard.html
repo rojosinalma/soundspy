@@ -2717,7 +2717,6 @@
 
         // Log panel state
         let logAutoScroll = true;
-        let logScrolledByCode = false;
         let logSelectedNode = 'all';
         let logSelectedTab = 'app';
         let appLogRenderScheduled = false;
@@ -2725,10 +2724,13 @@
         const logKnownNodes = new Set();
 
         function onLogScroll() {
-            if (logScrolledByCode) return;
             const el = this;
             const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 30;
-            if (!atBottom) {
+            if (atBottom) {
+                logAutoScroll = true;
+                document.getElementById('logResumeBtn').style.display = 'none';
+                document.getElementById('logFsResumeBtn').style.display = 'none';
+            } else {
                 logAutoScroll = false;
                 document.getElementById('logResumeBtn').style.display = 'block';
                 document.getElementById('logFsResumeBtn').style.display = 'block';
@@ -2790,9 +2792,7 @@
 
             visible.forEach(e => logContent.appendChild(e.el.cloneNode(true)));
             if (logAutoScroll) {
-                logScrolledByCode = true;
                 logContent.scrollTop = logContent.scrollHeight;
-                setTimeout(() => { logScrolledByCode = false; }, 50);
             }
         }
 
@@ -2882,9 +2882,7 @@
                 while (logContent.children.length > MAX_LOG_ENTRIES) {
                     logContent.removeChild(logContent.firstChild);
                 }
-                logScrolledByCode = true;
                 logContent.scrollTop = logContent.scrollHeight;
-                setTimeout(() => { logScrolledByCode = false; }, 50);
             }
 
         }
@@ -2898,9 +2896,7 @@
             fsContent.appendChild(entry.cloneNode(true));
             while (fsContent.children.length > MAX_LOG_ENTRIES) fsContent.removeChild(fsContent.firstChild);
             if (logAutoScroll) {
-                logScrolledByCode = true;
                 fsContent.scrollTop = fsContent.scrollHeight;
-                setTimeout(() => { logScrolledByCode = false; }, 50);
             }
         }
 
@@ -2968,9 +2964,7 @@
             }
             entries.forEach(e => logContent.appendChild(e.el.cloneNode(true)));
             if (logAutoScroll) {
-                logScrolledByCode = true;
                 logContent.scrollTop = logContent.scrollHeight;
-                setTimeout(() => { logScrolledByCode = false; }, 50);
             }
         }
 
