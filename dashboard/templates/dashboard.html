@@ -2726,11 +2726,7 @@
         function onLogScroll() {
             const el = this;
             const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 30;
-            if (atBottom) {
-                logAutoScroll = true;
-                document.getElementById('logResumeBtn').style.display = 'none';
-                document.getElementById('logFsResumeBtn').style.display = 'none';
-            } else {
+            if (!atBottom) {
                 logAutoScroll = false;
                 document.getElementById('logResumeBtn').style.display = 'block';
                 document.getElementById('logFsResumeBtn').style.display = 'block';
