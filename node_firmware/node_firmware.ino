@@ -12,7 +12,7 @@
 #include <esp_system.h>
 #include <Preferences.h>
 
-const char* FIRMWARE_VERSION = "1.7.5";
+const char* FIRMWARE_VERSION = "1.7.7";
 const char* FIRMWARE_BUILD   = __DATE__ " " __TIME__;  // e.g. "Jul 31 2026 20:45:12"
 
 // --- NVS credentials (written by recovery portal or build_firmware.sh on first flash) ---
@@ -135,7 +135,7 @@ float audioGain = 10.0f;  // Default gain (20dB)
 bool sleeping = false;
 
 // Heartbeat interval (ms)
-#define HEARTBEAT_INTERVAL_MS 30000
+#define HEARTBEAT_INTERVAL_MS 10000
 unsigned long lastHeartbeat = 0;
 
 WiFiClient espClient;
@@ -535,6 +535,12 @@ void setup() {
 void sendHeartbeat() {
   if (millis() - lastHeartbeat < HEARTBEAT_INTERVAL_MS) return;
   lastHeartbeat = millis();
+  unsigned long uptime = millis() / 1000;
+  char msg[128];
+  snprintf(msg, sizeof(msg), "node=%s fw=%s uptime=%lus heap=%u mqtt=%s",
+    NODE_ID, FIRMWARE_VERSION, uptime, ESP.getFreeHeap(),
+    mqtt.connected() ? "ok" : "disconnected");
+  remoteLog("heartbeat", msg);
   char payload[128];
   snprintf(payload, sizeof(payload),
     "{\"node\":\"%s\",\"uptime_ms\":%lu,\"sleeping\":%s,\"free_heap\":%u}",
