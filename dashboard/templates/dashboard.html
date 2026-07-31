@@ -2792,7 +2792,7 @@
             if (logAutoScroll) {
                 logScrolledByCode = true;
                 logContent.scrollTop = logContent.scrollHeight;
-                logScrolledByCode = false;
+                setTimeout(() => { logScrolledByCode = false; }, 50);
             }
         }
 
@@ -2884,7 +2884,7 @@
                 }
                 logScrolledByCode = true;
                 logContent.scrollTop = logContent.scrollHeight;
-                logScrolledByCode = false;
+                setTimeout(() => { logScrolledByCode = false; }, 50);
             }
 
         }
@@ -2897,7 +2897,11 @@
             }
             fsContent.appendChild(entry.cloneNode(true));
             while (fsContent.children.length > MAX_LOG_ENTRIES) fsContent.removeChild(fsContent.firstChild);
-            if (logAutoScroll) fsContent.scrollTop = fsContent.scrollHeight;
+            if (logAutoScroll) {
+                logScrolledByCode = true;
+                fsContent.scrollTop = fsContent.scrollHeight;
+                setTimeout(() => { logScrolledByCode = false; }, 50);
+            }
         }
 
         function resumeLogScroll() {
@@ -2963,7 +2967,11 @@
                 return;
             }
             entries.forEach(e => logContent.appendChild(e.el.cloneNode(true)));
-            if (logAutoScroll) logContent.scrollTop = logContent.scrollHeight;
+            if (logAutoScroll) {
+                logScrolledByCode = true;
+                logContent.scrollTop = logContent.scrollHeight;
+                setTimeout(() => { logScrolledByCode = false; }, 50);
+            }
         }
 
         function clearLog() {
