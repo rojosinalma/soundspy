@@ -1,16 +1,498 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Soundspy — Settings</title>
-    <style>
-        body { background: #0a0f0c; color: #8ec9a0; font-family: monospace; padding: 40px; }
-        a { color: #44dd66; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Soundspy — Settings</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0f0c;color:#8ec9a0;font-family:'Share Tech Mono',monospace;font-size:13px;padding:20px}
+a{color:#44dd66;text-decoration:none}
+h1{font-size:1.3em;color:#44dd66;text-shadow:0 0 8px #44dd66;letter-spacing:2px;text-transform:uppercase}
+h2{font-size:0.9em;color:#8ec9a0;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;border-bottom:1px solid #1a2e24;padding-bottom:6px}
+.header{display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:1px solid #1a2e24;margin-bottom:24px}
+.back{color:#4a7a5a;font-size:0.8em;transition:color 0.2s}.back:hover{color:#44dd66}
+.section{background:#0f1a14;border:1px solid #1a2e24;border-radius:8px;padding:16px;margin-bottom:20px}
+.row{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+label{color:#4a7a5a;font-size:0.75em;min-width:80px}
+input,select,textarea{background:#080e0a;border:1px solid #2a4a34;color:#8ec9a0;padding:5px 8px;border-radius:3px;font-family:'Share Tech Mono',monospace;font-size:0.8em;outline:none}
+input:focus,select:focus{border-color:#44dd66}
+select option{background:#0a0f0c}
+.btn{background:transparent;border:1px solid #2a4a34;color:#44dd66;padding:5px 12px;border-radius:3px;cursor:pointer;font-family:'Share Tech Mono',monospace;font-size:0.75em;transition:all 0.2s}
+.btn:hover{border-color:#44dd66;background:#1a2e24}
+.btn.danger{color:#e53e3e;border-color:#742a2a}.btn.danger:hover{background:#2a1010;border-color:#e53e3e}
+.btn.primary{background:#1a3a28;border-color:#44dd66}
+.btn.small{padding:3px 8px;font-size:0.7em}
+table{width:100%;border-collapse:collapse;font-size:0.78em}
+th{color:#4a7a5a;text-align:left;padding:6px 8px;border-bottom:1px solid #1a2e24;font-weight:400}
+td{padding:6px 8px;border-bottom:1px solid #0f1a14;vertical-align:middle}
+tr:hover td{background:#0f1a14}
+.badge{padding:2px 6px;border-radius:2px;font-size:0.7em}
+.badge.enabled{background:#1a3a28;color:#44dd66}
+.badge.disabled{background:#1a1a1a;color:#4a7a5a}
+.badge.info{background:#1a2a3a;color:#06b6d4}
+.badge.warning{background:#2a2010;color:#f59e0b}
+.badge.critical{background:#2a1010;color:#e53e3e}
+.empty{color:#2a4a34;text-align:center;padding:20px;font-size:0.8em}
+.form-section{background:#080e0a;border:1px solid #1a2e24;border-radius:6px;padding:14px;margin-top:12px;display:none}
+.form-section.open{display:block}
+.form-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:10px}
+.form-field{display:flex;flex-direction:column;gap:4px}
+.form-field label{color:#4a7a5a;font-size:0.72em}
+.form-field input,.form-field select,.form-field textarea{width:100%}
+.form-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+.condition-extra{display:none}
+.condition-extra.show{display:contents}
+#alertHistory td.level{font-variant-numeric:tabular-nums}
+.tabs{display:flex;gap:4px;margin-bottom:16px}
+.tab{padding:5px 14px;border:1px solid #2a4a34;border-radius:3px;cursor:pointer;color:#4a7a5a;font-size:0.78em;background:transparent;font-family:'Share Tech Mono',monospace}
+.tab.active{background:#1a3a28;border-color:#44dd66;color:#44dd66}
+.tab-panel{display:none}.tab-panel.active{display:block}
+.hint{color:#2a6e3f;font-size:0.7em;margin-top:3px}
+</style>
 </head>
 <body>
-    <h1>⚙ Settings</h1>
-    <p>Notification channels and alert rules — coming soon.</p>
-    <p><a href="/">← Dashboard</a></p>
+<div class="header">
+  <h1>⚙ Settings</h1>
+  <a href="/" class="back">← Dashboard</a>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab('channels')">Channels</button>
+  <button class="tab" onclick="showTab('rules')">Alert Rules</button>
+  <button class="tab" onclick="showTab('history')">Alert History</button>
+</div>
+
+<!-- CHANNELS -->
+<div class="tab-panel active" id="tab-channels">
+  <div class="section">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h2 style="margin:0;border:none">Notification Channels</h2>
+      <button class="btn primary" onclick="openChannelForm()">+ Add Channel</button>
+    </div>
+    <div class="form-section" id="channelForm">
+      <div class="form-row">
+        <div class="form-field"><label>Label</label><input id="cf-label" placeholder="e.g. Studio Telegram"></div>
+        <div class="form-field"><label>Platform</label>
+          <select id="cf-platform" onchange="updateChannelFields()">
+            <option value="telegram">Telegram</option>
+            <option value="discord">Discord</option>
+            <option value="ntfy">ntfy</option>
+            <option value="pushover">Pushover</option>
+            <option value="email">Email</option>
+          </select>
+        </div>
+        <div class="form-field"><label>Env Var (token key)</label><input id="cf-envkey" placeholder="TELEGRAM_BOT_TOKEN"></div>
+      </div>
+      <div class="form-row" id="cf-extra-fields"></div>
+      <div class="hint" id="cf-hint"></div>
+      <div class="form-actions">
+        <input type="hidden" id="cf-id" value="">
+        <button class="btn" onclick="closeChannelForm()">Cancel</button>
+        <button class="btn primary" onclick="saveChannel()">Save</button>
+      </div>
+    </div>
+    <table id="channelsTable">
+      <thead><tr><th>Label</th><th>Platform</th><th>Env Var</th><th>Status</th><th></th></tr></thead>
+      <tbody id="channelsBody"><tr><td colspan="5" class="empty">No channels configured</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- RULES -->
+<div class="tab-panel" id="tab-rules">
+  <div class="section">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h2 style="margin:0;border:none">Alert Rules</h2>
+      <button class="btn primary" onclick="openRuleForm()">+ Add Rule</button>
+    </div>
+    <div class="form-section" id="ruleForm">
+      <div class="form-row">
+        <div class="form-field"><label>Name</label><input id="rf-name" placeholder="e.g. Bass alert"></div>
+        <div class="form-field"><label>Scope</label>
+          <select id="rf-scope" onchange="updateScopeField()">
+            <option value="global">Global</option>
+            <option value="node">Per Node</option>
+          </select>
+        </div>
+        <div class="form-field" id="rf-node-field" style="display:none"><label>Node</label>
+          <select id="rf-node"></select>
+        </div>
+        <div class="form-field"><label>Band</label>
+          <select id="rf-band">
+            <option value="overall">Overall</option>
+            <option value="sub_bass">Sub Bass</option>
+            <option value="bass">Bass</option>
+            <option value="low_mid">Low Mid</option>
+            <option value="mid">Mid</option>
+            <option value="high_mid">High Mid</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+        <div class="form-field"><label>Threshold (dB)</label><input id="rf-threshold" type="number" value="-20" step="0.5" min="-80" max="0"></div>
+        <div class="form-field"><label>Urgency</label><input id="rf-urgency" placeholder="warning" value="warning"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-field"><label>Condition</label>
+          <select id="rf-condition" onchange="updateConditionFields()">
+            <option value="instant">Instant</option>
+            <option value="sustained">Sustained</option>
+            <option value="repeated">Repeated</option>
+          </select>
+        </div>
+        <div class="form-field condition-extra" id="rf-duration-field"><label>Duration (s)</label><input id="rf-duration" type="number" placeholder="60" min="1"></div>
+        <div class="form-field condition-extra" id="rf-repeatcount-field"><label>Repeat count</label><input id="rf-repeatcount" type="number" placeholder="3" min="2"></div>
+        <div class="form-field condition-extra" id="rf-repeatwindow-field"><label>Within (s)</label><input id="rf-repeatwindow" type="number" placeholder="60" min="1"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-field"><label>Cooldown mode</label>
+          <select id="rf-cooldown-mode" onchange="updateCooldownFields()">
+            <option value="cooldown">Time cooldown</option>
+            <option value="every">Every breach</option>
+            <option value="count">Every N breaches</option>
+          </select>
+        </div>
+        <div class="form-field" id="rf-cooldown-s-field"><label>Cooldown (s)</label><input id="rf-cooldown-s" type="number" value="300" min="0"></div>
+        <div class="form-field" id="rf-cooldown-n-field" style="display:none"><label>Every N</label><input id="rf-cooldown-n" type="number" placeholder="5" min="1"></div>
+      </div>
+      <div class="form-field" style="margin-bottom:10px">
+        <label>Channels</label>
+        <div id="rf-channels" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px"></div>
+      </div>
+      <div class="form-actions">
+        <input type="hidden" id="rf-id" value="">
+        <button class="btn" onclick="closeRuleForm()">Cancel</button>
+        <button class="btn primary" onclick="saveRule()">Save</button>
+      </div>
+    </div>
+    <table id="rulesTable">
+      <thead><tr><th>Name</th><th>Scope</th><th>Band</th><th>Threshold</th><th>Condition</th><th>Urgency</th><th>Channels</th><th>Status</th><th></th></tr></thead>
+      <tbody id="rulesBody"><tr><td colspan="9" class="empty">No rules configured</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- HISTORY -->
+<div class="tab-panel" id="tab-history">
+  <div class="section">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h2 style="margin:0;border:none">Alert History</h2>
+      <button class="btn small" onclick="loadHistory()">↻ Refresh</button>
+    </div>
+    <table>
+      <thead><tr><th>Time</th><th>Rule</th><th>Node</th><th>Band</th><th>Level</th><th>Scope</th><th>Channels</th></tr></thead>
+      <tbody id="alertHistory"><tr><td colspan="7" class="empty">No alerts fired</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+let channels = [];
+let rules = [];
+let nodes = {};
+
+async function init() {
+  await Promise.all([loadChannels(), loadRules(), loadNodes()]);
+  loadHistory();
+}
+
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// --- Nodes ---
+async function loadNodes() {
+  const r = await fetch('/api/nodes');
+  const d = await r.json();
+  nodes = d.nodes || {};
+  const sel = document.getElementById('rf-node');
+  sel.innerHTML = Object.entries(nodes).map(([id, n]) =>
+    `<option value="${id}">${n.display_name} (${id})</option>`).join('');
+}
+
+// --- Channels ---
+async function loadChannels() {
+  const r = await fetch('/api/channels');
+  channels = await r.json();
+  renderChannels();
+}
+
+function renderChannels() {
+  const tbody = document.getElementById('channelsBody');
+  if (!channels.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty">No channels configured</td></tr>';
+    return;
+  }
+  tbody.innerHTML = channels.map(c => `
+    <tr>
+      <td>${c.label}</td>
+      <td>${c.platform}</td>
+      <td style="color:#4a7a5a">${c.env_key}</td>
+      <td><span class="badge ${c.enabled ? 'enabled' : 'disabled'}">${c.enabled ? 'enabled' : 'disabled'}</span></td>
+      <td style="white-space:nowrap">
+        <button class="btn small" onclick="testChannel(${c.id})">Test</button>
+        <button class="btn small" onclick="editChannel(${c.id})">Edit</button>
+        <button class="btn small danger" onclick="deleteChannel(${c.id})">Del</button>
+      </td>
+    </tr>`).join('');
+}
+
+function openChannelForm(reset=true) {
+  if (reset) {
+    document.getElementById('cf-id').value = '';
+    document.getElementById('cf-label').value = '';
+    document.getElementById('cf-envkey').value = '';
+    document.getElementById('cf-platform').value = 'telegram';
+    updateChannelFields();
+  }
+  document.getElementById('channelForm').classList.add('open');
+}
+
+function closeChannelForm() {
+  document.getElementById('channelForm').classList.remove('open');
+}
+
+const PLATFORM_HINTS = {
+  telegram: 'Set TELEGRAM_BOT_TOKEN (or _1, _2) in .env. config needs chat_id.',
+  discord:  'Set DISCORD_WEBHOOK (or _1, _2) in .env with the full webhook URL.',
+  ntfy:     'Set NTFY_URL (or _1, _2) in .env with the full URL including topic.',
+  pushover: 'Set PUSHOVER_TOKEN and PUSHOVER_USER in .env.',
+  email:    'Set SMTP_PASS in .env. Fill host/user/port/to in config.',
+};
+
+const PLATFORM_EXTRA = {
+  telegram: [['chat_id','Chat ID','text','']],
+  discord:  [],
+  ntfy:     [],
+  pushover: [],
+  email:    [['smtp_host','SMTP Host','text','smtp.gmail.com'],['smtp_user','SMTP User','text',''],['smtp_port','Port','number','587'],['to','To Address','email','']],
+};
+
+function updateChannelFields(existingConfig={}) {
+  const platform = document.getElementById('cf-platform').value;
+  document.getElementById('cf-hint').textContent = PLATFORM_HINTS[platform] || '';
+  const fields = PLATFORM_EXTRA[platform] || [];
+  document.getElementById('cf-extra-fields').innerHTML = fields.map(([key, lbl, type, ph]) =>
+    `<div class="form-field"><label>${lbl}</label><input id="cf-cfg-${key}" type="${type}" placeholder="${ph}" value="${existingConfig[key]||''}"></div>`
+  ).join('');
+}
+
+function editChannel(id) {
+  const c = channels.find(x => x.id === id);
+  if (!c) return;
+  document.getElementById('cf-id').value = c.id;
+  document.getElementById('cf-label').value = c.label;
+  document.getElementById('cf-platform').value = c.platform;
+  document.getElementById('cf-envkey').value = c.env_key;
+  updateChannelFields(c.config);
+  openChannelForm(false);
+}
+
+async function saveChannel() {
+  const platform = document.getElementById('cf-platform').value;
+  const fields = PLATFORM_EXTRA[platform] || [];
+  const config = {};
+  fields.forEach(([key]) => {
+    const el = document.getElementById(`cf-cfg-${key}`);
+    if (el) config[key] = el.value;
+  });
+  const payload = {
+    id: document.getElementById('cf-id').value || undefined,
+    label: document.getElementById('cf-label').value,
+    platform,
+    env_key: document.getElementById('cf-envkey').value,
+    config,
+    enabled: 1,
+  };
+  await fetch('/api/channels', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+  closeChannelForm();
+  await loadChannels();
+}
+
+async function deleteChannel(id) {
+  if (!confirm('Delete this channel?')) return;
+  await fetch(`/api/channels/${id}`, {method:'DELETE'});
+  await loadChannels();
+}
+
+async function testChannel(id) {
+  const r = await fetch(`/api/channels/${id}/test`, {method:'POST'});
+  const d = await r.json();
+  alert(d.success ? '✓ Test sent successfully' : `✗ Failed: ${d.error}`);
+}
+
+// --- Rules ---
+async function loadRules() {
+  const r = await fetch('/api/rules');
+  rules = await r.json();
+  renderRules();
+}
+
+function renderRules() {
+  const tbody = document.getElementById('rulesBody');
+  if (!rules.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="empty">No rules configured</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rules.map(r => `
+    <tr>
+      <td>${r.name}</td>
+      <td>${r.scope === 'node' ? (nodes[r.node_id]?.display_name || r.node_id) : 'Global'}</td>
+      <td>${r.band}</td>
+      <td>${r.threshold} dB</td>
+      <td>${r.condition}</td>
+      <td><span class="badge ${r.urgency}">${r.urgency}</span></td>
+      <td>${(r.channels||[]).map(c=>c.label).join(', ') || '—'}</td>
+      <td><span class="badge ${r.enabled ? 'enabled' : 'disabled'}">${r.enabled ? 'on' : 'off'}</span></td>
+      <td style="white-space:nowrap">
+        <button class="btn small" onclick="editRule(${r.id})">Edit</button>
+        <button class="btn small danger" onclick="deleteRule(${r.id})">Del</button>
+      </td>
+    </tr>`).join('');
+}
+
+function openRuleForm(reset=true) {
+  if (reset) {
+    document.getElementById('rf-id').value = '';
+    document.getElementById('rf-name').value = '';
+    document.getElementById('rf-scope').value = 'global';
+    document.getElementById('rf-band').value = 'overall';
+    document.getElementById('rf-threshold').value = '-20';
+    document.getElementById('rf-urgency').value = 'warning';
+    document.getElementById('rf-condition').value = 'instant';
+    document.getElementById('rf-cooldown-mode').value = 'cooldown';
+    document.getElementById('rf-cooldown-s').value = '300';
+    updateScopeField();
+    updateConditionFields();
+    updateCooldownFields();
+  }
+  renderChannelCheckboxes();
+  document.getElementById('ruleForm').classList.add('open');
+}
+
+function closeRuleForm() {
+  document.getElementById('ruleForm').classList.remove('open');
+}
+
+function renderChannelCheckboxes(selectedIds=[]) {
+  const container = document.getElementById('rf-channels');
+  if (!channels.length) {
+    container.innerHTML = '<span style="color:#2a6e3f;font-size:0.75em">No channels — add one first</span>';
+    return;
+  }
+  container.innerHTML = channels.map(c => `
+    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:0.78em">
+      <input type="checkbox" value="${c.id}" ${selectedIds.includes(c.id)?'checked':''}>
+      ${c.label}
+    </label>`).join('');
+}
+
+function updateScopeField() {
+  const isNode = document.getElementById('rf-scope').value === 'node';
+  document.getElementById('rf-node-field').style.display = isNode ? '' : 'none';
+}
+
+function updateConditionFields() {
+  const cond = document.getElementById('rf-condition').value;
+  document.getElementById('rf-duration-field').classList.toggle('show', cond === 'sustained');
+  document.getElementById('rf-repeatcount-field').classList.toggle('show', cond === 'repeated');
+  document.getElementById('rf-repeatwindow-field').classList.toggle('show', cond === 'repeated');
+}
+
+function updateCooldownFields() {
+  const mode = document.getElementById('rf-cooldown-mode').value;
+  document.getElementById('rf-cooldown-s-field').style.display = mode === 'cooldown' ? '' : 'none';
+  document.getElementById('rf-cooldown-n-field').style.display = mode === 'count' ? '' : 'none';
+}
+
+function editRule(id) {
+  const r = rules.find(x => x.id === id);
+  if (!r) return;
+  document.getElementById('rf-id').value = r.id;
+  document.getElementById('rf-name').value = r.name;
+  document.getElementById('rf-scope').value = r.scope;
+  document.getElementById('rf-band').value = r.band;
+  document.getElementById('rf-threshold').value = r.threshold;
+  document.getElementById('rf-urgency').value = r.urgency;
+  document.getElementById('rf-condition').value = r.condition;
+  document.getElementById('rf-duration').value = r.duration_seconds || '';
+  document.getElementById('rf-repeatcount').value = r.repeat_count || '';
+  document.getElementById('rf-repeatwindow').value = r.repeat_window_seconds || '';
+  document.getElementById('rf-cooldown-mode').value = r.cooldown_mode;
+  document.getElementById('rf-cooldown-s').value = r.cooldown_seconds || 300;
+  document.getElementById('rf-cooldown-n').value = r.cooldown_count || '';
+  if (r.scope === 'node') document.getElementById('rf-node').value = r.node_id || '';
+  updateScopeField();
+  updateConditionFields();
+  updateCooldownFields();
+  const selectedIds = (r.channels||[]).map(c=>c.id);
+  renderChannelCheckboxes(selectedIds);
+  openRuleForm(false);
+}
+
+async function saveRule() {
+  const cond = document.getElementById('rf-condition').value;
+  const mode = document.getElementById('rf-cooldown-mode').value;
+  const scope = document.getElementById('rf-scope').value;
+  const channel_ids = [...document.querySelectorAll('#rf-channels input:checked')].map(el=>parseInt(el.value));
+  const payload = {
+    id: document.getElementById('rf-id').value || undefined,
+    name: document.getElementById('rf-name').value,
+    scope,
+    node_id: scope === 'node' ? document.getElementById('rf-node').value : null,
+    band: document.getElementById('rf-band').value,
+    threshold: parseFloat(document.getElementById('rf-threshold').value),
+    urgency: document.getElementById('rf-urgency').value || 'warning',
+    condition: cond,
+    duration_seconds: cond === 'sustained' ? parseInt(document.getElementById('rf-duration').value)||null : null,
+    repeat_count: cond === 'repeated' ? parseInt(document.getElementById('rf-repeatcount').value)||null : null,
+    repeat_window_seconds: cond === 'repeated' ? parseInt(document.getElementById('rf-repeatwindow').value)||null : null,
+    cooldown_mode: mode,
+    cooldown_seconds: mode === 'cooldown' ? parseInt(document.getElementById('rf-cooldown-s').value)||300 : null,
+    cooldown_count: mode === 'count' ? parseInt(document.getElementById('rf-cooldown-n').value)||null : null,
+    enabled: 1,
+    channel_ids,
+  };
+  await fetch('/api/rules', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+  closeRuleForm();
+  await loadRules();
+}
+
+async function deleteRule(id) {
+  if (!confirm('Delete this rule?')) return;
+  await fetch(`/api/rules/${id}`, {method:'DELETE'});
+  await loadRules();
+}
+
+// --- History ---
+async function loadHistory() {
+  const r = await fetch('/api/alert-history?limit=100');
+  const history = await r.json();
+  const tbody = document.getElementById('alertHistory');
+  if (!history.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">No alerts fired</td></tr>';
+    return;
+  }
+  tbody.innerHTML = history.map(h => {
+    const t = new Date(h.fired_at * 1000).toLocaleString('en-US',{hour12:false});
+    const nodeName = nodes[h.node_id]?.display_name || h.node_id;
+    return `<tr>
+      <td>${t}</td>
+      <td>${h.rule_name||'—'}</td>
+      <td>${nodeName}</td>
+      <td>${h.band}</td>
+      <td class="level">${h.level?.toFixed(1)} dB</td>
+      <td>${h.scope}</td>
+      <td>${(h.channels_fired||[]).join(', ')||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+init();
+</script>
 </body>
 </html>
