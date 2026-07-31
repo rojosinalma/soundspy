@@ -512,6 +512,55 @@
             color: #fff;
         }
 
+        .peak-hold-toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .peak-hold-toggle span {
+            font-size: 0.7em;
+            color: #4a7a5a;
+        }
+
+        .peak-hold-toggle input {
+            display: none;
+        }
+
+        .peak-hold-track {
+            width: 28px;
+            height: 16px;
+            background: #1a2e24;
+            border-radius: 8px;
+            position: relative;
+            transition: background 0.2s;
+            border: 1px solid #2a4a34;
+        }
+
+        .peak-hold-track::after {
+            content: '';
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #4a7a5a;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        .peak-hold-toggle input:checked + .peak-hold-track {
+            background: #1a3a28;
+            border-color: #44dd66;
+        }
+
+        .peak-hold-toggle input:checked + .peak-hold-track::after {
+            transform: translateX(12px);
+            background: #44dd66;
+        }
+
         .eq-canvas-wrapper {
             position: relative;
             width: 100%;
@@ -1888,21 +1937,35 @@
 
         // Track EQ mode per node
         const eqModes = {};
+        const eqPeaks = {};     // { nodeId: bool } — show peak markers at all
+        const eqPeakHold = {};  // { nodeId: bool } — hold indefinitely
 
         // Track peak values per node per band (for peak hold visualization)
         const peakValues = {};  // {nodeId: [band0Peak, band1Peak, ...]}
-        const peakHoldTime = 3000;  // Hold peaks for 3 seconds before fading
-        const peakFadeTime = 500;  // Fade out over 500ms
         const peakTimestamps = {};  // {nodeId: [band0Time, band1Time, ...]}
 
         function setEQMode(nodeId, mode) {
             eqModes[nodeId] = mode;
-
-            // Update button states
             document.getElementById(`eq-mode-bars-${nodeId}`).classList.toggle('active', mode === 'bars');
             document.getElementById(`eq-mode-wave-${nodeId}`).classList.toggle('active', mode === 'wave');
+        }
 
-            // Redraw (will be called on next data update)
+        function togglePeaks(nodeId) {
+            eqPeaks[nodeId] = document.getElementById(`eq-peaks-btn-${nodeId}`).checked;
+            // If peaks disabled, also disable hold
+            if (!eqPeaks[nodeId]) {
+                eqPeakHold[nodeId] = false;
+                document.getElementById(`eq-peak-btn-${nodeId}`).checked = false;
+            }
+        }
+
+        function togglePeakHold(nodeId) {
+            eqPeakHold[nodeId] = document.getElementById(`eq-peak-btn-${nodeId}`).checked;
+            // If hold enabled, ensure peaks are also enabled
+            if (eqPeakHold[nodeId]) {
+                eqPeaks[nodeId] = true;
+                document.getElementById(`eq-peaks-btn-${nodeId}`).checked = true;
+            }
         }
 
         // Draw EQ visualization
@@ -2062,24 +2125,24 @@
                         }
                     }
 
-                    // Draw peak hold marker with fade effect
+                    // Draw peak marker
                     const peakDbfs = peakValues[nodeId][i];
                     const peakNormalized = (peakDbfs - dbfsMin) / (dbfsMax - dbfsMin);
                     const peakY = height - (peakNormalized * height);
 
-                    if (peakNormalized > 0.02) {  // Only draw if visible
+                    if (eqPeaks[nodeId] && peakNormalized > 0.02) {
                         const timeSincePeak = now - peakTimestamps[nodeId][i];
                         let opacity = 1.0;
 
-                        // After hold time, fade out
-                        if (timeSincePeak > peakHoldTime) {
-                            const fadeProgress = (timeSincePeak - peakHoldTime) / peakFadeTime;
-                            opacity = Math.max(0, 1.0 - fadeProgress);
-
-                            // Reset peak if fully faded
-                            if (opacity <= 0) {
-                                peakValues[nodeId][i] = dbfsMin;
-                                continue;
+                        if (!eqPeakHold[nodeId]) {
+                            const FADE_START = 2000;
+                            const FADE_DUR = 500;
+                            if (timeSincePeak > FADE_START) {
+                                opacity = Math.max(0, 1.0 - (timeSincePeak - FADE_START) / FADE_DUR);
+                                if (opacity <= 0) {
+                                    peakValues[nodeId][i] = dbfsMin;
+                                    continue;
+                                }
                             }
                         }
 
@@ -2268,6 +2331,18 @@
                                     <button class="eq-mode-btn active" onclick="setEQMode('${nodeId}', 'bars')" id="eq-mode-bars-${nodeId}">Bars</button>
                                     <button class="eq-mode-btn" onclick="setEQMode('${nodeId}', 'wave')" id="eq-mode-wave-${nodeId}">Wave</button>
                                 </div>
+                                <div style="display:flex;gap:10px;align-items:center;">
+                                    <label class="peak-hold-toggle" title="Show peak markers">
+                                        <span>Peaks</span>
+                                        <input type="checkbox" id="eq-peaks-btn-${nodeId}" checked onchange="togglePeaks('${nodeId}')">
+                                        <div class="peak-hold-track"></div>
+                                    </label>
+                                    <label class="peak-hold-toggle" title="Hold peaks indefinitely">
+                                        <span>Hold</span>
+                                        <input type="checkbox" id="eq-peak-btn-${nodeId}" onchange="togglePeakHold('${nodeId}')">
+                                        <div class="peak-hold-track"></div>
+                                    </label>
+                                </div>
                             </div>
                             <div class="eq-canvas-wrapper">
                                 <canvas class="eq-canvas" id="eq-canvas-${nodeId}"></canvas>
@@ -2294,8 +2369,10 @@
                     initMicGainKnob(nodeId);
                     initVolumeKnob(nodeId);
 
-                    // Initialize EQ mode
+                    // Initialize EQ mode and peak toggles
                     eqModes[nodeId] = 'bars';
+                    eqPeaks[nodeId] = true;
+                    eqPeakHold[nodeId] = false;
 
                     // Set initial positions after DOM is ready
                     setTimeout(() => {
