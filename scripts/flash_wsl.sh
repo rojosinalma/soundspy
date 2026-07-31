@@ -49,9 +49,6 @@ if [ ! -w "$PORT" ]; then
     exit 1
 fi
 
-echo "Put the ESP32 in flash mode:"
-echo "  Hold BOOT, tap RST, release BOOT"
-echo ""
 read -rp "Press Enter when ready..."
 
 $ESPTOOL \
