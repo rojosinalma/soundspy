@@ -2738,7 +2738,6 @@
         }
 
         document.getElementById('logContent').addEventListener('scroll', onLogScroll);
-        document.getElementById('logContentFs').addEventListener('scroll', onLogScroll);
 
         function ensureLogNode(nodeId) {
             if (!logKnownNodes.has(nodeId)) {
@@ -3342,5 +3341,8 @@
             </div>
         </div>
     </div>
+    <script>
+        document.getElementById('logContentFs').addEventListener('scroll', onLogScroll);
+    </script>
 </body>
 </html>
