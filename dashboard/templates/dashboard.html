@@ -350,6 +350,13 @@
             animation: none;
         }
 
+        .status-dot.recovery {
+            background: radial-gradient(circle at 35% 35%, #fef08a, #d97706);
+            border: 1px solid #b45309;
+            box-shadow: 0 0 5px rgba(217, 119, 6, 0.8), 0 0 10px rgba(217, 119, 6, 0.4);
+            animation: blink 1s ease-in-out infinite;
+        }
+
         @keyframes blink {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.35; }
@@ -1370,8 +1377,9 @@
         let logEntries = [];
         const MAX_LOG_ENTRIES = 100;
 
-        // Track sleeping nodes
+        // Track sleeping/recovery nodes
         const sleepingNodes = new Set();
+        const recoveryNodes = new Set();
 
         // Exponential moving average for overall level display
         const emaLevels = {};
@@ -2463,31 +2471,42 @@
                 // Update status (only touch DOM when state changes)
                 const isOnline = data.online;
                 const isSleeping = data.sleeping;
+                const isRecovery = data.in_recovery;
                 const statusDot = card.querySelector('.status-dot');
                 const statusText = card.querySelector('.status-text');
                 const prevStatus = card.dataset.status;
-                const newStatus = isSleeping ? 'sleeping' : (isOnline ? 'online' : 'offline');
+                const newStatus = isRecovery ? 'recovery' : (isSleeping ? 'sleeping' : (isOnline ? 'online' : 'offline'));
 
                 if (prevStatus !== newStatus) {
                     card.dataset.status = newStatus;
-                    if (isSleeping) {
+                    if (isRecovery) {
                         card.classList.remove('offline');
                         statusDot.classList.remove('offline');
+                        statusDot.classList.add('recovery');
+                        statusText.textContent = 'Recovery';
+                        recoveryNodes.add(nodeId);
+                    } else if (isSleeping) {
+                        card.classList.remove('offline');
+                        statusDot.classList.remove('offline', 'recovery');
                         statusText.textContent = 'Sleeping';
                         sleepingNodes.add(nodeId);
+                        recoveryNodes.delete(nodeId);
                         const btn = document.getElementById(`sleep-btn-${nodeId}`);
                         if (btn) btn.textContent = '☀ Wake';
                     } else if (isOnline) {
                         card.classList.remove('offline');
-                        statusDot.classList.remove('offline');
+                        statusDot.classList.remove('offline', 'recovery');
                         statusText.textContent = 'Online';
                         sleepingNodes.delete(nodeId);
+                        recoveryNodes.delete(nodeId);
                         const btn = document.getElementById(`sleep-btn-${nodeId}`);
                         if (btn) btn.textContent = '☾ Sleep';
                     } else {
                         card.classList.add('offline');
                         statusDot.classList.add('offline');
+                        statusDot.classList.remove('recovery');
                         statusText.textContent = 'Offline';
+                        recoveryNodes.delete(nodeId);
                     }
                 }
 
@@ -2837,7 +2856,7 @@
                     setTimeout(() => {
                         appLogRenderScheduled = false;
                         renderLog();
-                    }, 1000);
+                    }, 200);
                 }
             }
             if (logFullscreenOpen && logSelectedTab === 'app' && (logSelectedNode === 'all' || logSelectedNode === nodeId)) {
@@ -3083,6 +3102,26 @@
             addSystemLogEntry(update.node_id, update.payload, update.timestamp);
         });
 
+        socket.on('node_recovery', function(update) {
+            const nodeId = update.node_id;
+            let card = document.getElementById(`node-${nodeId}`);
+            if (!card) {
+                createNodeCard(nodeId, update.display_name);
+                card = document.getElementById(`node-${nodeId}`);
+            }
+            if (!card) return;
+            const statusDot = card.querySelector('.status-dot');
+            const statusText = card.querySelector('.status-text');
+            if (card.dataset.status !== 'recovery') {
+                card.dataset.status = 'recovery';
+                card.classList.remove('offline');
+                statusDot.classList.remove('offline');
+                statusDot.classList.add('recovery');
+                statusText.textContent = 'Recovery';
+                recoveryNodes.add(nodeId);
+            }
+        });
+
         socket.on('hw_gain', function(update) {
             // Hardware potentiometer changed gain — update knob display only, don't send back
             const pct = (update.gain / 10) * 100;
@@ -3098,7 +3137,7 @@
         setInterval(() => {
             const now = Date.now();
             Object.entries(nodesData).forEach(([nodeId, data]) => {
-                if (data.sleeping) return;
+                if (data.sleeping || data.in_recovery) return;
                 const stale = data.last_seen && (now - data.last_seen) > 10000;
                 if (stale && data.online) {
                     data.online = false;

@@ -101,14 +101,44 @@ fi
 
 echo ""
 echo "=========================================="
-echo "OTA update initiated successfully!"
+echo "OTA triggered — waiting for confirmation..."
 echo "=========================================="
+
+# Wait for OTA success confirmation and version reconnect
+# Snapshot current log line count so we only watch new entries
+LOG_OFFSET=$(docker logs soundspy_dashboard 2>&1 | wc -l)
+CONFIRMED=false
+TIMEOUT=120
+ELAPSED=0
+
+while [ $ELAPSED -lt $TIMEOUT ]; do
+    sleep 3
+    ELAPSED=$((ELAPSED + 3))
+
+    NEW_LOGS=$(docker logs soundspy_dashboard 2>&1 | tail -n +$LOG_OFFSET)
+
+    OTA_LOG=$(echo "$NEW_LOGS" | grep "\[ota\] $CHIP_ID" | tail -1)
+    VERSION_LOG=$(echo "$NEW_LOGS" | grep "\[version\] $CHIP_ID" | grep "build=" | tail -1)
+
+    if echo "$OTA_LOG" | grep -q "success"; then
+        echo "[${ELAPSED}s] OTA download confirmed by device"
+        CONFIRMED=true
+    fi
+
+    if [ "$CONFIRMED" = true ] && [ -n "$VERSION_LOG" ]; then
+        BUILD=$(echo "$VERSION_LOG" | grep -o 'build=.*' | cut -d= -f2-)
+        echo "[${ELAPSED}s] Device reconnected: $VERSION_LOG"
+        echo ""
+        echo "=========================================="
+        echo "OTA successful!"
+        echo "Build: $BUILD"
+        echo "=========================================="
+        exit 0
+    fi
+
+    printf "\r[${ELAPSED}s] Waiting..."
+done
+
 echo ""
-echo "The node will now:"
-echo "  1. Download firmware (~30 seconds)"
-echo "  2. Flash to memory (~10 seconds)"
-echo "  3. Reboot and reconnect (~10 seconds)"
-echo ""
-echo "Monitor progress:"
-echo "  Dashboard: $DASHBOARD_URL"
-echo "  Logs: docker logs -f soundspy_dashboard"
+echo "Timeout — check dashboard logs manually:"
+echo "  docker logs -f soundspy_dashboard"

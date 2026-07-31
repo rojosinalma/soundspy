@@ -245,39 +245,10 @@ void setupServer() {
 }
 
 void publishRecoveryStatus() {
-  // Lightweight MQTT publish — no PubSubClient, raw TCP
-  if (!staMode || mqttHost.isEmpty()) return;
-  WiFiClient client;
-  if (!client.connect(mqttHost.c_str(), mqttPort.toInt())) return;
-
+  if (!staMode || !mqtt.connected()) return;
   String topic = String("soundspy/") + NODE_ID + "/recovery";
   String payload = "{\"node\":\"" + String(NODE_ID) + "\",\"mode\":\"recovery\",\"version\":\"" + RECOVERY_VERSION + "\",\"ip\":\"" + WiFi.localIP().toString() + "\"}";
-
-  // Minimal MQTT CONNECT + PUBLISH (no library needed)
-  uint8_t clientId[] = {'r','e','c','v'};
-  uint16_t topicLen = topic.length();
-  uint16_t payloadLen = payload.length();
-  uint16_t remainLen = 2 + 4 + 2 + 1 + 2 + 2 + topicLen + payloadLen; // rough
-
-  // Just send a raw connect + publish — enough for monitoring
-  String mqttConnect = "";
-  client.write(0x10); // CONNECT
-  client.write(16 + 4); // remaining length
-  client.write((uint8_t*)"\x00\x04MQTT\x04\x02\x00\x3c", 9); // protocol
-  client.write((uint8_t*)"\x00\x04recv", 6); // client ID
-  delay(200);
-  if (client.available()) {
-    // got CONNACK — now publish
-    client.print((char)0x31); // PUBLISH, no QoS
-    uint8_t remLen = 2 + topicLen + payloadLen;
-    client.write(remLen);
-    client.write((uint8_t)(topicLen >> 8));
-    client.write((uint8_t)(topicLen & 0xFF));
-    client.print(topic);
-    client.print(payload);
-    delay(100);
-  }
-  client.stop();
+  mqtt.publish(topic.c_str(), payload.c_str());
   Serial.println("[recovery] Published recovery status to MQTT");
 }
 
@@ -313,6 +284,12 @@ void loop() {
   if (staMode) {
     if (!mqtt.connected()) connectMQTT();
     mqtt.loop();
+  }
+  // Republish recovery status every 10s so dashboard picks it up after restart
+  static unsigned long lastRecoveryPublish = 0;
+  if (millis() - lastRecoveryPublish > 10000) {
+    lastRecoveryPublish = millis();
+    publishRecoveryStatus();
   }
   // Slow heartbeat blink
   static unsigned long lastBlink = 0;

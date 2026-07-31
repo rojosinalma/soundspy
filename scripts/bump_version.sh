@@ -1,22 +1,28 @@
 #!/usr/bin/env bash
-# Usage: ./scripts/bump_version.sh <new-version>
-# Updates VERSION file, firmware, and dashboard, then commits.
+# Usage: ./scripts/bump_version.sh <new-version|major|minor|patch>
+# Updates VERSION file, firmware, and dashboard.
 
 set -e
 
-NEW_VERSION="${1}"
-
-if [ -z "$NEW_VERSION" ]; then
-    echo "Usage: $0 <new-version>  (e.g. 1.5.0)"
-    exit 1
-fi
-
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION_FILE="$ROOT/VERSION"
+OLD_VERSION="$(cat "$VERSION_FILE" | tr -d '[:space:]')"
+
+IFS='.' read -r MAJOR MINOR PATCH <<< "$OLD_VERSION"
+
+case "${1}" in
+    patch) NEW_VERSION="$MAJOR.$MINOR.$((PATCH + 1))" ;;
+    minor) NEW_VERSION="$MAJOR.$((MINOR + 1)).0" ;;
+    major) NEW_VERSION="$((MAJOR + 1)).0.0" ;;
+    "")
+        echo "Usage: $0 <new-version|major|minor|patch>  (e.g. 1.5.0 or patch)"
+        exit 1
+        ;;
+    *)     NEW_VERSION="${1}" ;;
+esac
+
 FIRMWARE="$ROOT/node_firmware/node_firmware.ino"
 DASHBOARD="$ROOT/dashboard/dashboard.py"
-
-OLD_VERSION="$(cat "$VERSION_FILE" | tr -d '[:space:]')"
 
 if [ "$NEW_VERSION" = "$OLD_VERSION" ]; then
     echo "Already at version $NEW_VERSION"
