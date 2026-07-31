@@ -955,6 +955,8 @@
             display: flex;
             flex-direction: column;
             min-width: 0;
+            min-height: 0;
+            overflow: hidden;
         }
 
         .log-tabs {
@@ -990,6 +992,7 @@
             font-size: 0.85em;
             line-height: 1.6;
             flex: 1;
+            min-height: 0;
         }
 
         .log-content::-webkit-scrollbar {
@@ -1054,6 +1057,7 @@
             flex: 1;
             max-height: none;
             height: 100%;
+            min-height: 0;
         }
 
         .log-entry {
@@ -2719,13 +2723,14 @@
         let logAutoScroll = true;
         let logSelectedNode = 'all';
         let logSelectedTab = 'app';
-        let appLogRenderScheduled = false;
+
         const logStore = {};  // { nodeId: { app: [entries], system: [entries] } }
         const logKnownNodes = new Set();
 
         function onLogScroll() {
             const el = this;
             const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 30;
+
             if (!atBottom) {
                 logAutoScroll = false;
                 document.getElementById('logResumeBtn').style.display = 'block';
@@ -2734,6 +2739,7 @@
         }
 
         document.getElementById('logContent').addEventListener('scroll', onLogScroll);
+        document.getElementById('logBody').addEventListener('scroll', onLogScroll);
 
         function ensureLogNode(nodeId) {
             if (!logKnownNodes.has(nodeId)) {
@@ -2767,7 +2773,6 @@
 
         function renderLog() {
             const logContent = document.getElementById('logContent');
-            logContent.innerHTML = '';
 
             let entries = [];
             if (logSelectedNode === 'all') {
@@ -2785,9 +2790,16 @@
                 return;
             }
 
+            // Preserve scroll position when user has scrolled up
+            const prevScrollTop = logContent.scrollTop;
+            const prevScrollHeight = logContent.scrollHeight;
+            logContent.innerHTML = '';
             visible.forEach(e => logContent.appendChild(e.el.cloneNode(true)));
             if (logAutoScroll) {
                 logContent.scrollTop = logContent.scrollHeight;
+            } else {
+                // Maintain relative scroll position as new entries are added at the bottom
+                logContent.scrollTop = prevScrollTop + (logContent.scrollHeight - prevScrollHeight);
             }
         }
 
@@ -2823,15 +2835,7 @@
             if (logStore[nodeId].app.length > MAX_LOG_ENTRIES) logStore[nodeId].app.shift();
 
             const appVisible = logSelectedTab === 'app' && (logSelectedNode === 'all' || logSelectedNode === nodeId);
-            if (appVisible) {
-                if (!appLogRenderScheduled) {
-                    appLogRenderScheduled = true;
-                    setTimeout(() => {
-                        appLogRenderScheduled = false;
-                        renderLog();
-                    }, 200);
-                }
-            }
+            if (appVisible) appendToVisibleLog(entry);
             if (logFullscreenOpen && logSelectedTab === 'app' && (logSelectedNode === 'all' || logSelectedNode === nodeId)) {
                 appendToFsLog(entry);
             }
@@ -2889,8 +2893,8 @@
                 fsContent.innerHTML = '';
             }
             fsContent.appendChild(entry.cloneNode(true));
-            while (fsContent.children.length > MAX_LOG_ENTRIES) fsContent.removeChild(fsContent.firstChild);
             if (logAutoScroll) {
+                while (fsContent.children.length > MAX_LOG_ENTRIES) fsContent.removeChild(fsContent.firstChild);
                 fsContent.scrollTop = fsContent.scrollHeight;
             }
         }
