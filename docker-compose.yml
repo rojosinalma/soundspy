@@ -10,35 +10,6 @@ services:
       - ./mosquitto/data:/mosquitto/data
       - ./mosquitto/log:/mosquitto/log
 
-  soundspy-ntfy:
-    image: binwiederhier/ntfy
-    container_name: soundspy_ntfy
-    restart: unless-stopped
-    command: serve
-    environment:
-      - TZ=Europe/Berlin
-    volumes:
-      - ./ntfy/cache:/var/cache/ntfy
-      - ./ntfy/etc:/etc/ntfy
-    ports:
-      - "${NTFY_PORT}:80"
-
-  soundspy-monitor:
-    build:
-      context: ./dashboard
-      dockerfile: Dockerfile
-    container_name: soundspy_monitor
-    restart: unless-stopped
-    depends_on:
-      - soundspy-mosquitto
-      - soundspy-ntfy
-    environment:
-      - MQTT_HOST=soundspy-mosquitto
-      - MQTT_PORT=1883
-      - NTFY_URL=${NTFY_URL}
-      - FREQ_THRESHOLD_DBFS=${FREQ_THRESHOLD_DBFS}
-      - COOLDOWN_SECONDS=${COOLDOWN_SECONDS}
-
   soundspy-dashboard:
     build:
       context: ./dashboard
@@ -50,12 +21,15 @@ services:
     environment:
       - MQTT_HOST=soundspy-mosquitto
       - MQTT_PORT=1883
-      - FREQ_THRESHOLD_DBFS=${FREQ_THRESHOLD_DBFS}
     ports:
       - "${DASHBOARD_PORT}:8091"
     volumes:
       - ./builds:/app/firmware
       - ./data:/app/data
-      - ./dashboard/dashboard.py:/app/dashboard.py
+      - ./dashboard/app.py:/app/app.py
+      - ./dashboard/db.py:/app/db.py
+      - ./dashboard/node_state.py:/app/node_state.py
+      - ./dashboard/notifications.py:/app/notifications.py
+      - ./dashboard/helpers.py:/app/helpers.py
       - ./dashboard/templates:/app/templates
 
