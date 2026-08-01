@@ -51,6 +51,12 @@ tr:hover td{background:#0f1a14}
 .tab.active{background:#1a3a28;border-color:#44dd66;color:#44dd66}
 .tab-panel{display:none}.tab-panel.active{display:block}
 .hint{color:#2a6e3f;font-size:0.8em;margin-top:3px}
+.pill-toggle{display:inline-flex;align-items:center;cursor:pointer;user-select:none}
+.pill-toggle input{display:none}
+.pill-track{width:32px;height:18px;background:#1a2e24;border-radius:9px;position:relative;transition:background 0.2s;border:1px solid #2a4a34;flex-shrink:0}
+.pill-track::after{content:'';position:absolute;width:12px;height:12px;background:#4a7a5a;border-radius:50%;top:2px;left:2px;transition:transform 0.2s,background 0.2s}
+.pill-toggle input:checked + .pill-track{background:#1a3a28;border-color:#44dd66}
+.pill-toggle input:checked + .pill-track::after{transform:translateX(14px);background:#44dd66}
 .toast{position:fixed;bottom:24px;right:24px;background:#0f1a14;border:1px solid #2a4a34;color:#8ec9a0;padding:10px 18px;border-radius:6px;font-size:0.9em;z-index:9999;opacity:0;transition:opacity 0.2s;pointer-events:none}
 .toast.show{opacity:1}
 .toast.success{border-color:#44dd66;color:#44dd66}
@@ -207,8 +213,8 @@ tr:hover td{background:#0f1a14}
       <button class="btn small" onclick="loadHistory()">↻ Refresh</button>
     </div>
     <table>
-      <thead><tr><th>Time</th><th>Rule</th><th>Node</th><th>Band</th><th>Level</th><th>Condition</th><th>Scope</th><th>Channels</th></tr></thead>
-      <tbody id="alertHistory"><tr><td colspan="8" class="empty">No alerts fired</td></tr></tbody>
+      <thead><tr><th>Time</th><th>Rule</th><th>Node</th><th>Band</th><th>Level</th><th>Condition</th><th>Trigger</th><th>Scope</th><th>Channels</th></tr></thead>
+      <tbody id="alertHistory"><tr><td colspan="9" class="empty">No alerts fired</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -412,7 +418,7 @@ function renderRules() {
       <td>${r.condition.charAt(0).toUpperCase()+r.condition.slice(1)}</td>
       <td><span class="badge ${r.urgency}">${PRIORITY_LABELS[r.urgency]||r.urgency}</span></td>
       <td>${(r.channels||[]).map(c=>c.label).join(', ') || '—'}</td>
-      <td><span class="badge ${r.enabled ? 'enabled' : 'disabled'}">${r.enabled ? 'On' : 'Off'}</span></td>
+      <td><label class="pill-toggle" title="${r.enabled ? 'Disable' : 'Enable'}" onclick="toggleRule(${r.id},${r.enabled})"><input type="checkbox" ${r.enabled ? 'checked' : ''} readonly><div class="pill-track"></div></label></td>
       <td style="white-space:nowrap">
         <button class="btn small" onclick="editRule(${r.id})">Edit</button>
         <button class="btn small danger" onclick="deleteRule(${r.id})">Delete</button>
@@ -538,6 +544,15 @@ async function saveRule() {
   await loadRules();
 }
 
+async function toggleRule(id, currentEnabled) {
+  const rule = rules.find(r => r.id === id);
+  if (!rule) return;
+  const payload = { ...rule, enabled: currentEnabled ? 0 : 1, channel_ids: (rule.channels||[]).map(c=>c.id) };
+  delete payload.channels;
+  await fetch('/api/rules', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+  await loadRules();
+}
+
 async function deleteRule(id) {
   if (!await showConfirm('Delete this rule?')) return;
   await fetch(`/api/rules/${id}`, {method:'DELETE'});
@@ -550,7 +565,7 @@ async function loadHistory() {
   const history = await r.json();
   const tbody = document.getElementById('alertHistory');
   if (!history.length) {
-    tbody.innerHTML = '<tr><td colspan="8" class="empty">No alerts fired</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="empty">No alerts fired</td></tr>';
     return;
   }
   tbody.innerHTML = history.map(h => {
@@ -558,6 +573,8 @@ async function loadHistory() {
     const nodeName = nodes[h.node_id]?.display_name || h.node_id;
     const rule = rules.find(r => r.id === h.rule_id);
     const condition = rule ? rule.condition.charAt(0).toUpperCase()+rule.condition.slice(1) : '—';
+    const triggerLabels = {cooldown:'Time cooldown', every:'Every breach', count:'Every N breaches'};
+    const trigger = rule ? (triggerLabels[rule.cooldown_mode] || rule.cooldown_mode) : '—';
     return `<tr>
       <td>${t}</td>
       <td>${h.rule_name||'—'}</td>
@@ -565,6 +582,7 @@ async function loadHistory() {
       <td>${h.band}</td>
       <td class="level">${h.level?.toFixed(1)} dB</td>
       <td>${condition}</td>
+      <td>${trigger}</td>
       <td>${h.scope}</td>
       <td>${(h.channels_fired||[]).join(', ')||'—'}</td>
     </tr>`;
