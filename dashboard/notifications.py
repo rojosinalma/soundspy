@@ -102,7 +102,6 @@ def evaluate(node_id: str, overall_dbfs: float, bands: dict, node_display_name: 
             if fired:
                 state["breach_count"] += 1
                 state["last_fired"] = now
-                # Fire in a thread so it doesn't block MQTT processing
                 threading.Thread(
                     target=_dispatch_rule,
                     args=(rule, node_id, node_display_name, band, level),
