@@ -207,8 +207,8 @@ tr:hover td{background:#0f1a14}
       <button class="btn small" onclick="loadHistory()">↻ Refresh</button>
     </div>
     <table>
-      <thead><tr><th>Time</th><th>Rule</th><th>Node</th><th>Band</th><th>Level</th><th>Scope</th><th>Channels</th></tr></thead>
-      <tbody id="alertHistory"><tr><td colspan="7" class="empty">No alerts fired</td></tr></tbody>
+      <thead><tr><th>Time</th><th>Rule</th><th>Node</th><th>Band</th><th>Level</th><th>Condition</th><th>Scope</th><th>Channels</th></tr></thead>
+      <tbody id="alertHistory"><tr><td colspan="8" class="empty">No alerts fired</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -407,9 +407,9 @@ function renderRules() {
     <tr>
       <td>${r.name}</td>
       <td>${r.scope === 'node' ? (nodes[r.node_id]?.display_name || r.node_id) : 'Global'}</td>
-      <td>${r.band}</td>
+      <td>${r.band.charAt(0).toUpperCase()+r.band.slice(1).replace(/_/g,' ')}</td>
       <td>${r.threshold} dB</td>
-      <td>${r.condition}</td>
+      <td>${r.condition.charAt(0).toUpperCase()+r.condition.slice(1)}</td>
       <td><span class="badge ${r.urgency}">${PRIORITY_LABELS[r.urgency]||r.urgency}</span></td>
       <td>${(r.channels||[]).map(c=>c.label).join(', ') || '—'}</td>
       <td><span class="badge ${r.enabled ? 'enabled' : 'disabled'}">${r.enabled ? 'On' : 'Off'}</span></td>
@@ -550,18 +550,21 @@ async function loadHistory() {
   const history = await r.json();
   const tbody = document.getElementById('alertHistory');
   if (!history.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="empty">No alerts fired</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="empty">No alerts fired</td></tr>';
     return;
   }
   tbody.innerHTML = history.map(h => {
     const t = new Date(h.fired_at * 1000).toLocaleString('en-US',{hour12:false});
     const nodeName = nodes[h.node_id]?.display_name || h.node_id;
+    const rule = rules.find(r => r.id === h.rule_id);
+    const condition = rule ? rule.condition.charAt(0).toUpperCase()+rule.condition.slice(1) : '—';
     return `<tr>
       <td>${t}</td>
       <td>${h.rule_name||'—'}</td>
       <td>${nodeName}</td>
       <td>${h.band}</td>
       <td class="level">${h.level?.toFixed(1)} dB</td>
+      <td>${condition}</td>
       <td>${h.scope}</td>
       <td>${(h.channels_fired||[]).join(', ')||'—'}</td>
     </tr>`;
