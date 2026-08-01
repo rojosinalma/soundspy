@@ -99,8 +99,10 @@ def evaluate(node_id: str, overall_dbfs: float, bands: dict, node_display_name: 
                         fired = True
                         state["breach_times"] = []  # reset after firing
 
+            # Always count breaches (needed for count-based cooldown)
+            state["breach_count"] += 1
+
             if fired:
-                state["breach_count"] += 1
                 state["last_fired"] = now
                 threading.Thread(
                     target=_dispatch_rule,
