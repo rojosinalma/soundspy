@@ -39,7 +39,6 @@ CREATE TABLE IF NOT EXISTS notification_channels (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     platform   TEXT NOT NULL,
     label      TEXT NOT NULL,
-    env_key    TEXT NOT NULL,
     config     TEXT NOT NULL DEFAULT '{}',
     enabled    INTEGER NOT NULL DEFAULT 1,
     created_at INTEGER NOT NULL
@@ -84,7 +83,36 @@ def init_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     with get_conn() as conn:
         conn.executescript(SCHEMA)
+        _migrate_schema(conn)
     _migrate_from_json()
+
+
+def _migrate_schema(conn):
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(notification_channels)").fetchall()]
+    if "env_key" in cols:
+        # Move any existing env_key values into config, then drop the column
+        rows = conn.execute("SELECT id, env_key, config FROM notification_channels").fetchall()
+        for row in rows:
+            cfg = json.loads(row["config"])
+            if row["env_key"] and "token" not in cfg:
+                cfg["token"] = ""  # env_key was a var name, not the actual secret — can't migrate value
+            conn.execute("UPDATE notification_channels SET config=? WHERE id=?",
+                         (json.dumps(cfg), row["id"]))
+        # SQLite doesn't support DROP COLUMN before 3.35 — recreate the table
+        conn.executescript("""
+            CREATE TABLE notification_channels_new (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                platform   TEXT NOT NULL,
+                label      TEXT NOT NULL,
+                config     TEXT NOT NULL DEFAULT '{}',
+                enabled    INTEGER NOT NULL DEFAULT 1,
+                created_at INTEGER NOT NULL
+            );
+            INSERT INTO notification_channels_new (id, platform, label, config, enabled, created_at)
+                SELECT id, platform, label, config, enabled, created_at FROM notification_channels;
+            DROP TABLE notification_channels;
+            ALTER TABLE notification_channels_new RENAME TO notification_channels;
+        """)
 
 
 def _migrate_from_json():
@@ -244,15 +272,15 @@ def upsert_channel(data: dict) -> int:
     with get_conn() as conn:
         if "id" in data and data["id"]:
             conn.execute("""
-                UPDATE notification_channels SET platform=?, label=?, env_key=?, config=?, enabled=?
+                UPDATE notification_channels SET platform=?, label=?, config=?, enabled=?
                 WHERE id=?
-            """, (data["platform"], data["label"], data["env_key"], config_json, data.get("enabled", 1), data["id"]))
+            """, (data["platform"], data["label"], config_json, data.get("enabled", 1), data["id"]))
             return data["id"]
         else:
             cur = conn.execute("""
-                INSERT INTO notification_channels (platform, label, env_key, config, enabled, created_at)
-                VALUES (?,?,?,?,?,?)
-            """, (data["platform"], data["label"], data["env_key"], config_json, data.get("enabled", 1), now))
+                INSERT INTO notification_channels (platform, label, config, enabled, created_at)
+                VALUES (?,?,?,?,?)
+            """, (data["platform"], data["label"], config_json, data.get("enabled", 1), now))
             return cur.lastrowid
 
 

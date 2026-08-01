@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Soundspy — Settings</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23080e0a'/%3E%3Cg fill='%2344dd66'%3E%3Crect x='4' y='12' width='3' height='8' rx='1.5'/%3E%3Crect x='9' y='8' width='3' height='16' rx='1.5'/%3E%3Crect x='14' y='5' width='3' height='22' rx='1.5'/%3E%3Crect x='19' y='9' width='3' height='14' rx='1.5'/%3E%3Crect x='24' y='13' width='3' height='6' rx='1.5'/%3E%3C/g%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -24,9 +25,9 @@ select option{background:#0a0f0c}
 .btn.danger{color:#e53e3e;border-color:#742a2a}.btn.danger:hover{background:#2a1010;border-color:#e53e3e}
 .btn.primary{background:#1a3a28;border-color:#44dd66}
 .btn.small{padding:3px 8px;font-size:0.8em}
-table{width:100%;border-collapse:collapse;font-size:0.9em}
+table{width:100%;border-collapse:collapse;font-size:1em}
 th{color:#4a7a5a;text-align:left;padding:6px 8px;border-bottom:1px solid #1a2e24;font-weight:400}
-td{padding:6px 8px;border-bottom:1px solid #0f1a14;vertical-align:middle}
+td{padding:10px 8px;border-bottom:1px solid #0f1a14;vertical-align:middle}
 tr:hover td{background:#0f1a14}
 .badge{padding:2px 6px;border-radius:2px;font-size:0.8em}
 .badge.enabled{background:#1a3a28;color:#44dd66}
@@ -43,16 +44,36 @@ tr:hover td{background:#0f1a14}
 .form-field input,.form-field select,.form-field textarea{width:100%}
 .form-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
 .condition-extra{display:none}
-.condition-extra.show{display:contents}
+.condition-extra.show{display:block}
 #alertHistory td.level{font-variant-numeric:tabular-nums}
 .tabs{display:flex;gap:4px;margin-bottom:16px}
 .tab{padding:5px 14px;border:1px solid #2a4a34;border-radius:3px;cursor:pointer;color:#4a7a5a;font-size:0.9em;background:transparent;font-family:'Share Tech Mono',monospace}
 .tab.active{background:#1a3a28;border-color:#44dd66;color:#44dd66}
 .tab-panel{display:none}.tab-panel.active{display:block}
 .hint{color:#2a6e3f;font-size:0.8em;margin-top:3px}
+.toast{position:fixed;bottom:24px;right:24px;background:#0f1a14;border:1px solid #2a4a34;color:#8ec9a0;padding:10px 18px;border-radius:6px;font-size:0.9em;z-index:9999;opacity:0;transition:opacity 0.2s;pointer-events:none}
+.toast.show{opacity:1}
+.toast.success{border-color:#44dd66;color:#44dd66}
+.toast.error{border-color:#e53e3e;color:#e53e3e}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal-box{background:#0f1a14;border:1px solid #2a4a34;border-radius:8px;padding:24px;min-width:280px;max-width:360px}
+.modal-box p{margin-bottom:16px;color:#8ec9a0;font-size:0.95em}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end}
 </style>
 </head>
 <body>
+<div id="toast" class="toast"></div>
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal-box">
+    <p id="confirmMsg"></p>
+    <div class="modal-actions">
+      <button class="btn" onclick="resolveConfirm(false)">Cancel</button>
+      <button class="btn danger" onclick="resolveConfirm(true)">Delete</button>
+    </div>
+  </div>
+</div>
+
 <div class="header">
   <h1>⚙ Settings</h1>
   <a href="/" class="back">← Dashboard</a>
@@ -72,8 +93,8 @@ tr:hover td{background:#0f1a14}
       <button class="btn primary" onclick="openChannelForm()">+ Add Channel</button>
     </div>
     <div class="form-section" id="channelForm">
-      <div class="form-row">
-        <div class="form-field"><label>Label</label><input id="cf-label" placeholder="e.g. Studio Telegram"></div>
+      <div class="form-row" id="cf-main-row">
+        <div class="form-field"><label>Label</label><input id="cf-label" placeholder="e.g. Studio Discord"></div>
         <div class="form-field"><label>Platform</label>
           <select id="cf-platform" onchange="updateChannelFields()">
             <option value="telegram">Telegram</option>
@@ -83,10 +104,9 @@ tr:hover td{background:#0f1a14}
             <option value="email">Email</option>
           </select>
         </div>
-        <div class="form-field"><label>Env Var (token key)</label><input id="cf-envkey" placeholder="TELEGRAM_BOT_TOKEN"></div>
+        <div class="form-field" id="cf-token-field" style="flex:3;min-width:800px"></div>
       </div>
       <div class="form-row" id="cf-extra-fields"></div>
-      <div class="hint" id="cf-hint"></div>
       <div class="form-actions">
         <input type="hidden" id="cf-id" value="">
         <button class="btn" onclick="closeChannelForm()">Cancel</button>
@@ -94,7 +114,7 @@ tr:hover td{background:#0f1a14}
       </div>
     </div>
     <table id="channelsTable">
-      <thead><tr><th>Label</th><th>Platform</th><th>Env Var</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th>Label</th><th>Platform</th><th>Status</th><th></th></tr></thead>
       <tbody id="channelsBody"><tr><td colspan="5" class="empty">No channels configured</td></tr></tbody>
     </table>
   </div>
@@ -131,7 +151,13 @@ tr:hover td{background:#0f1a14}
           </select>
         </div>
         <div class="form-field"><label>Threshold (dB)</label><input id="rf-threshold" type="number" value="-20" step="0.5" min="-80" max="0"></div>
-        <div class="form-field"><label>Urgency</label><input id="rf-urgency" placeholder="warning" value="warning"></div>
+        <div class="form-field"><label>Priority</label>
+          <select id="rf-urgency">
+            <option value="critical">High</option>
+            <option value="warning" selected>Medium</option>
+            <option value="info">Low</option>
+          </select>
+        </div>
       </div>
       <div class="form-row">
         <div class="form-field"><label>Condition</label>
@@ -141,12 +167,12 @@ tr:hover td{background:#0f1a14}
             <option value="repeated">Repeated</option>
           </select>
         </div>
-        <div class="form-field condition-extra" id="rf-duration-field"><label>Duration (s)</label><input id="rf-duration" type="number" placeholder="60" min="1"></div>
-        <div class="form-field condition-extra" id="rf-repeatcount-field"><label>Repeat count</label><input id="rf-repeatcount" type="number" placeholder="3" min="2"></div>
-        <div class="form-field condition-extra" id="rf-repeatwindow-field"><label>Within (s)</label><input id="rf-repeatwindow" type="number" placeholder="60" min="1"></div>
+        <div class="form-field condition-extra" id="rf-duration-field"><label>Duration (s)</label><input id="rf-duration" type="number" placeholder="60" min="1" style="width:70px"></div>
+        <div class="form-field condition-extra" id="rf-repeatcount-field"><label>Count</label><input id="rf-repeatcount" type="number" placeholder="3" min="2" style="width:60px"></div>
+        <div class="form-field condition-extra" id="rf-repeatwindow-field"><label>Within (s)</label><input id="rf-repeatwindow" type="number" placeholder="60" min="1" style="width:70px"></div>
       </div>
       <div class="form-row">
-        <div class="form-field"><label>Cooldown mode</label>
+        <div class="form-field"><label>Trigger</label>
           <select id="rf-cooldown-mode" onchange="updateCooldownFields()">
             <option value="cooldown">Time cooldown</option>
             <option value="every">Every breach</option>
@@ -167,7 +193,7 @@ tr:hover td{background:#0f1a14}
       </div>
     </div>
     <table id="rulesTable">
-      <thead><tr><th>Name</th><th>Scope</th><th>Band</th><th>Threshold</th><th>Condition</th><th>Urgency</th><th>Channels</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th>Name</th><th>Scope</th><th>Band</th><th>Threshold</th><th>Condition</th><th>Priority</th><th>Channels</th><th>Status</th><th></th></tr></thead>
       <tbody id="rulesBody"><tr><td colspan="9" class="empty">No rules configured</td></tr></tbody>
     </table>
   </div>
@@ -192,17 +218,47 @@ let channels = [];
 let rules = [];
 let nodes = {};
 
+const PRIORITY_LABELS = {critical:'High', warning:'Medium', info:'Low'};
+
+let _confirmResolve = null;
+function showConfirm(msg) {
+  document.getElementById('confirmMsg').textContent = msg;
+  document.getElementById('confirmModal').classList.add('open');
+  return new Promise(res => { _confirmResolve = res; });
+}
+function resolveConfirm(result) {
+  document.getElementById('confirmModal').classList.remove('open');
+  if (_confirmResolve) { _confirmResolve(result); _confirmResolve = null; }
+}
+
+let _toastTimer = null;
+function showToast(msg, type='success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast show ${type}`;
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { el.classList.remove('show'); }, 3000);
+}
+
 async function init() {
   await Promise.all([loadChannels(), loadRules(), loadNodes()]);
   loadHistory();
 }
 
-function showTab(name) {
+function showTab(name, pushHash=true) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
-  event.target.classList.add('active');
+  document.querySelector(`.tab[onclick="showTab('${name}')"]`)?.classList.add('active');
+  if (pushHash) location.hash = name;
 }
+
+// Restore tab from URL hash on load
+(function() {
+  const hash = location.hash.replace('#', '');
+  const valid = ['channels', 'rules', 'history'];
+  if (valid.includes(hash)) showTab(hash, false);
+})();
 
 // --- Nodes ---
 async function loadNodes() {
@@ -224,19 +280,18 @@ async function loadChannels() {
 function renderChannels() {
   const tbody = document.getElementById('channelsBody');
   if (!channels.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty">No channels configured</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" class="empty">No channels configured</td></tr>';
     return;
   }
   tbody.innerHTML = channels.map(c => `
     <tr>
       <td>${c.label}</td>
       <td>${c.platform}</td>
-      <td style="color:#4a7a5a">${c.env_key}</td>
       <td><span class="badge ${c.enabled ? 'enabled' : 'disabled'}">${c.enabled ? 'enabled' : 'disabled'}</span></td>
       <td style="white-space:nowrap">
         <button class="btn small" onclick="testChannel(${c.id})">Test</button>
         <button class="btn small" onclick="editChannel(${c.id})">Edit</button>
-        <button class="btn small danger" onclick="deleteChannel(${c.id})">Del</button>
+        <button class="btn small danger" onclick="deleteChannel(${c.id})">Delete</button>
       </td>
     </tr>`).join('');
 }
@@ -245,8 +300,7 @@ function openChannelForm(reset=true) {
   if (reset) {
     document.getElementById('cf-id').value = '';
     document.getElementById('cf-label').value = '';
-    document.getElementById('cf-envkey').value = '';
-    document.getElementById('cf-platform').value = 'telegram';
+    document.getElementById('cf-platform').value = 'discord';
     updateChannelFields();
   }
   document.getElementById('channelForm').classList.add('open');
@@ -256,29 +310,42 @@ function closeChannelForm() {
   document.getElementById('channelForm').classList.remove('open');
 }
 
-const PLATFORM_HINTS = {
-  telegram: 'Set TELEGRAM_BOT_TOKEN (or _1, _2) in .env. config needs chat_id.',
-  discord:  'Set DISCORD_WEBHOOK (or _1, _2) in .env with the full webhook URL.',
-  ntfy:     'Set NTFY_URL (or _1, _2) in .env with the full URL including topic.',
-  pushover: 'Set PUSHOVER_TOKEN and PUSHOVER_USER in .env.',
-  email:    'Set SMTP_PASS in .env. Fill host/user/port/to in config.',
+const PLATFORM_EXTRA = {
+  telegram: [['token','Bot Token','password','',true],['chat_id','Chat ID','text','',false]],
+  discord:  [['token','Webhook URL','text','https://discord.com/api/webhooks/...',true]],
+  ntfy:     [['token','ntfy URL','text','https://ntfy.sh/your-topic',true]],
+  pushover: [['token','App Token','password','',true],['user_key','User Key','password','',false]],
+  email:    [['smtp_host','SMTP Host','text','smtp.gmail.com',false],['smtp_user','SMTP User','text','',false],['token','SMTP Password','password','',false],['smtp_port','Port','number','587',false],['to','To Address','email','',false]],
 };
 
-const PLATFORM_EXTRA = {
-  telegram: [['chat_id','Chat ID','text','']],
-  discord:  [],
-  ntfy:     [],
-  pushover: [],
-  email:    [['smtp_host','SMTP Host','text','smtp.gmail.com'],['smtp_user','SMTP User','text',''],['smtp_port','Port','number','587'],['to','To Address','email','']],
-};
+function toggleSecret(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  input.type = input.type === 'password' ? 'text' : 'password';
+  btn.style.color = input.type === 'text' ? '#44dd66' : '#4a7a5a';
+}
 
 function updateChannelFields(existingConfig={}) {
   const platform = document.getElementById('cf-platform').value;
-  document.getElementById('cf-hint').textContent = PLATFORM_HINTS[platform] || '';
   const fields = PLATFORM_EXTRA[platform] || [];
-  document.getElementById('cf-extra-fields').innerHTML = fields.map(([key, lbl, type, ph]) =>
-    `<div class="form-field"><label>${lbl}</label><input id="cf-cfg-${key}" type="${type}" placeholder="${ph}" value="${existingConfig[key]||''}"></div>`
-  ).join('');
+  const tokenField = platform !== 'email' ? fields.find(([key]) => key === 'token') : null;
+  const extraFields = tokenField ? fields.filter(([key]) => key !== 'token') : fields;
+
+  const tokenEl = document.getElementById('cf-token-field');
+  if (tokenField) {
+    const [key, lbl, type, ph] = tokenField;
+    const eyeBtn = type === 'password' ? `<button type="button" onclick="toggleSecret('cf-cfg-${key}',this)" style="background:none;border:none;color:#4a7a5a;cursor:pointer;padding:0 4px;font-size:1em;flex-shrink:0" title="Show/hide">👁</button>` : '';
+    tokenEl.innerHTML = `<label>${lbl}</label><div style="display:flex;align-items:center;gap:4px"><input id="cf-cfg-${key}" type="${type}" placeholder="${ph}" value="${existingConfig[key]||''}" style="flex:1">${eyeBtn}</div>`;
+    tokenEl.style.display = '';
+  } else {
+    tokenEl.innerHTML = '';
+    tokenEl.style.display = 'none';
+  }
+
+  document.getElementById('cf-extra-fields').innerHTML = extraFields.map(([key, lbl, type, ph]) => {
+    const eyeBtn = type === 'password' ? `<button type="button" onclick="toggleSecret('cf-cfg-${key}',this)" style="background:none;border:none;color:#4a7a5a;cursor:pointer;padding:0 4px;font-size:1em;flex-shrink:0" title="Show/hide">👁</button>` : '';
+    return `<div class="form-field"><label>${lbl}</label><div style="display:flex;align-items:center;gap:4px"><input id="cf-cfg-${key}" type="${type}" placeholder="${ph}" value="${existingConfig[key]||''}" style="flex:1">${eyeBtn}</div></div>`;
+  }).join('');
 }
 
 function editChannel(id) {
@@ -287,7 +354,6 @@ function editChannel(id) {
   document.getElementById('cf-id').value = c.id;
   document.getElementById('cf-label').value = c.label;
   document.getElementById('cf-platform').value = c.platform;
-  document.getElementById('cf-envkey').value = c.env_key;
   updateChannelFields(c.config);
   openChannelForm(false);
 }
@@ -304,7 +370,6 @@ async function saveChannel() {
     id: document.getElementById('cf-id').value || undefined,
     label: document.getElementById('cf-label').value,
     platform,
-    env_key: document.getElementById('cf-envkey').value,
     config,
     enabled: 1,
   };
@@ -314,7 +379,7 @@ async function saveChannel() {
 }
 
 async function deleteChannel(id) {
-  if (!confirm('Delete this channel?')) return;
+  if (!await showConfirm('Delete this channel?')) return;
   await fetch(`/api/channels/${id}`, {method:'DELETE'});
   await loadChannels();
 }
@@ -322,7 +387,7 @@ async function deleteChannel(id) {
 async function testChannel(id) {
   const r = await fetch(`/api/channels/${id}/test`, {method:'POST'});
   const d = await r.json();
-  alert(d.success ? '✓ Test sent successfully' : `✗ Failed: ${d.error}`);
+  showToast(d.success ? '✓ Test sent' : `✗ ${d.error}`, d.success ? 'success' : 'error');
 }
 
 // --- Rules ---
@@ -345,12 +410,12 @@ function renderRules() {
       <td>${r.band}</td>
       <td>${r.threshold} dB</td>
       <td>${r.condition}</td>
-      <td><span class="badge ${r.urgency}">${r.urgency}</span></td>
+      <td><span class="badge ${r.urgency}">${PRIORITY_LABELS[r.urgency]||r.urgency}</span></td>
       <td>${(r.channels||[]).map(c=>c.label).join(', ') || '—'}</td>
-      <td><span class="badge ${r.enabled ? 'enabled' : 'disabled'}">${r.enabled ? 'on' : 'off'}</span></td>
+      <td><span class="badge ${r.enabled ? 'enabled' : 'disabled'}">${r.enabled ? 'On' : 'Off'}</span></td>
       <td style="white-space:nowrap">
         <button class="btn small" onclick="editRule(${r.id})">Edit</button>
-        <button class="btn small danger" onclick="deleteRule(${r.id})">Del</button>
+        <button class="btn small danger" onclick="deleteRule(${r.id})">Delete</button>
       </td>
     </tr>`).join('');
 }
@@ -362,15 +427,15 @@ function openRuleForm(reset=true) {
     document.getElementById('rf-scope').value = 'global';
     document.getElementById('rf-band').value = 'overall';
     document.getElementById('rf-threshold').value = '-20';
-    document.getElementById('rf-urgency').value = 'warning';
+    document.getElementById('rf-urgency').value = 'warning'; // medium
     document.getElementById('rf-condition').value = 'instant';
     document.getElementById('rf-cooldown-mode').value = 'cooldown';
     document.getElementById('rf-cooldown-s').value = '300';
     updateScopeField();
     updateConditionFields();
     updateCooldownFields();
+    renderChannelCheckboxes();
   }
-  renderChannelCheckboxes();
   document.getElementById('ruleForm').classList.add('open');
 }
 
@@ -381,14 +446,25 @@ function closeRuleForm() {
 function renderChannelCheckboxes(selectedIds=[]) {
   const container = document.getElementById('rf-channels');
   if (!channels.length) {
-    container.innerHTML = '<span style="color:#2a6e3f;font-size:0.75em">No channels — add one first</span>';
+    container.innerHTML = '<span style="color:#2a6e3f;font-size:0.85em">No channels — add one first</span>';
     return;
   }
-  container.innerHTML = channels.map(c => `
-    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:0.78em">
-      <input type="checkbox" value="${c.id}" ${selectedIds.includes(c.id)?'checked':''}>
+  container.innerHTML = channels.map(c => {
+    const sel = selectedIds.includes(parseInt(c.id));
+    return `<button type="button" data-id="${c.id}" data-selected="${sel?'1':''}" onclick="toggleChannelBtn(this)"
+      style="padding:5px 14px;border-radius:4px;cursor:pointer;font-family:inherit;font-size:0.85em;transition:all 0.15s;
+             background:${sel?'#1a3a28':'transparent'};border:1px solid ${sel?'#44dd66':'#2a4a34'};color:${sel?'#44dd66':'#4a7a5a'}">
       ${c.label}
-    </label>`).join('');
+    </button>`;
+  }).join('');
+}
+
+function toggleChannelBtn(btn) {
+  const sel = btn.dataset.selected === '1';
+  btn.dataset.selected = sel ? '' : '1';
+  btn.style.background = sel ? 'transparent' : '#1a3a28';
+  btn.style.borderColor = sel ? '#2a4a34' : '#44dd66';
+  btn.style.color = sel ? '#4a7a5a' : '#44dd66';
 }
 
 function updateScopeField() {
@@ -429,7 +505,7 @@ function editRule(id) {
   updateScopeField();
   updateConditionFields();
   updateCooldownFields();
-  const selectedIds = (r.channels||[]).map(c=>c.id);
+  const selectedIds = (r.channels||[]).map(c=>parseInt(c.id));
   renderChannelCheckboxes(selectedIds);
   openRuleForm(false);
 }
@@ -438,7 +514,7 @@ async function saveRule() {
   const cond = document.getElementById('rf-condition').value;
   const mode = document.getElementById('rf-cooldown-mode').value;
   const scope = document.getElementById('rf-scope').value;
-  const channel_ids = [...document.querySelectorAll('#rf-channels input:checked')].map(el=>parseInt(el.value));
+  const channel_ids = [...document.querySelectorAll('#rf-channels button')].filter(b=>b.dataset.selected==='1').map(b=>parseInt(b.dataset.id));
   const payload = {
     id: document.getElementById('rf-id').value || undefined,
     name: document.getElementById('rf-name').value,
@@ -463,7 +539,7 @@ async function saveRule() {
 }
 
 async function deleteRule(id) {
-  if (!confirm('Delete this rule?')) return;
+  if (!await showConfirm('Delete this rule?')) return;
   await fetch(`/api/rules/${id}`, {method:'DELETE'});
   await loadRules();
 }

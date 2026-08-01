@@ -5,7 +5,6 @@ Called after each MQTT data message is processed. Evaluates all enabled alert
 rules against the current node data and fires configured channels when triggered.
 """
 
-import os
 import time
 import threading
 from typing import Optional
@@ -155,12 +154,11 @@ def _build_message(rule: dict, node_id: str, node_display_name: str, band: str, 
 
 def _dispatch_channel(channel: dict, message: dict, urgency: str):
     platform = channel["platform"]
-    env_key = channel["env_key"]
     config = channel["config"]
-    token = os.environ.get(env_key)
+    token = config.get("token", "")
 
     if not token:
-        print(f"[notifications] env var '{env_key}' not set, skipping channel '{channel['label']}'", flush=True)
+        print(f"[notifications] no token configured for channel '{channel['label']}', skipping", flush=True)
         return
 
     if platform == "telegram":
@@ -170,8 +168,7 @@ def _dispatch_channel(channel: dict, message: dict, urgency: str):
     elif platform == "ntfy":
         _send_ntfy(token, message, urgency)
     elif platform == "pushover":
-        user_key = os.environ.get(env_key.replace("TOKEN", "USER"))
-        _send_pushover(token, user_key, message, urgency)
+        _send_pushover(token, config.get("user_key", ""), message, urgency)
     elif platform == "email":
         _send_email(token, config, message)
     else:
@@ -225,8 +222,8 @@ def _send_pushover(token: str, user_key: str, message: dict, urgency: str):
 def _send_email(smtp_pass: str, config: dict, message: dict):
     import smtplib
     from email.mime.text import MIMEText
-    smtp_host = os.environ.get("SMTP_HOST", config.get("smtp_host", ""))
-    smtp_user = os.environ.get("SMTP_USER", config.get("smtp_user", ""))
+    smtp_host = config.get("smtp_host", "")
+    smtp_user = config.get("smtp_user", "")
     smtp_port = int(config.get("smtp_port", 587))
     to_addr = config.get("to", "")
     if not all([smtp_host, smtp_user, smtp_pass, to_addr]):
