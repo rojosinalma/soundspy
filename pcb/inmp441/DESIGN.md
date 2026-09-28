@@ -36,14 +36,16 @@ Circular breakout board with INMP441 MEMS I2S microphone.
 
 ## Carrier Board Integration
 
-The INMP441 module mounts on the `soundspy-node` carrier board (`pcb/soundspy-node.kicad_pcb`) via the 2x3 pin header. The carrier board has:
+The INMP441 module mounts on the `soundspy-node` carrier board (`pcb/inmp441/soundspy-node.kicad_pcb`) via the 2x3 pin header. As printed (rev 1.2 title block):
 
-- A 3mm through-hole aligned with the mic's sound port
-- 100nF decoupling cap (C1) on the 3V3 line near the connector
-- Board outline: 30×68mm with USB-C notch at the bottom
+- Board outline: 30×68mm, 1.6mm thick, USB-C notch 11×4mm centred on the bottom edge (x 9.5–20.5, y 64–68)
+- 4x M2 mounting holes (Ø2.2) at (3,3), (27,3), (3,65), (27,65)
+- Mic header centred at (15,9). Module sits on the **front (component) side, sound port facing up/away** from the carrier — no sound-port hole in the PCB, sound enters through the case lid
+- C1: 100nF THT disc cap (5mm pitch) at x=21.5, y=6–11, on 3V3/GND near the mic
+- ESP32 38-pin DevKit: two 1x19 rows at x=2.3 and x=27.7, from y=16 to y=61.72, USB end at the notch. The dev board's antenna end overhangs the mic, so the ESP32 must sit on female socket strips above the mic module
+- Fully routed: tracks on F.Cu, GND pour on B.Cu
 
 ## Notes
 
-- LR pin must be tied to GND for left channel selection — connected to GND net on the carrier
-- Route LR to GND during PCB layout in KiCad
-- The carrier PCB is unrouted — open `soundspy-node.kicad_pcb` in KiCad and use the ratsnest to complete routing
+- LR pin tied to GND for left channel selection
+- Enclosure for this board: `case/` (OpenSCAD, parametric)
