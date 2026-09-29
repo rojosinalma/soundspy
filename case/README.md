@@ -24,7 +24,7 @@ Regenerate after changing a parameter: `./scripts/render_case.sh` (renders throu
 
 ## Print
 
-- PLA, 0.2 mm layers, no supports. Final parts use the Bambuddy "X2D 0.4 High Quality" presets; test slices use "X2D 0.4 Standard".
+- PLA, no supports. Final parts use the Bambuddy "X2D 0.4 HQ" pipeline (base: 46 min); prototypes use "X2D 0.4 STD" (0.16 mm, base: 39 min).
 - Pilot holes are 1.7 mm (`m2_pilot`). If screws are too tight or loose on your printer, adjust that value and re-render.
 
 ## Assembly
