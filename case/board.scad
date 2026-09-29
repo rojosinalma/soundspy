@@ -81,9 +81,8 @@ module standoff_pilots(floor_t, holes = pcb_holes) {
     for (h = holes) translate([each k2s(h), -floor_t + 1]) cylinder(d = m2_pilot, h = standoff_h + floor_t);
 }
 
-// Screwless standoffs: barbed split studs on the two mic-end holes (the board snaps down over
-// them and is released by pinching), plain locating pins on the two USB-end holes, which the
-// soldered ESP32 covers.
+// Screwless standoffs: barbed split studs; the board snaps down over them and is released by
+// pinching.
 module plain_stud(d = stud_d) {
     cylinder(d = d, h = pcb_t + stud_tip - stud_chamfer);
     translate([0, 0, pcb_t + stud_tip - stud_chamfer]) cylinder(d1 = d, d2 = d - 2 * stud_chamfer, h = stud_chamfer);
@@ -104,9 +103,10 @@ module stud_slit(h) {
     translate([0, 0, z0]) rotate([90, 0, 0]) cylinder(d = slit_relief_d, h = 2 * standoff_d, center = true);
 }
 
-// barbed_holes get barbed split studs (the far end by default); the rest get locating pins,
-// split and preloaded when usb_pin_split is set.
-module stud_standoffs(barbed_holes = [for (h = pcb_holes) if (mic_end_hole(h)) h]) {
+// barbed_holes get barbed split studs (all four corners, the user's choice after the v2 base: the
+// USB-end ones sit under the ESP32, so the board comes off by pulling rather than pinching there);
+// any others get locating pins, split and preloaded when usb_pin_split is set.
+module stud_standoffs(barbed_holes = pcb_holes) {
     for (h = pcb_holes) translate([each k2s(h), 0]) {
         barbed = len([for (b = barbed_holes) if (b == h) 1]) > 0;
         side = h[0] < pcb_w / 2 ? 0 : 1;
