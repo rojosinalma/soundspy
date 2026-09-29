@@ -98,9 +98,9 @@ module tray_studs() {
     }
 }
 
-// Concept slice for the studs: the top 1.0 mm of each stud standoff, joined by bars under the
+// Concept slice for the studs: each full stud standoff, joined by bars under the
 // two hole rows and rails outside the board outline, so no bar sits under the THT pin tails.
-coupon_standoff_h = 1.0;   // keeps the slice at ~7 min 45 s (≤ 8 min budget)
+coupon_standoff_h = standoff_h;   // full height: the stud slit now runs 2.5 mm into the standoff, so a stub would cut the spring off
 coupon_bar       = [2.0, 0.8];   // width, thickness
 coupon_rail_x    = [-2.5, pcb_w + 2.5];
 

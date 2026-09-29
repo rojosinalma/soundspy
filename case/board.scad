@@ -9,7 +9,7 @@
 /* [Carrier PCB] */
 pcb_w       = 30;
 pcb_l       = 68;
-pcb_t       = 1.6;
+pcb_t       = 2.0;   // measured on the fabbed board (bare PCB); the KiCad file says 1.6
 pcb_holes   = [[3, 3], [27, 3], [3, 65], [27, 65]];   // KiCad coords, M2 (Ø2.2)
 mic_xy      = [15, 9];                                  // KiCad coords
 mic_d       = 14;
@@ -33,14 +33,21 @@ usb_cut_h      = 7.5;
 usb_cut_r      = 2.5;
 
 /* [Stud standoffs] */
-stud_d          = 2.0;   // through the Ø2.2 PCB holes
-stud_tip        = 0.8;   // plain locating pin: height above the PCB top
+stud_d          = 2.0;   // plain locating pin, through the Ø2.2 PCB holes
+stud_tip        = 0.8;   // pin height above the PCB top
 stud_chamfer    = 0.4;
-barb_overhang   = [0.2, 0.3];  // mic-end barbed studs, left (KiCad x=3) and right (x=27)
-barb_len        = 1.0;
-barb_gap        = 0.1;   // barb underside above the PCB top
-slit_w          = 0.7;
-slit_into_standoff = 1.5;     // slit continues into the standoff for a longer, softer spring
+// Test v1 (0.2 / 0.3 barbs, Ø2.0 shanks, plain USB-end pins): the split studs grip better, but
+// every barb sat inside the 2.0 mm board instead of on top of it (modelled for 1.6 mm). v3: barb
+// above the real board, thicker halves, a longer spring and a root relief so they survive removal.
+barb_overhang   = [0.4, 0.5];  // far-end barbed studs, left (KiCad x=3) and right (x=27)
+barb_shank_d    = 2.2;   // fills the hole: the split halves preload against it
+usb_pin_split   = true;  // USB-end pins split too (no barb: the ESP32 covers them, no way to pinch)
+usb_pin_d       = [2.2, 2.3];  // USB-end split pins, left and right
+barb_len        = 1.2;
+barb_gap        = 0.15;  // barb underside above the PCB top
+slit_w          = 0.5;   // narrower slit = thicker halves
+slit_into_standoff = 2.5;     // slit continues into the standoff: a longer spring bends less at the root
+slit_relief_d   = 1.0;   // round relief at the slit root, so no sharp corner starts a crack
 
 /* [Component models] */
 esp_w           = 28;
@@ -75,44 +82,54 @@ module standoff_pilots(floor_t, holes = pcb_holes) {
 // Screwless standoffs: barbed split studs on the two mic-end holes (the board snaps down over
 // them and is released by pinching), plain locating pins on the two USB-end holes, which the
 // soldered ESP32 covers.
-module plain_stud() {
-    cylinder(d = stud_d, h = pcb_t + stud_tip - stud_chamfer);
-    translate([0, 0, pcb_t + stud_tip - stud_chamfer]) cylinder(d1 = stud_d, d2 = stud_d - 2 * stud_chamfer, h = stud_chamfer);
+module plain_stud(d = stud_d) {
+    cylinder(d = d, h = pcb_t + stud_tip - stud_chamfer);
+    translate([0, 0, pcb_t + stud_tip - stud_chamfer]) cylinder(d1 = d, d2 = d - 2 * stud_chamfer, h = stud_chamfer);
 }
 
 module barbed_stud(overhang) {
-    cylinder(d = stud_d, h = pcb_t + barb_gap + eps);
-    translate([0, 0, pcb_t + barb_gap]) cylinder(r1 = stud_d / 2 + overhang, r2 = stud_d / 2 - stud_chamfer, h = barb_len);
+    cylinder(d = barb_shank_d, h = pcb_t + barb_gap + eps);
+    translate([0, 0, pcb_t + barb_gap]) cylinder(r1 = barb_shank_d / 2 + overhang, r2 = barb_shank_d / 2 - stud_chamfer, h = barb_len);
 }
 
-// barbed = which holes get barbs; the rest get plain locating pins.
+module stud_slit(h) {
+    // across X, so the two halves spring toward each other along X
+    z0 = standoff_h - slit_into_standoff;
+    translate([-slit_w / 2, -standoff_d, z0]) cube([slit_w, 2 * standoff_d, slit_into_standoff + h + 1]);
+    translate([0, 0, z0]) rotate([90, 0, 0]) cylinder(d = slit_relief_d, h = 2 * standoff_d, center = true);
+}
+
+// barbed_holes get barbed split studs (the far end by default); the rest get locating pins,
+// split and preloaded when usb_pin_split is set.
 module stud_standoffs(barbed_holes = [for (h = pcb_holes) if (mic_end_hole(h)) h]) {
     for (h = pcb_holes) translate([each k2s(h), 0]) {
         barbed = len([for (b = barbed_holes) if (b == h) 1]) > 0;
-        overhang = barb_overhang[h[0] < pcb_w / 2 ? 0 : 1];
+        side = h[0] < pcb_w / 2 ? 0 : 1;
+        split = barbed || usb_pin_split;
         difference() {
             union() {
                 cylinder(d = standoff_d, h = standoff_h);
-                translate([0, 0, standoff_h - eps]) if (barbed) barbed_stud(overhang); else plain_stud();
+                translate([0, 0, standoff_h - eps])
+                    if (barbed) barbed_stud(barb_overhang[side]);
+                    else plain_stud(usb_pin_split ? usb_pin_d[side] : stud_d);
             }
-            // slit across X, so the two halves spring toward each other along X
-            if (barbed) translate([-slit_w / 2, -standoff_d, standoff_h - slit_into_standoff])
-                cube([slit_w, 2 * standoff_d, slit_into_standoff + pcb_t + barb_gap + barb_len + 1]);
+            if (split) stud_slit(pcb_t + barb_gap + barb_len);
         }
     }
 }
 
-module carrier() {
+module carrier(hole_d = 2.2) {
     translate([0, 0, pcb_z]) linear_extrude(pcb_t) difference() {
         square([pcb_w, pcb_l]);
         translate([9.5, -eps]) square([11, 4 + eps]);
-        for (h = pcb_holes) translate(k2s(h)) circle(d = 2.2);
+        for (h = pcb_holes) translate(k2s(h)) circle(d = hole_d);
     }
 }
 
 // screw_holes: where screw heads sit on the carrier (default: all four, the box case).
+// The holes are opened to drop_in_hole_d: studs and pins press into them on purpose.
 module components(screw_holes = pcb_holes) {
-    carrier();
+    carrier(drop_in_hole_d);
     for (h = screw_holes) translate([each k2s(h), pcb_top]) cylinder(d = screw_head[0], h = screw_head[1]);
     translate([each k2s(mic_xy), mic_top - mic_disc_t]) cylinder(d = mic_d, h = mic_disc_t);
     translate([21.5 - cap_body[0] / 2, k2s([0, 11])[1], pcb_top]) cube(cap_body);
@@ -128,7 +145,7 @@ module components(screw_holes = pcb_holes) {
 // Everything above the carrier has to drop in straight down: the base must leave the
 // board's whole footprint clear from the carrier up to the rim. Studs and pins pass through the
 // board's holes, so those stay open (wide enough for the barbs, which snap through on purpose).
-drop_in_hole_d = 2.2 + 2 * max(barb_overhang);
+drop_in_hole_d = 2.2 + 2 * max(barb_overhang) + 0.2;
 
 module drop_in_path(h = in_h) {
     translate([0, 0, pcb_z + eps]) linear_extrude(h) difference() {
