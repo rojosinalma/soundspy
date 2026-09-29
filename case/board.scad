@@ -110,9 +110,10 @@ module carrier() {
     }
 }
 
-module components() {
+// screw_holes: where screw heads sit on the carrier (default: all four, the box case).
+module components(screw_holes = pcb_holes) {
     carrier();
-    for (h = pcb_holes) translate([each k2s(h), pcb_top]) cylinder(d = screw_head[0], h = screw_head[1]);
+    for (h = screw_holes) translate([each k2s(h), pcb_top]) cylinder(d = screw_head[0], h = screw_head[1]);
     translate([each k2s(mic_xy), mic_top - mic_disc_t]) cylinder(d = mic_d, h = mic_disc_t);
     translate([21.5 - cap_body[0] / 2, k2s([0, 11])[1], pcb_top]) cube(cap_body);
     // male-pin spacers between the carrier and the ESP32
@@ -125,7 +126,13 @@ module components() {
 }
 
 // Everything above the carrier has to drop in straight down: the base must leave the
-// board's whole footprint clear from the carrier up to the rim.
+// board's whole footprint clear from the carrier up to the rim. Studs and pins pass through the
+// board's holes, so those stay open (wide enough for the barbs, which snap through on purpose).
+drop_in_hole_d = 2.2 + 2 * max(barb_overhang);
+
 module drop_in_path(h = in_h) {
-    translate([0, 0, pcb_z + eps]) linear_extrude(h) square([pcb_w, pcb_l]);
+    translate([0, 0, pcb_z + eps]) linear_extrude(h) difference() {
+        square([pcb_w, pcb_l]);
+        for (p = pcb_holes) translate(k2s(p)) circle(d = drop_in_hole_d);
+    }
 }
