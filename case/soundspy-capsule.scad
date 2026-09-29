@@ -2,7 +2,8 @@
 // shaped like a rounded-rectangle pod (large plan radius, rounded top edges) that press-fits
 // over a low lip on the base. Board, stack and component models: board.scad.
 //
-// Variants: fastening = "screws" (M2×6 into the two mic-end standoffs) | "studs" (barbed snap
+// Variants: fastening = "screws" (M2×6 through the two PCB corner holes at the mic end of the
+// board into their standoffs) | "studs" (barbed snap
 // studs); back = "keyholes" | "flat" (for double-sided tape). The two USB-end holes are covered
 // by the soldered ESP32, so they always get plain locating pins.
 //
