@@ -11,7 +11,7 @@
 // Export: openscad -D 'part="base"' -o base.stl soundspy-case.scad  (also "lid", "assembly")
 // Fit check: part="fitcheck" must render an empty object — anything left is a collision.
 
-part = "assembly";            // base | lid | assembly | fitcheck | tray | tray_assembly | test_usb | dims
+part = "assembly";            // base | lid | assembly | fitcheck | tray | tray_assembly | test_usb | tray_studs | test_studs | test_studs_assembly | dims
 
 /* [Carrier PCB] */
 pcb_w       = 30;
@@ -24,10 +24,10 @@ mic_d       = 14;
 /* [Stack heights] */
 standoff_h     = 3.5;   // under the carrier: room for THT pin tails (test tray: fits)
 usb_bottom_tbl = 12.0;  // measured: USB-C underside above the table, board in the tray
-mic_top_tbl    = 15.0;  // measured: mic disc top above the table
+mic_top_tbl    = 18.35; // from the printed case: 0.5 mm between mic top and lid underside
 esp_pcb_t      = 1.6;
 esp_top_h      = 3.4;   // tallest part on the ESP32 (WROOM shield)
-top_clearance  = 1.6;   // tallest part to lid underside
+top_clearance  = 0.5;   // tallest part (the mic) to lid underside: confirmed by the printed lid
 usb_bridge     = 1.5;   // wall left above the USB cutout
 
 /* [ESP32 USB connector] */
@@ -56,7 +56,7 @@ grille_pitch   = 2.6;
 grille_w       = 12;    // X extent of the hole field, centred on the mic
 grille_l       = 10;    // Y extent
 slot_w         = 1.6;
-slot_h         = 5.0;
+slot_h         = 5.0;   // top sits usb_bridge below the rim, alongside the mic
 slot_count     = 5;
 slot_pitch     = 3.0;
 
@@ -70,6 +70,16 @@ keyhole_slot_l = 6.0;
 /* [Lid lip] */
 lip_h = 2.0;
 lip_t = 1.2;
+
+/* [Stud standoffs] */
+stud_d          = 2.0;   // through the Ø2.2 PCB holes
+stud_tip        = 0.8;   // plain locating pin: height above the PCB top
+stud_chamfer    = 0.4;
+barb_overhang   = [0.2, 0.3];  // mic-end barbed studs, left (KiCad x=3) and right (x=27): one print compares both
+barb_len        = 1.0;
+barb_gap        = 0.1;   // barb underside above the PCB top
+slit_w          = 0.7;
+slit_into_standoff = 1.5;     // slit continues into the standoff for a longer, softer spring
 
 /* [Test tray] */
 tray_wall_h    = 6.0;   // above the floor top: the PCB top sits at standoff_h + pcb_t
@@ -135,6 +145,64 @@ module standoff_pilots() {
     for (h = pcb_holes) translate([each k2s(h), -floor_t + 1]) cylinder(d = m2_pilot, h = standoff_h + floor_t);
 }
 
+// Screwless standoffs: barbed split studs on the two mic-end holes (the board snaps down over
+// them and is released by pinching), plain locating pins on the two USB-end holes, which the
+// soldered ESP32 covers.
+function mic_end_hole(h) = h[1] < pcb_l / 2;
+
+module plain_stud() {
+    cylinder(d = stud_d, h = pcb_t + stud_tip - stud_chamfer);
+    translate([0, 0, pcb_t + stud_tip - stud_chamfer]) cylinder(d1 = stud_d, d2 = stud_d - 2 * stud_chamfer, h = stud_chamfer);
+}
+
+module barbed_stud(overhang) {
+    cylinder(d = stud_d, h = pcb_t + barb_gap + eps);
+    translate([0, 0, pcb_t + barb_gap]) cylinder(r1 = stud_d / 2 + overhang, r2 = stud_d / 2 - stud_chamfer, h = barb_len);
+}
+
+module stud_standoffs() {
+    for (h = pcb_holes) translate([each k2s(h), 0]) {
+        barbed = mic_end_hole(h);
+        overhang = barb_overhang[h[0] < pcb_w / 2 ? 0 : 1];
+        difference() {
+            union() {
+                cylinder(d = standoff_d, h = standoff_h);
+                translate([0, 0, standoff_h - eps]) if (barbed) barbed_stud(overhang); else plain_stud();
+            }
+            // slit across X, so the two halves spring toward each other along X
+            if (barbed) translate([-slit_w / 2, -standoff_d, standoff_h - slit_into_standoff])
+                cube([slit_w, 2 * standoff_d, slit_into_standoff + pcb_t + barb_gap + barb_len + 1]);
+        }
+    }
+}
+
+// Short-walled tray with stud standoffs instead of screw pilots.
+module tray_studs() {
+    union() {
+        shell(tray_wall_h, towers = false);
+        stud_standoffs();
+    }
+}
+
+// Concept slice for the studs: the top 1.0 mm of each stud standoff, joined by bars under the
+// two hole rows and rails outside the board outline, so no bar sits under the THT pin tails.
+coupon_standoff_h = 1.0;   // keeps the slice at ~7 min 45 s (≤ 8 min budget)
+coupon_bar       = [2.0, 0.8];   // width, thickness
+coupon_rail_x    = [-2.5, pcb_w + 2.5];
+
+module test_studs() {
+    rows = [for (h = pcb_holes) k2s(h)[1]];
+    y0 = min(rows) - coupon_bar[0] / 2;
+    y1 = max(rows) + coupon_bar[0] / 2;
+    translate([0, 0, -(standoff_h - coupon_standoff_h)]) intersection() {
+        stud_standoffs();
+        translate([-50, -50, standoff_h - coupon_standoff_h]) cube([200, 200, 50]);
+    }
+    for (y = [min(rows), max(rows)])
+        translate([coupon_rail_x[0], y - coupon_bar[0] / 2, 0]) cube([coupon_rail_x[1] - coupon_rail_x[0], coupon_bar[0], coupon_bar[1]]);
+    for (x = coupon_rail_x) translate([x - coupon_bar[0] / 2, y0, 0]) cube([coupon_bar[0], y1 - y0, coupon_bar[1]]);
+}
+
 // Short-walled version of the base, to test-fit the carrier on the floor and standoffs.
 module tray() {
     difference() {
@@ -158,7 +226,7 @@ module base(towers = true) {
         if (towers) for (t = tower_centers) translate([t[0], t[1], in_h - tower_pilot_l]) cylinder(d = m2_pilot, h = tower_pilot_l + eps);
         translate([pcb_w / 2, -clr - wall / 2, usb_z]) rounded_rect_yz(usb_cut_w, usb_cut_h, usb_cut_r);
         for (i = [0 : slot_count - 1])
-            translate([k2s(mic_xy)[0] + (i - (slot_count - 1) / 2) * slot_pitch, pcb_l + clr + wall / 2, mic_top - slot_h / 2])
+            translate([k2s(mic_xy)[0] + (i - (slot_count - 1) / 2) * slot_pitch, pcb_l + clr + wall / 2, in_h - usb_bridge - slot_h / 2])
                 cube([slot_w, wall * 3, slot_h], center = true);
         if (keyholes) for (y = keyhole_y) translate([pcb_w / 2, pcb_l - y, 0]) keyhole();
     }
@@ -252,6 +320,12 @@ else if (part == "tray_assembly") {
 }
 else if (part == "lid") translate([0, 0, lid_t]) rotate([180, 0, 0]) translate([0, -pcb_l, 0]) lid();
 else if (part == "test_usb") test_usb();
+else if (part == "tray_studs") tray_studs();
+else if (part == "test_studs") test_studs();
+else if (part == "test_studs_assembly") {
+    test_studs();
+    color("ForestGreen", 0.7) translate([0, 0, -(standoff_h - coupon_standoff_h)]) carrier();
+}
 else if (part == "fitcheck") union() {
     intersection() {
         union() { base(); translate([0, 0, in_h]) lid(); }

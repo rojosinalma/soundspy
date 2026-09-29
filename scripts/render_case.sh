@@ -22,7 +22,7 @@ case $rc in
     *) echo "  ERROR: fit check render failed (exit $rc)" >&2; exit 1 ;;
 esac
 
-for part in base lid tray test_usb; do
+for part in base lid tray test_usb tray_studs test_studs; do
     render -D "part=\"$part\"" -o "$CASE/stl/soundspy-case-$part.stl"
 done
 
@@ -32,3 +32,6 @@ render -D 'part="lid"'  --render --camera=0,0,0,40,0,20,0  -o "$CASE/preview/lid
 render -D 'part="tray"' --render --camera=0,0,0,50,0,210,0 -o "$CASE/preview/tray.png"
 render -D 'part="tray_assembly"' --camera=0,0,0,55,0,30,0  -o "$CASE/preview/tray_assembly.png"
 render -D 'part="test_usb"' --render --camera=0,0,0,55,0,25,0 -o "$CASE/preview/test_usb.png"
+render -D 'part="test_studs"' --render --camera=0,0,0,50,0,30,0 -o "$CASE/preview/test_studs.png"
+render -D 'part="test_studs"' --render --camera=3,65,1,55,0,25,22 --no-viewall -o "$CASE/preview/test_studs_closeup.png"
+render -D 'part="test_studs_assembly"' --camera=0,0,0,55,0,30,0 -o "$CASE/preview/test_studs_assembly.png"
