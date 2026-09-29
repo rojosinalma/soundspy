@@ -24,10 +24,10 @@ mic_d       = 14;
 /* [Stack heights] */
 standoff_h     = 3.5;   // under the carrier: room for THT pin tails (test tray: fits)
 usb_bottom_tbl = 12.0;  // measured: USB-C underside above the table, board in the tray
-mic_top_tbl    = 18.35; // from the printed case: 0.5 mm between mic top and lid underside
+mic_top_tbl    = 13.85; // from the printed case: 5 mm between mic top and lid underside
 esp_pcb_t      = 1.6;
 esp_top_h      = 3.4;   // tallest part on the ESP32 (WROOM shield)
-top_clearance  = 0.5;   // tallest part (the mic) to lid underside: confirmed by the printed lid
+top_clearance  = 1.6;   // tallest part to lid underside
 usb_bridge     = 1.5;   // wall left above the USB cutout
 
 /* [ESP32 USB connector] */
@@ -56,7 +56,7 @@ grille_pitch   = 2.6;
 grille_w       = 12;    // X extent of the hole field, centred on the mic
 grille_l       = 10;    // Y extent
 slot_w         = 1.6;
-slot_h         = 5.0;   // top sits usb_bridge below the rim, alongside the mic
+slot_h         = 5.0;   // top level with the mic top
 slot_count     = 5;
 slot_pitch     = 3.0;
 
@@ -226,7 +226,7 @@ module base(towers = true) {
         if (towers) for (t = tower_centers) translate([t[0], t[1], in_h - tower_pilot_l]) cylinder(d = m2_pilot, h = tower_pilot_l + eps);
         translate([pcb_w / 2, -clr - wall / 2, usb_z]) rounded_rect_yz(usb_cut_w, usb_cut_h, usb_cut_r);
         for (i = [0 : slot_count - 1])
-            translate([k2s(mic_xy)[0] + (i - (slot_count - 1) / 2) * slot_pitch, pcb_l + clr + wall / 2, in_h - usb_bridge - slot_h / 2])
+            translate([k2s(mic_xy)[0] + (i - (slot_count - 1) / 2) * slot_pitch, pcb_l + clr + wall / 2, mic_top - slot_h / 2])
                 cube([slot_w, wall * 3, slot_h], center = true);
         if (keyholes) for (y = keyhole_y) translate([pcb_w / 2, pcb_l - y, 0]) keyhole();
     }
