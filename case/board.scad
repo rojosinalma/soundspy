@@ -36,16 +36,18 @@ usb_cut_r      = 2.5;
 stud_d          = 2.0;   // plain locating pin, through the Ø2.2 PCB holes
 stud_tip        = 0.8;   // pin height above the PCB top
 stud_chamfer    = 0.4;
-// Test v1 (0.2 / 0.3 barbs, Ø2.0 shanks, plain USB-end pins): the split studs grip better, but
-// every barb sat inside the 2.0 mm board instead of on top of it (modelled for 1.6 mm). v3: barb
-// above the real board, thicker halves, a longer spring and a root relief so they survive removal.
-barb_overhang   = [0.4, 0.5];  // far-end barbed studs, left (KiCad x=3) and right (x=27)
-barb_shank_d    = 2.2;   // fills the hole: the split halves preload against it
-usb_pin_split   = true;  // USB-end pins split too (no barb: the ESP32 covers them, no way to pinch)
-usb_pin_d       = [2.2, 2.3];  // USB-end split pins, left and right
+// Tests: v1 (Ø2.0 shank, 0.7 slit) fits well, but its barbs sat inside the 2.0 mm board. v3
+// (Ø2.2 shank, 0.5 slit, round 0.4 / 0.5 barbs) jammed and had to be cut free: a round barb also
+// sticks out along the slit, where the halves can't flex. Now v1's shank and slit, the barb only
+// on the two flexing sides (flat along the slit), wide enough to catch but able to close through.
+barb_overhang   = [0.4, 0.4];  // far-end barbed studs, left (KiCad x=3) and right (x=27)
+barb_shank_d    = 2.0;
+barb_flat_w     = 2.0;   // barb width along the slit (Y): no wider than the shank
+usb_pin_split   = false; // USB-end pins: plain Ø2.0 (v1, fits)
+usb_pin_d       = [2.0, 2.0];  // USB-end pins, left and right
 barb_len        = 1.2;
 barb_gap        = 0.15;  // barb underside above the PCB top
-slit_w          = 0.5;   // narrower slit = thicker halves
+slit_w          = 0.7;   // v1: flexes and survives; must exceed the barb's closing (2 × overhang - hole clearance)
 slit_into_standoff = 2.5;     // slit continues into the standoff: a longer spring bends less at the root
 slit_relief_d   = 1.0;   // round relief at the slit root, so no sharp corner starts a crack
 
@@ -89,7 +91,10 @@ module plain_stud(d = stud_d) {
 
 module barbed_stud(overhang) {
     cylinder(d = barb_shank_d, h = pcb_t + barb_gap + eps);
-    translate([0, 0, pcb_t + barb_gap]) cylinder(r1 = barb_shank_d / 2 + overhang, r2 = barb_shank_d / 2 - stud_chamfer, h = barb_len);
+    translate([0, 0, pcb_t + barb_gap]) intersection() {
+        cylinder(r1 = barb_shank_d / 2 + overhang, r2 = barb_shank_d / 2 - stud_chamfer, h = barb_len);
+        translate([-5, -barb_flat_w / 2, 0]) cube([10, barb_flat_w, barb_len]);
+    }
 }
 
 module stud_slit(h) {
@@ -145,7 +150,7 @@ module components(screw_holes = pcb_holes) {
 // Everything above the carrier has to drop in straight down: the base must leave the
 // board's whole footprint clear from the carrier up to the rim. Studs and pins pass through the
 // board's holes, so those stay open (wide enough for the barbs, which snap through on purpose).
-drop_in_hole_d = 2.2 + 2 * max(barb_overhang) + 0.2;
+drop_in_hole_d = barb_shank_d + 2 * max(barb_overhang) + 0.2;
 
 module drop_in_path(h = in_h) {
     translate([0, 0, pcb_z + eps]) linear_extrude(h) difference() {
