@@ -10,7 +10,7 @@
 // Export: openscad -D 'part="base"' -o base.stl soundspy-case.scad  (also "lid", "assembly")
 // Fit check: part="fitcheck" must render an empty object — anything left is a collision.
 
-part = "assembly";            // "base" | "lid" | "assembly" | "fitcheck"
+part = "assembly";            // "base" | "lid" | "assembly" | "fitcheck" | "tray" | "tray_assembly"
 
 /* [Carrier PCB] */
 pcb_w       = 30;
@@ -70,6 +70,10 @@ keyhole_slot_l = 6.0;
 lip_h = 2.0;
 lip_t = 1.2;
 
+/* [Test tray] */
+tray_wall_h    = 6.0;   // above the floor top: the PCB top sits at standoff_h + pcb_t
+tray_usb_mark  = 2.0;   // depth of the notch marking the USB end
+
 $fn = 48;
 eps = 0.01;
 
@@ -119,20 +123,45 @@ module keyhole() {
     }
 }
 
+module shell(h) {
+    difference() {
+        translate([0, 0, -floor_t]) outer_shape(floor_t + h);
+        translate([-clr, -clr, 0]) cube([in_w, in_l, h + eps]);
+    }
+}
+
+module standoffs() {
+    for (h = pcb_holes) translate([each k2s(h), 0]) cylinder(d = standoff_d, h = standoff_h);
+}
+
+module standoff_pilots() {
+    for (h = pcb_holes) translate([each k2s(h), -floor_t + 1]) cylinder(d = m2_pilot, h = standoff_h + floor_t);
+}
+
+// Short-walled version of the base, to test-fit the carrier on the floor and standoffs.
+module tray() {
+    difference() {
+        union() {
+            shell(tray_wall_h);
+            standoffs();
+        }
+        standoff_pilots();
+        translate([pcb_w / 2 - usb_cut_w / 2, -clr - wall - eps, tray_wall_h - tray_usb_mark])
+            cube([usb_cut_w, wall + 2 * eps, tray_usb_mark + eps]);
+    }
+}
+
 module base() {
     difference() {
         union() {
-            difference() {
-                translate([0, 0, -floor_t]) outer_shape(floor_t + in_h);
-                translate([-clr, -clr, 0]) cube([in_w, in_l, in_h + eps]);
-            }
+            shell(in_h);
             intersection() {
                 lid_columns();
                 translate([0, 0, -floor_t]) outer_shape(floor_t + in_h);
             }
-            for (h = pcb_holes) translate([each k2s(h), 0]) cylinder(d = standoff_d, h = standoff_h);
+            standoffs();
         }
-        for (h = pcb_holes) translate([each k2s(h), -floor_t + 1]) cylinder(d = m2_pilot, h = standoff_h + floor_t);
+        standoff_pilots();
         for (c = inner_corners) translate([c[0], c[1], column_z - column_r]) cylinder(d = m2_pilot, h = in_h);
         translate([pcb_w / 2, -clr - wall / 2, usb_z]) rounded_rect_yz(usb_cut_w, usb_cut_h, usb_cut_r);
         for (i = [0 : slot_count - 1])
@@ -183,11 +212,16 @@ screw_head      = [3.8, 1.3];
 cap_body        = [3.2, 5.1, 8];   // C1 disc, standing
 mic_mod_h       = 4.5;
 
-module components() {
+module carrier() {
     translate([0, 0, pcb_z]) linear_extrude(pcb_t) difference() {
         square([pcb_w, pcb_l]);
         translate([9.5, -eps]) square([11, 4 + eps]);
+        for (h = pcb_holes) translate(k2s(h)) circle(d = 2.2);
     }
+}
+
+module components() {
+    carrier();
     for (h = pcb_holes) translate([each k2s(h), pcb_top]) cylinder(d = screw_head[0], h = screw_head[1]);
     translate([each k2s(mic_xy), pcb_top]) cylinder(d = mic_d, h = mic_mod_h);
     translate([21.5 - cap_body[0] / 2, k2s([0, 11])[1], pcb_top]) cube(cap_body);
@@ -201,6 +235,11 @@ module components() {
 }
 
 if (part == "base") base();
+else if (part == "tray") tray();
+else if (part == "tray_assembly") {
+    tray();
+    color("ForestGreen", 0.7) carrier();
+}
 else if (part == "lid") translate([0, 0, lid_t]) rotate([180, 0, 0]) translate([0, -pcb_l, 0]) lid();
 else if (part == "fitcheck") intersection() {
     union() { base(); translate([0, 0, in_h]) lid(); }

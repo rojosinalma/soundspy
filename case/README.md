@@ -11,8 +11,9 @@ Outer size: **34.8 × 72.8 × 28.7 mm** (base 26.7 mm + 2 mm lid).
 | `soundspy-case.scad` | Parametric source, every dimension is a named variable at the top |
 | `stl/soundspy-case-base.stl` | Base, print as-is (floor on the bed) |
 | `stl/soundspy-case-lid.stl` | Lid, already flipped: outer face on the bed |
+| `stl/soundspy-case-tray.stl` | Test tray: the base's floor, standoffs and outline with 6 mm walls, for test-fitting the carrier |
 
-Regenerate after changing a parameter: `./scripts/render_case.sh`. It runs the fit check first and fails if the case would collide with any board part. You can also override values without editing, e.g. `./scripts/render_case.sh -D socket_h=11`.
+Regenerate after changing a parameter: `./scripts/render_case.sh` (renders through the shared `openscad` service with `scad-render`). It runs the fit check first and fails if the case would collide with any board part. You can also override values without editing, e.g. `./scripts/render_case.sh -D socket_h=11`.
 
 ## Hardware
 

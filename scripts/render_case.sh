@@ -1,40 +1,33 @@
 #!/usr/bin/env bash
-# Render the enclosure STLs + previews and run the fit check, via the OpenSCAD Docker image.
+# Fit check + STL/PNG render of the enclosure through the shared openscad service (scad-render).
 # Usage: ./scripts/render_case.sh [-D 'param=value' ...]   (overrides passed to every render)
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-IMAGE="${OPENSCAD_IMAGE:-openscad/openscad:latest}"
+CASE="$(cd "$(dirname "$0")/../case" && pwd)"
+SCAD="$CASE/soundspy-case.scad"
 OVERRIDES=("$@")
 
-scad() {
-    docker run --rm --init --user "$(id -u):$(id -g)" -e HOME=/tmp \
-        -v "$ROOT/case:/work" -w /work "$IMAGE" "$@"
-}
+render() { scad-render "$SCAD" "${OVERRIDES[@]}" "$@"; }
 
-mkdir -p "$ROOT/case/stl" "$ROOT/case/preview"
+mkdir -p "$CASE/stl" "$CASE/preview"
 
 echo "Fit check..."
-fit_out="$(scad openscad "${OVERRIDES[@]}" -D 'part="fitcheck"' -o /tmp/fit.stl soundspy-case.scad 2>&1 || true)"
-if grep -q "top level object is empty" <<<"$fit_out"; then
-    echo "  OK: no collisions"
-else
-    echo "  FAIL: case intersects board components (render part=\"fitcheck\" to see where)" >&2
-    exit 1
-fi
+set +e
+render -D 'part="fitcheck"' -o /tmp/soundspy-fitcheck.stl >/dev/null 2>&1
+rc=$?
+set -e
+case $rc in
+    3) echo "  OK: no collisions" ;;
+    0) echo "  FAIL: case intersects board components (render part=\"fitcheck\" to see where)" >&2; exit 1 ;;
+    *) echo "  ERROR: fit check render failed (exit $rc)" >&2; exit 1 ;;
+esac
 
-for part in base lid; do
-    echo "Rendering $part..."
-    scad openscad "${OVERRIDES[@]}" -D "part=\"$part\"" -o "stl/soundspy-case-$part.stl" soundspy-case.scad 2>/dev/null
+for part in base lid tray; do
+    render -D "part=\"$part\"" -o "$CASE/stl/soundspy-case-$part.stl"
 done
 
-echo "Rendering previews..."
-VIEW=(--imgsize=1400,1050 --colorscheme=Tomorrow --autocenter --viewall)
-scad xvfb-run -a openscad "${VIEW[@]}" "${OVERRIDES[@]}" -D 'part="assembly"' \
-    --camera=0,0,0,60,0,35,0 -o preview/assembly.png soundspy-case.scad 2>/dev/null
-scad xvfb-run -a openscad "${VIEW[@]}" "${OVERRIDES[@]}" --render -D 'part="base"' \
-    --camera=0,0,0,45,0,200,0 -o preview/base.png soundspy-case.scad 2>/dev/null
-scad xvfb-run -a openscad "${VIEW[@]}" "${OVERRIDES[@]}" --render -D 'part="lid"' \
-    --camera=0,0,0,40,0,20,0 -o preview/lid.png soundspy-case.scad 2>/dev/null
-
-ls -la "$ROOT/case/stl"
+render -D 'part="assembly"'      --camera=0,0,0,60,0,35,0  -o "$CASE/preview/assembly.png"
+render -D 'part="base"' --render --camera=0,0,0,45,0,200,0 -o "$CASE/preview/base.png"
+render -D 'part="lid"'  --render --camera=0,0,0,40,0,20,0  -o "$CASE/preview/lid.png"
+render -D 'part="tray"' --render --camera=0,0,0,50,0,210,0 -o "$CASE/preview/tray.png"
+render -D 'part="tray_assembly"' --camera=0,0,0,55,0,30,0  -o "$CASE/preview/tray_assembly.png"
