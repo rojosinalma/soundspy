@@ -6,7 +6,7 @@
 // studs); back = "keyholes" | "flat" (for double-sided tape). The two USB-end holes are covered
 // by the soldered ESP32, so they always get plain locating pins.
 //
-// Parts: base | cover | assembly | exploded | cover_inside | fitcheck | dims
+// Parts: plate | base | cover | assembly | exploded | closed | cover_inside | fitcheck | dims
 
 part       = "assembly";
 fastening  = "screws";   // screws | studs
@@ -63,6 +63,8 @@ in_x0   = -margin;              in_x1 = pcb_w + margin;
 in_y0   = -margin;              in_y1 = pcb_l + margin;
 plan_r  = plan_r_in + wall;
 cover_h = in_h + top_t;          // above the floor top
+// End-wall slots reach up to the mic top, but stay clear of where the inner top curve starts.
+end_slot_top = min(mic_top, in_h - (edge_r - wall) - 0.3);
 screw_holes = fastening == "screws" ? [for (h = pcb_holes) if (mic_end_hole(h)) h] : [];
 
 // Rounded-rectangle solid with rounded top edges: vertical sides, an arc of radius `er` over the
@@ -146,7 +148,7 @@ module cover() {
                 linear_extrude(top_t + 2) slot_2d(grill_len, grill_w);
         // smaller grill in the mic-end wall, at mic height
         for (i = [0 : end_slots - 1])
-            translate([k2s(mic_xy)[0] + (i - (end_slots - 1) / 2) * end_pitch, in_y1 + wall / 2, mic_top - end_slot_h / 2])
+            translate([k2s(mic_xy)[0] + (i - (end_slots - 1) / 2) * end_pitch, in_y1 + wall / 2, end_slot_top - end_slot_h / 2])
                 rotate([90, 0, 0]) linear_extrude(wall * 3, center = true) rotate(90) slot_2d(end_slot_h, end_slot_w);
     }
     // orientation rib: only fits the lip notch at the mic end
@@ -156,9 +158,21 @@ module cover() {
     }
 }
 
+plate_gap = 6;
+
+// Print orientation: the cover prints top-down.
+module cover_print() { translate([0, 0, cover_h]) rotate([180, 0, 0]) translate([0, -pcb_l, 0]) cover(); }
+
+// One print plate per variant: base (flat on the bed) and cover side by side.
+module plate() {
+    translate([0, 0, floor_t]) base();
+    translate([(in_x1 - in_x0) + 2 * wall + plate_gap, 0, 0]) cover_print();
+}
+
 if (part == "none") {}   // for include-only use
+else if (part == "plate") plate();
 else if (part == "base") base();
-else if (part == "cover") translate([0, 0, cover_h]) rotate([180, 0, 0]) translate([0, -pcb_l, 0]) cover();   // print top-down
+else if (part == "cover") cover_print();
 else if (part == "cover_inside") rotate([180, 0, 0]) cover();
 else if (part == "closed") { color("SteelBlue") base(); color("Gainsboro") cover(); }
 else if (part == "exploded") {
