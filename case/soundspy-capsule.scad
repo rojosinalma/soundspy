@@ -9,8 +9,8 @@
 //
 // Layouts: "front" = board component side up, mic over the ESP32 (v1–v3);
 //          "reversed" = board flipped, ESP32 hanging into the base, mic soldered to the back face
-//          and looking straight up at the grill. Far-end tall snap studs + USB-end side ribs hold
-//          it (the USB-end holes sit over the ESP32's body); cover posts hold that end down.
+//          and looking straight up at the grill. Far-end tall snap studs + USB-end snap clips hold
+//          it (the USB-end holes sit over the ESP32's body, so that end has clips instead of studs).
 //
 // Parts: plate | base | cover | assembly | exploded | closed | cover_inside | fitcheck | dims
 
@@ -77,9 +77,18 @@ include <board.scad>
 /* [Reversed layout] */
 esp_floor_clr = max(usb_cut_h / 2 - max(usb_h, esp_top_h) / 2 + 0.3, lip_h + 0.3);   // lowest ESP32 part: clear of the lip, and the USB cutout above the floor
 mic_lid_clr   = 2.0;   // mic top to the cover's inside
-rib_w_in      = 0.8;   // USB-end side ribs: how far they reach under the carrier edge (0.33 clear of the ESP32)
-rib_len       = 12;
-hold_gap      = 0.2;   // cover posts to the carrier's back face, USB end
+// USB-end snap clips, one per long side: an arm rising from the base with a shelf the carrier
+// rests on and a hook that snaps over its top face (the carrier's USB-end holes sit over the
+// ESP32, so there's no stud there). Distances are from the carrier edge, outboard positive.
+clip_len      = 8;     // along the edge
+clip_y0       = 2.5;   // from the USB edge: clear of the cover's rounded corner
+clip_t        = 1.6;   // arm thickness (flexes outward to let the board past)
+clip_clr      = 0.2;   // carrier edge to arm
+clip_catch    = 0.6;   // hook overlap on the carrier's top face
+clip_hook_t   = 0.3;   // flat part of the hook, then a 45° lead-in
+clip_gap      = 0.05;  // hook underside above the carrier
+shelf_in      = 0.8;   // shelf reach under the carrier (0.33 clear of the ESP32's edge)
+shelf_t       = 1.2;
 
 // --- Derived ---
 rev     = layout == "reversed";
@@ -163,7 +172,7 @@ module base() {
                 translate([0, 0, -eps]) inner_plan(lip_h + 1, -lip_fit - lip_t);
                 key_notch();
             }
-            if (rev) { stud_standoffs(far_holes, far_holes, zc_rev); usb_end_ribs(); }
+            if (rev) { stud_standoffs(far_holes, far_holes, zc_rev); usb_end_clips(); }
             else if (fastening == "studs") stud_standoffs();
             else standoffs_screws();
         }
@@ -173,14 +182,29 @@ module base() {
     }
 }
 
-// Reversed layout: the carrier's USB end rests on two side ribs, clear of the ESP32 below it.
-module usb_end_ribs() {
-    for (side = [0, 1]) {
-        x0 = side == 0 ? -margin + lip_fit + lip_t : pcb_w - rib_w_in;
-        x1 = side == 0 ? rib_w_in : pcb_w + margin - lip_fit - lip_t;
-        translate([x0, 0.5, 0]) cube([x1 - x0, rib_len, zc_rev]);
-    }
+// Clip cross-section (X = outboard from the carrier edge, Z up), extruded along the edge.
+module clip_profile() {
+    z_hook = zc_rev + pcb_t + clip_gap;
+    reach = clip_clr + clip_catch;
+    polygon([
+        [clip_clr + clip_t, 0], [clip_clr + clip_t, z_hook + clip_hook_t + reach],   // arm, outer face
+        [clip_clr, z_hook + clip_hook_t + reach],                                      // arm top
+        [-clip_catch, z_hook + clip_hook_t], [-clip_catch, z_hook],                    // hook: 45° lead-in, flat catch
+        [clip_clr, z_hook],                                                            // hook underside, back to the arm
+        [clip_clr, zc_rev], [-shelf_in, zc_rev], [-shelf_in, zc_rev - shelf_t],        // shelf the carrier sits on
+        [clip_clr, zc_rev - shelf_t - (shelf_in + clip_clr)],                          // 45° gusset under the shelf
+        [clip_clr, 0]]);
 }
+
+module usb_end_clips() {
+    for (side = [0, 1]) translate([side == 0 ? 0 : pcb_w, clip_y0, 0]) mirror([side == 0 ? 1 : 0, 0, 0])
+        rotate([90, 0, 0]) translate([0, 0, -clip_len]) linear_extrude(clip_len) clip_profile();
+}
+
+// Arm strain when the hook swings clear of the carrier edge: a cantilever from the lip top.
+clip_free_len = zc_rev + pcb_t + clip_gap + clip_hook_t + clip_clr + clip_catch - lip_h;
+clip_strain   = 1.5 * clip_t * (clip_catch + clip_gap) / (clip_free_len * clip_free_len);
+assert(clip_strain < 0.02, "USB-end clip arm would strain PLA past ~2 % to release");
 
 // USB-C cutout as a prism through the USB end wall; open to the bottom edge when it reaches there.
 module usb_cut_prism(depth = wall * 3) {
@@ -226,11 +250,6 @@ module cover() {
         translate([pcb_w / 2 - key_w / 2, in_y1 - key_depth, 0]) cube([key_w, key_depth + wall, lip_h]);
         inner_plan(lip_h);
     }
-    // reversed layout: two posts hold the carrier's USB end down on its ribs
-    if (rev) intersection() {
-        for (x = [1.6, pcb_w - 1.6]) translate([x, 1.6, zc_rev + pcb_t + hold_gap]) cylinder(d = 2.6, h = in_h_c);
-        translate([0, 0, -eps]) pod(in_x0, in_y0, in_x1, in_y1, plan_r_in, edge_r - wall, in_h_c + 2 * eps);
-    }
 }
 
 // Reversed layout: the board goes in ESP32 first. The ESP32 envelope sweeps down to its seat, and
@@ -240,6 +259,8 @@ module drop_in_path_rev() {
     translate([0, 0, zc_rev + eps]) linear_extrude(50) difference() {
         square([pcb_w, pcb_l]);
         for (p = far_holes) translate(k2s(p)) circle(d = drop_in_hole_d);
+        // the clip hooks overhang the carrier on purpose: they swing aside and snap over it
+        for (x = [0, pcb_w - clip_catch - 0.1]) translate([x, clip_y0 - 0.1]) square([clip_catch + 0.1, clip_len + 0.2]);
     }
 }
 module comps() { if (rev) components_rev(zc_rev); else components(screw_holes); }
@@ -268,12 +289,14 @@ else if (part == "exploded") {
 }
 else if (part == "fitcheck") union() {
     intersection() { union() { base(); cover(); } translate([0, 0, eps]) comps(); }
+    intersection() { base(); translate([0, 0, eps]) cover(); }   // closed case: nothing on the base may run into the cover (lifted: resting contact is fine)
     if (rev) intersection() { base(); drop_in_path_rev(); }
     else intersection() { base(); drop_in_path(); }
 }
 else if (part == "grillcheck")   // must be empty: no slot reaches past grill_d, so none touches the ring
     intersection() { linear_extrude(1) grill_2d(); difference() { cylinder(d = 100, h = 1); translate([0, 0, -1]) cylinder(d = grill_d + 0.001, h = 3); } }
-else if (part == "dims") echo(grill_d = grill_d, ring_outer_r = ring_outer_r, flat_y1 = flat_y1, mic_y = mic_s[1], layout = layout, margin = margin, outer = [in_x1 - in_x0 + 2 * wall, in_y1 - in_y0 + 2 * wall, floor_t + cover_h], in_h = in_h_c, zc_rev = zc_rev, usb_z = usb_z_c, mic_top_rev = mic_top_rev);
+else if (part == "clip_closeup") { base(); %comps(); }
+else if (part == "dims") echo(clip_strain_pct = 100 * clip_strain, clip_free_len = clip_free_len, grill_d = grill_d, ring_outer_r = ring_outer_r, flat_y1 = flat_y1, mic_y = mic_s[1], layout = layout, margin = margin, outer = [in_x1 - in_x0 + 2 * wall, in_y1 - in_y0 + 2 * wall, floor_t + cover_h], in_h = in_h_c, zc_rev = zc_rev, usb_z = usb_z_c, mic_top_rev = mic_top_rev);
 else {
     base();
     %comps();
