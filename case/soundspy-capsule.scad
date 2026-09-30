@@ -43,11 +43,12 @@ key_clr     = 0.2;
 
 /* [Mic grill: lid face over the mic] */
 grill_slots = 5;
-grill_w     = 1.6;
+grill_w     = 1.4;
 grill_len   = 14;    // upper limit; each slot is shortened to stay inside grill_d
-grill_pitch = 2.8;
-grill_d     = 15.0;  // circle every slot stays inside, centred on the mic
+grill_pitch = 2.2;
+grill_d_max = 15.0;  // circle every slot stays inside, centred on the mic; shrunk to fit the flat top
 grill_margin = 0.3;  // slot ends to that circle
+border_margin = 0.5; // ring's outer edge to where the lid's rounded top edge begins
 ring_w      = 1.0;   // debossed ring around the grill (a raised one would lift the top off the bed)
 ring_gap    = 1.0;   // grill circle to the ring's inner edge
 ring_depth  = 0.6;
@@ -83,6 +84,9 @@ hold_gap      = 0.2;   // cover posts to the carrier's back face, USB end
 
 // --- Derived ---
 rev     = layout == "reversed";
+// The flat top ends where the rounded top edge begins: 0.586 × edge_r in from the outer wall
+// (arc to 45°, then the 45° chamfer; see pod()).
+flat_inset = edge_r * (2 - 2 * cos(45));
 margin  = max(0.4, plan_r_in - (plan_r_in - corner_clr) / sqrt(2));   // board edge to inner wall
 zc_rev  = esp_floor_clr + esp_side_rev;                       // carrier underside, reversed
 mic_top_rev = zc_rev + pcb_t + mic_spacer_h + mic_h;
@@ -91,6 +95,10 @@ usb_z_c = rev ? esp_floor_clr + max(usb_h, esp_top_h) / 2 : usb_z;
 far_holes = [for (h = pcb_holes) if (mic_end_hole(h)) h];
 in_x0   = -margin;              in_x1 = pcb_w + margin;
 in_y0   = -margin;              in_y1 = pcb_l + margin;
+flat_y1 = in_y1 + wall - flat_inset;          // far end of the flat top
+ring_outer_r = min(grill_d_max / 2 + ring_gap + ring_w, flat_y1 - mic_s[1] - border_margin);
+grill_d = 2 * (ring_outer_r - ring_w - ring_gap);
+assert(mic_s[1] + ring_outer_r <= flat_y1 - border_margin + 1e-6, "grill ring runs onto the lid's rounded edge");
 plan_r  = plan_r_in + wall;
 cover_h = in_h_c + top_t;        // above the floor top
 // End-wall slots reach up to the mic top, but stay clear of where the inner top curve starts.
@@ -268,7 +276,7 @@ else if (part == "fitcheck") union() {
 }
 else if (part == "grillcheck")   // must be empty: no slot reaches past grill_d, so none touches the ring
     intersection() { linear_extrude(1) grill_2d(); difference() { cylinder(d = 100, h = 1); translate([0, 0, -1]) cylinder(d = grill_d + 0.001, h = 3); } }
-else if (part == "dims") echo(layout = layout, margin = margin, outer = [in_x1 - in_x0 + 2 * wall, in_y1 - in_y0 + 2 * wall, floor_t + cover_h], in_h = in_h_c, zc_rev = zc_rev, usb_z = usb_z_c, mic_top_rev = mic_top_rev);
+else if (part == "dims") echo(grill_d = grill_d, ring_outer_r = ring_outer_r, flat_y1 = flat_y1, mic_y = mic_s[1], layout = layout, margin = margin, outer = [in_x1 - in_x0 + 2 * wall, in_y1 - in_y0 + 2 * wall, floor_t + cover_h], in_h = in_h_c, zc_rev = zc_rev, usb_z = usb_z_c, mic_top_rev = mic_top_rev);
 else {
     base();
     %comps();
