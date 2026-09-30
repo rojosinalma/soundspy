@@ -20,6 +20,8 @@ import notifications
 
 MQTT_HOST = os.environ.get("MQTT_HOST", "localhost")
 MQTT_PORT = int(os.environ.get("MQTT_PORT", 1883))
+MQTT_USER = os.environ.get("MQTT_USER", "")
+MQTT_PASS = os.environ.get("MQTT_PASS", "")
 DASHBOARD_VERSION = "2.0.0"
 
 TOPIC_DATA = "soundspy/+/data"
@@ -371,7 +373,9 @@ def audio_websocket(ws):
 def start_mqtt():
     mqtt_client.on_connect = on_connect
     mqtt_client.on_message = on_message
-    print(f"Connecting to MQTT broker at {MQTT_HOST}:{MQTT_PORT}...", flush=True)
+    if MQTT_USER:
+        mqtt_client.username_pw_set(MQTT_USER, MQTT_PASS)
+    print(f"Connecting to MQTT broker at {MQTT_HOST}:{MQTT_PORT} as {MQTT_USER or 'anonymous'}...", flush=True)
     mqtt_client.connect(MQTT_HOST, MQTT_PORT, keepalive=60)
     mqtt_client.loop_forever()
 

@@ -17,6 +17,7 @@ ESP32 nodes with I2S microphones sample audio, perform 6-band frequency analysis
 
 **Software**
 - Docker + Docker Compose
+- An MQTT broker (e.g. Mosquitto) that both the dashboard and the nodes can reach — the stack no longer ships its own
 - Arduino CLI (for firmware builds) — or Arduino IDE
 
 ## Setup
@@ -24,7 +25,7 @@ ESP32 nodes with I2S microphones sample audio, perform 6-band frequency analysis
 **1. Configure environment**
 ```bash
 cp .env.example .env
-# Edit .env with your WiFi credentials and server IP
+# Edit .env with your WiFi credentials, broker address/credentials and server IP
 ```
 
 **2. Start services**

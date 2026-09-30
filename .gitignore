@@ -6,12 +6,6 @@ docker-compose.override.yml
 .claude
 CONTEXT.md
 
-# Mosquitto runtime data
-mosquitto/data/*
-mosquitto/log/*
-!mosquitto/data/.gitkeep
-!mosquitto/log/.gitkeep
-
 # ntfy runtime data
 ntfy/cache/*
 ntfy/etc/*
