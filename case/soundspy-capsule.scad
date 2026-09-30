@@ -75,20 +75,32 @@ eps = 0.01;
 include <board.scad>
 
 /* [Reversed layout] */
-esp_floor_clr = max(usb_cut_h / 2 - max(usb_h, esp_top_h) / 2 + 0.3, lip_h + 0.3);   // lowest ESP32 part: clear of the lip, and the USB cutout above the floor
-mic_lid_clr   = 2.0;   // mic top to the cover's inside
-// USB-end snap clips, one per long side: an arm rising from the base with a shelf the carrier
-// rests on and a hook that snaps over its top face (the carrier's USB-end holes sit over the
-// ESP32, so there's no stud there). Distances are from the carrier edge, outboard positive.
+// v5: floor to the board's USB-C was 6.0 in the v4 tray; the carrier comes down rev_drop from
+// there. The USB cutout stays where v4 had it (the user's call): the connector still sits inside.
+rev_usb_floor_v4 = 6.0;
+rev_drop      = 3.0;
+esp_floor_clr = rev_usb_floor_v4 - rev_drop;   // floor to the board's lowest point (its USB-C)
+usb_cut_z_rev = 4.9;   // centre of the v4 USB cutout, unchanged
+top_clr_rev   = 1.0;   // mic pin tips to the cover's inside
+// Snap clips, four: one per long side at each end. An arm rises from the floor (through a window
+// in the lip) with a shelf the carrier rests on and a hook that snaps over its top face.
+// Distances from the carrier edge, outboard positive. v5 margins for 0.16 mm STD prints: the v4
+// clip was sized to the model and would not hold on a real print.
 clip_len      = 8;     // along the edge
-clip_y0       = 2.5;   // from the USB edge: clear of the cover's rounded corner
+clip_y0       = 2.5;   // USB end: from the carrier edge, clear of the cover's rounded corner
+clip_y0_far   = 8.0;   // far end: clear of the corner pockets / posts (the shelf is outside the board's outline)
 clip_t        = 1.6;   // arm thickness (flexes outward to let the board past)
-clip_clr      = 0.2;   // carrier edge to arm
-clip_catch    = 0.6;   // hook overlap on the carrier's top face
-clip_hook_t   = 0.3;   // flat part of the hook, then a 45° lead-in
-clip_gap      = 0.05;  // hook underside above the carrier
-shelf_in      = 0.8;   // shelf reach under the carrier (0.33 clear of the ESP32's edge)
+clip_clr      = 0.3;   // carrier edge to arm (v4: 0.2)
+clip_catch    = 0.9;   // hook overlap on the carrier's top face (v4: 0.6)
+clip_hook_t   = 0.4;   // flat part of the hook, then a 45° lead-in (v4: 0.3)
+clip_gap      = 0.15;  // hook underside above the carrier (v4: 0.05)
+shelf_in      = 0.8;   // shelf reach under the carrier (0.33 clear of the board's edge)
 shelf_t       = 1.2;
+lip_win_clr   = 0.5;   // lip window beyond the clip, each end
+fx_clip_x     = [-shelf_in, clip_clr + clip_t];   // clip footprint across the edge: shelf's inner edge to the arm's outer face
+// far-end locating posts: the carrier's two far-end holes drop onto plain pins (no barb, no slit)
+post_pin_d    = 1.8;   // in a 2.2 hole: 0.2 per side
+post_pin_tip  = 1.0;   // pin above the carrier
 
 // --- Derived ---
 rev     = layout == "reversed";
@@ -97,9 +109,10 @@ rev     = layout == "reversed";
 flat_inset = edge_r * (2 - 2 * cos(45));
 margin  = max(0.4, plan_r_in - (plan_r_in - corner_clr) / sqrt(2));   // board edge to inner wall
 zc_rev  = esp_floor_clr + esp_side_rev;                       // carrier underside, reversed
-mic_top_rev = zc_rev + pcb_t + mic_spacer_h + mic_h;
-in_h_c  = rev ? mic_top_rev + mic_lid_clr : in_h;             // cover inside height
-usb_z_c = rev ? esp_floor_clr + max(usb_h, esp_top_h) / 2 : usb_z;
+mic_top_rev = zc_rev + pcb_t + mic_spacer_h + mic_h;          // mic module top
+in_h_c  = rev ? zc_rev + pcb_t + mic_side_rev + top_clr_rev : in_h;   // cover inside height: over the mic pins
+usb_z_c = rev ? usb_cut_z_rev : usb_z;
+clip_ys = [clip_y0, pcb_l - clip_y0_far - clip_len];
 far_holes = [for (h = pcb_holes) if (mic_end_hole(h)) h];
 in_x0   = -margin;              in_x1 = pcb_w + margin;
 in_y0   = -margin;              in_y1 = pcb_l + margin;
@@ -155,56 +168,95 @@ module key_notch() {   // at the mic end, centred on the board
     translate([pcb_w / 2 - key_w / 2 - key_clr, in_y1 - lip_t - lip_fit - 1, -eps]) cube([key_w + 2 * key_clr, lip_t + 2, lip_h + 2 * eps]);
 }
 
+// Base = shell (plate + press-fit lip) + mounts (what holds the carrier), minus the cuts.
+module base_shell() {
+    // plate with a chamfered bottom edge
+    hull() {
+        translate([0, 0, -floor_t]) outer_plan(eps, -base_chamfer);
+        translate([0, 0, -floor_t + base_chamfer]) outer_plan(floor_t - base_chamfer);
+    }
+    // press-fit lip with a detent bead
+    difference() {
+        union() {
+            inner_plan(lip_h, -lip_fit);
+            translate([0, 0, detent_z]) inner_plan(detent_band, -lip_fit + detent);
+        }
+        translate([0, 0, -eps]) inner_plan(lip_h + 1, -lip_fit - lip_t);
+        key_notch();
+    }
+}
+
+module base_mounts() {
+    if (rev) { side_clips(zc_rev); far_posts(zc_rev); }
+    else if (fastening == "studs") stud_standoffs();
+    else standoffs_screws();
+}
+
+module base_cuts() {
+    if (rev) usb_cut_prism(lip_h + 1);   // the low USB cutout notches the lip
+    if (!rev && fastening == "screws") standoff_pilots(floor_t, screw_holes);
+    if (back == "keyholes") for (y = keyhole_y) translate([pcb_w / 2, pcb_l - y, 0]) keyhole();
+}
+
 module base() {
     difference() {
         union() {
-            // plate with a chamfered bottom edge
-            hull() {
-                translate([0, 0, -floor_t]) outer_plan(eps, -base_chamfer);
-                translate([0, 0, -floor_t + base_chamfer]) outer_plan(floor_t - base_chamfer);
-            }
-            // press-fit lip with a detent bead
-            difference() {
-                union() {
-                    inner_plan(lip_h, -lip_fit);
-                    translate([0, 0, detent_z]) inner_plan(detent_band, -lip_fit + detent);
-                }
-                translate([0, 0, -eps]) inner_plan(lip_h + 1, -lip_fit - lip_t);
-                key_notch();
-            }
-            if (rev) { stud_standoffs(far_holes, far_holes, zc_rev); usb_end_clips(); }
-            else if (fastening == "studs") stud_standoffs();
-            else standoffs_screws();
+            // the clip arms root on the floor, through windows in the lip
+            difference() { base_shell(); if (rev) lip_windows(); }
+            base_mounts();
         }
-        if (rev) usb_cut_prism(lip_h + 1);   // the low USB cutout notches the lip
-        if (!rev && fastening == "screws") standoff_pilots(floor_t, screw_holes);
-        if (back == "keyholes") for (y = keyhole_y) translate([pcb_w / 2, pcb_l - y, 0]) keyhole();
+        base_cuts();
+    }
+}
+
+// Clip sites: [side (0 = left, 1 = right), y0].
+clip_sites = [for (side = [0, 1], y = clip_ys) [side, y]];
+
+// Place a child in a clip site's frame: X outboard from that side's carrier edge, Y from y0.
+module at_clip(site) {
+    translate([site[0] == 0 ? 0 : pcb_w, site[1], 0]) mirror([site[0] == 0 ? 1 : 0, 0, 0]) children();
+}
+
+module lip_windows() {
+    for (c = clip_sites) at_clip(c)
+        translate([fx_clip_x[0] - 0.5, -lip_win_clr, -eps]) cube([margin - fx_clip_x[0] + 0.5, clip_len + 2 * lip_win_clr, lip_h + 1]);
+}
+
+module far_posts(zc) {
+    for (h = far_holes) translate([each k2s(h), 0]) {
+        cylinder(d = standoff_d, h = zc);
+        translate([0, 0, zc - eps]) plain_stud(post_pin_d);
     }
 }
 
 // Clip cross-section (X = outboard from the carrier edge, Z up), extruded along the edge.
-module clip_profile() {
-    z_hook = zc_rev + pcb_t + clip_gap;
+// zc = carrier underside; hook = false gives a plain stand (shelf only).
+module clip_profile(zc = zc_rev, hook = true) {
+    z_hook = hook ? zc + pcb_t + clip_gap : zc;
     reach = clip_clr + clip_catch;
-    polygon([
+    polygon(hook ? [
         [clip_clr + clip_t, 0], [clip_clr + clip_t, z_hook + clip_hook_t + reach],   // arm, outer face
         [clip_clr, z_hook + clip_hook_t + reach],                                      // arm top
         [-clip_catch, z_hook + clip_hook_t], [-clip_catch, z_hook],                    // hook: 45° lead-in, flat catch
         [clip_clr, z_hook],                                                            // hook underside, back to the arm
-        [clip_clr, zc_rev], [-shelf_in, zc_rev], [-shelf_in, zc_rev - shelf_t],        // shelf the carrier sits on
-        [clip_clr, zc_rev - shelf_t - (shelf_in + clip_clr)],                          // 45° gusset under the shelf
-        [clip_clr, 0]]);
+        [clip_clr, zc], [-shelf_in, zc], [-shelf_in, zc - shelf_t],                    // shelf the carrier sits on
+        [clip_clr, zc - shelf_t - (shelf_in + clip_clr)],                              // 45° gusset under the shelf
+        [clip_clr, 0]] : [
+        [clip_clr + clip_t, 0], [clip_clr + clip_t, zc], [-shelf_in, zc], [-shelf_in, zc - shelf_t],
+        [clip_clr, zc - shelf_t - (shelf_in + clip_clr)], [clip_clr, 0]]);
 }
 
-module usb_end_clips() {
-    for (side = [0, 1]) translate([side == 0 ? 0 : pcb_w, clip_y0, 0]) mirror([side == 0 ? 1 : 0, 0, 0])
-        rotate([90, 0, 0]) translate([0, 0, -clip_len]) linear_extrude(clip_len) clip_profile();
+module clip_solid(zc = zc_rev, hook = true) {
+    rotate([90, 0, 0]) translate([0, 0, -clip_len]) linear_extrude(clip_len) clip_profile(zc, hook);
 }
 
-// Arm strain when the hook swings clear of the carrier edge: a cantilever from the lip top.
-clip_free_len = zc_rev + pcb_t + clip_gap + clip_hook_t + clip_clr + clip_catch - lip_h;
+module side_clips(zc = zc_rev) { for (c = clip_sites) at_clip(c) clip_solid(zc); }
+
+// Arm strain when the hook swings clear of the carrier edge: a cantilever from the floor (the lip
+// is windowed around it).
+clip_free_len = zc_rev + pcb_t + clip_gap + clip_hook_t + clip_clr + clip_catch;
 clip_strain   = 1.5 * clip_t * (clip_catch + clip_gap) / (clip_free_len * clip_free_len);
-assert(clip_strain < 0.02, "USB-end clip arm would strain PLA past ~2 % to release");
+assert(clip_strain < 0.02, "clip arm would strain PLA past ~2 % to release");
 
 // USB-C cutout as a prism through the USB end wall; open to the bottom edge when it reaches there.
 module usb_cut_prism(depth = wall * 3) {
@@ -260,10 +312,69 @@ module drop_in_path_rev() {
         square([pcb_w, pcb_l]);
         for (p = far_holes) translate(k2s(p)) circle(d = drop_in_hole_d);
         // the clip hooks overhang the carrier on purpose: they swing aside and snap over it
-        for (x = [0, pcb_w - clip_catch - 0.1]) translate([x, clip_y0 - 0.1]) square([clip_catch + 0.1, clip_len + 0.2]);
+        for (x = [0, pcb_w - clip_catch - 0.1], y = clip_ys) translate([x, y - 0.1]) square([clip_catch + 0.1, clip_len + 0.2]);
     }
 }
 module comps() { if (rev) components_rev(zc_rev); else components(screw_holes); }
+
+// ---------------------------------------------------------------------------------------------
+// Test fixture (reversed layout): the tray without mounts, with 1 mm-deep pockets where each
+// mount stands, and inserts that drop into them. Print the tray once; print only inserts to test
+// heights and mount types. Every fit here has print margins (0.16 mm STD).
+fx_depth  = 1.0;    // pocket depth into the 2 mm floor
+fx_clr    = 0.3;    // pocket to insert foot, per side
+fx_flange = 1.0;    // insert base above the floor, for a steadier seat
+fx_post_w = standoff_d + 1.0;   // corner pocket (square)
+// clip-site pocket, in the site frame: from the shelf's inner edge to the arm's outer face
+fx_zc     = zc_rev;  // carrier underside for this insert set (vary to test heights)
+fx_type   = "clip";  // clip | stand: what goes in the four side pockets
+fx_corner = "post";  // post | stud: what goes in the two far-end corner pockets
+
+module fx_clip_pocket(grow = 0) {
+    translate([fx_clip_x[0] - grow, -grow, -fx_depth - (grow > 0 ? 0 : 0)])
+        cube([fx_clip_x[1] - fx_clip_x[0] + 2 * grow, clip_len + 2 * grow, fx_depth + (grow > 0 ? eps : 0)]);
+}
+module fx_post_pocket(grow = 0) {   // round: a square one runs into the lip's rounded corner
+    translate([0, 0, -fx_depth]) cylinder(d = fx_post_w + 2 * grow, h = fx_depth + (grow > 0 ? eps : 0));
+}
+
+module fixture_tray() {
+    difference() {
+        base_shell();
+        base_cuts();
+        lip_windows();
+        for (c = clip_sites) at_clip(c) fx_clip_pocket(fx_clr);
+        for (h = far_holes) translate([each k2s(h), 0]) fx_post_pocket(fx_clr);
+    }
+}
+
+// Inserts, in place (their foot fills the pocket, less fx_clr per side).
+module fx_side_insert(zc = fx_zc, type = fx_type) {
+    // overlapped by eps: faces that only touch come out non-manifold
+    translate([fx_clip_x[0] + eps, eps, -fx_depth]) cube([fx_clip_x[1] - fx_clip_x[0] - 2 * eps, clip_len - 2 * eps, fx_depth + fx_flange]);
+    clip_solid(zc, type == "clip");
+}
+module fx_corner_insert(h, zc = fx_zc, type = fx_corner) {
+    translate([each k2s(h), 0]) {
+        fx_post_pocket();
+        cylinder(d = fx_post_w, h = fx_flange);
+    }
+    if (type == "stud") stud_standoffs([h], [h], zc);
+    else translate([each k2s(h), 0]) { cylinder(d = standoff_d, h = zc); translate([0, 0, zc - eps]) plain_stud(post_pin_d); }
+}
+module fx_inserts_in_place() {
+    for (c = clip_sites) at_clip(c) fx_side_insert();
+    for (h = far_holes) fx_corner_insert(h);
+}
+
+// Print plate of one insert set: side inserts lying on their side (the arm then bends within its
+// layers, the strong way), corner inserts upright.
+module fx_inserts_plate() {
+    for (i = [0 : 3]) translate([i * 13, 0, clip_len]) rotate([-90, 0, 0])
+        translate([-fx_clip_x[0], 0, fx_depth]) fx_side_insert();
+    for (i = [0 : 1]) translate([4 * 13 + 4 + i * (fx_post_w + 4), fx_post_w / 2, fx_depth])
+        translate(-[each k2s(far_holes[i]), 0]) fx_corner_insert(far_holes[i]);
+}
 
 plate_gap = 6;
 
@@ -277,6 +388,16 @@ module plate() {
 }
 
 if (part == "none") {}   // for include-only use
+else if (part == "fixture_tray") fixture_tray();
+else if (part == "fixture_inserts") fx_inserts_plate();
+else if (part == "fixture_assembly") { color("SteelBlue") fixture_tray(); color("Orange") fx_inserts_in_place(); %comps(); }
+else if (part == "fixture_exploded") { color("SteelBlue") fixture_tray(); color("Orange") translate([0, 0, 18]) fx_inserts_in_place(); }
+else if (part == "fixture_check") union() {   // must be empty
+    intersection() { fixture_tray(); fx_inserts_in_place(); }                        // inserts clear their pockets
+    intersection() { union() { fixture_tray(); fx_inserts_in_place(); cover(); } translate([0, 0, eps]) comps(); }
+    intersection() { union() { fixture_tray(); fx_inserts_in_place(); } drop_in_path_rev(); }
+    intersection() { union() { fixture_tray(); fx_inserts_in_place(); } translate([0, 0, eps]) cover(); }
+}
 else if (part == "plate") plate();
 else if (part == "base") base();
 else if (part == "cover") cover_print();

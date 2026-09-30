@@ -66,9 +66,14 @@ mic_h           = 1.9;    // mic module PCB + components
 mic_spacer_h    = 2.38;   // header plastic between the carrier and the mic module
 mic_disc_t      = 2.5;    // front layout: module PCB + mic, top at mic_top
 
-/* [Reversed layout] (board flipped: ESP32 down, mic soldered on the back, facing up) */
-stack_total_rev = 15.7;   // callipers: ESP32 side + carrier + mic side
-esp_side_rev    = stack_total_rev - pcb_t - (mic_spacer_h + mic_h);   // carrier face to the ESP32's lowest part
+/* [Reversed layout] (carrier flipped: board down, mic soldered on the back, facing up) */
+// Measured in the v4 reversed tray, carrier on its 13.12 mm studs: floor to the board's USB-C
+// (its lowest point) 6.0, floor to the ESP PCB 9.3.
+stack_total_rev = 15.7;   // callipers: board side + carrier + mic side (up to the mic's pin tips)
+esp_pcb_to_usb  = 9.3 - 6.0;   // ESP PCB (component face, down) to the USB-C's lowest face
+esp_side_rev    = esp_spacer_h + esp_pcb_t + esp_pcb_to_usb;   // carrier face to the board's lowest point
+mic_side_rev    = stack_total_rev - pcb_t - esp_side_rev;       // carrier back face to the mic's pin tips
+mic_pin_d       = 0.8;
 
 // --- Derived (heights above the enclosure floor top) ---
 pcb_z     = standoff_h;
@@ -170,17 +175,24 @@ module esp32() {
 // The board is flipped about its long axis; everything it carries is symmetric about that axis
 // except C1, which moves to the other side.
 module components_rev(zc) {
+    hp = esp_side_rev - esp_pcb_t - esp_pcb_to_usb;   // header plastic, carrier to ESP PCB
     translate([0, 0, zc - pcb_z]) carrier(drop_in_hole_d);
-    // ESP32 hangs below: components facing down, its lowest part esp_side_rev below the carrier
-    translate([(pcb_w - esp_w) / 2, 0, zc - esp_side_rev + esp_thick]) mirror([0, 0, 1]) esp32();
-    // header plastic between the carrier and the ESP32
-    for (x = [2.3, 27.7]) translate([pcb_w - (x + pcb_dx) - 1.27, k2s([0, 61.72 + 1.27])[1], zc - (esp_side_rev - esp_thick)])
-        cube([2.54, 19 * 2.54, esp_side_rev - esp_thick]);
+    // the board hangs below, components facing down: ESP PCB, then the USB-C (lowest) and antenna
+    translate([(pcb_w - esp_w) / 2, 0, 0]) {
+        translate([0, esp_l - esp_board_l, zc - hp - esp_pcb_t]) cube([esp_w, esp_board_l, esp_pcb_t]);
+        translate([(esp_w - 18) / 2, esp_l - 25.5, zc - hp - esp_pcb_t - esp_top_h]) cube([18, 25.5, esp_top_h]);
+        translate([(esp_w - 9) / 2, 0, zc - esp_side_rev]) cube([9, 7.5, esp_pcb_to_usb]);
+    }
+    // header plastic between the carrier and the board
+    for (x = [2.3, 27.7]) translate([pcb_w - (x + pcb_dx) - 1.27, k2s([0, 61.72 + 1.27])[1], zc - hp])
+        cube([2.54, 19 * 2.54, hp]);
     translate([pcb_w - (21.5 + pcb_dx) - cap_body[0] / 2, k2s([0, 11])[1], zc - cap_body[2]]) cube(cap_body);
     // ESP32 pin tails through the carrier, on the mic side
     for (x = [2.3, 27.7]) translate([pcb_w - (x + pcb_dx) - 0.5, k2s([0, 61.72 + 0.5])[1], zc + pcb_t]) cube([1, 19 * 2.54, 1.0]);
-    // mic module on the back face, on its header plastic
+    // mic module on the back face, on its header plastic, and its six pin tips above it
     translate([each mic_s, zc + pcb_t + mic_spacer_h]) cylinder(d = mic_d, h = mic_h);
+    for (dx = [-2.54, 0, 2.54], dy = [-3.81, 3.81]) translate([each k2s([15 + dx, 9 + dy]), zc + pcb_t])
+        cylinder(d = mic_pin_d, h = mic_side_rev);
 }
 
 // Everything above the carrier has to drop in straight down: the base must leave the
