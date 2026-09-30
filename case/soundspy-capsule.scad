@@ -53,10 +53,9 @@ ring_w      = 1.0;   // debossed ring around the grill (a raised one would lift 
 ring_gap    = 1.0;   // grill circle to the ring's inner edge
 ring_depth  = 0.6;
 
-/* [LED window] PLACEHOLDER position until measured on the ESP32 */
+/* [LED window] front layout only: the reversed layout faces the LED down */
 led_window  = true;
-led_d       = 2.5;
-led_s       = [8.0, 5.0];   // SCAD XY (USB edge = Y 0, left edge = X 0, component side up)
+led_d       = 2.5;   // position: led_s_front in board.scad, from the measured LED
 
 /* [Mic grill: mic-end wall, the top when wall-mounted] */
 end_slots   = 3;
@@ -215,10 +214,8 @@ module cover() {
             cylinder(d = grill_d + 2 * (ring_gap + ring_w), h = ring_depth + 1);
             translate([0, 0, -1]) cylinder(d = grill_d + 2 * ring_gap, h = ring_depth + 3);
         }
-        // LED window: through the top over a component-side-up LED, through the USB end wall
-        // beside the USB cutout when the ESP32 faces the floor
-        if (led_window && !rev) translate([each led_s, in_h_c - 1]) cylinder(d = led_d, h = top_t + 2);
-        if (led_window && rev) translate([pcb_w / 2 - usb_cut_w / 2 - 2.5, in_y0 - wall / 2, esp_floor_clr + 1.5]) rotate([90, 0, 0]) cylinder(d = led_d, h = wall * 3, center = true);
+        // LED window through the top, straight over the ESP32's LED (front layout only)
+        if (led_window && !rev) translate([each led_s_front, in_h_c - 1]) cylinder(d = led_d, h = top_t + 2);
         // smaller grill in the mic-end wall, at mic height
         for (i = [0 : end_slots - 1])
             translate([k2s(mic_xy)[0] + (i - (end_slots - 1) / 2) * end_pitch, in_y1 + wall / 2, end_slot_top - end_slot_h / 2])

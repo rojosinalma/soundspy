@@ -58,6 +58,7 @@ esp_l           = 56.8;   // USB-C face to antenna end; the USB-C face is flush 
 esp_board_l     = 55.1;   // ESP32 PCB alone
 esp_thick       = 4.5;    // ESP32 PCB + components (the antenna is the tallest)
 esp_spacer_h    = 2.38;   // header plastic between the carrier and the ESP32
+led_on_esp      = [6.6, 15.3];   // callipers: from the ESP32 board's left edge and its USB-end edge, component side up
 screw_head      = [3.8, 1.3];
 cap_body        = [3.2, 5.1, 5];   // C1 disc, standing
 mic_pcb_t       = 0.8;
@@ -82,6 +83,7 @@ in_h      = max(parts_top + top_clearance, usb_z + usb_cut_h / 2 + usb_bridge);
 
 function k2s(p) = [p[0] + pcb_dx, pcb_l - (p[1] + pcb_dy)];   // KiCad → SCAD XY
 mic_s  = [pcb_w / 2, mic_from_usb];               // SCAD XY of the mic centre
+led_s_front = [(pcb_w - esp_w) / 2 + led_on_esp[0], esp_l - esp_board_l + led_on_esp[1]];   // SCAD XY of the ESP32 LED, front layout
 mic_xy = [mic_s[0] - pcb_dx, pcb_l - mic_s[1] - pcb_dy];   // the same in KiCad coords
 function mic_end_hole(h) = h[1] < pcb_l / 2;
 
@@ -159,6 +161,7 @@ module components(screw_holes = pcb_holes) {
 // ESP32 with its PCB bottom at z=0, USB-C face at Y=0, components up.
 module esp32() {
     translate([0, esp_l - esp_board_l, 0]) cube([esp_w, esp_board_l, esp_pcb_t]);
+    translate([led_on_esp[0] - 0.8, esp_l - esp_board_l + led_on_esp[1] - 0.5, esp_pcb_t]) cube([1.6, 1.0, 0.6]);   // LED
     translate([(esp_w - 18) / 2, esp_l - 25.5, esp_pcb_t]) cube([18, 25.5, esp_top_h]);
     translate([(esp_w - 9) / 2, 0, esp_pcb_t]) cube([9, 7.5, max(usb_h, esp_top_h)]);
 }
