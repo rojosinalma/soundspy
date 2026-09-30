@@ -44,9 +44,10 @@ key_clr     = 0.2;
 /* [Mic grill: lid face over the mic] */
 grill_slots = 5;
 grill_w     = 1.6;
-grill_len   = 14;    // clipped to grill_d
+grill_len   = 14;    // upper limit; each slot is shortened to stay inside grill_d
 grill_pitch = 2.8;
-grill_d     = 15.0;  // circle the slots are clipped to, centred on the mic
+grill_d     = 15.0;  // circle every slot stays inside, centred on the mic
+grill_margin = 0.3;  // slot ends to that circle
 ring_w      = 1.0;   // debossed ring around the grill (a raised one would lift the top off the bed)
 ring_gap    = 1.0;   // grill circle to the ring's inner edge
 ring_depth  = 0.6;
@@ -116,6 +117,15 @@ module outer_plan(h, grow = 0) { plan(in_x0 - wall - grow, in_y0 - wall - grow, 
 module inner_plan(h, grow = 0) { plan(in_x0 - grow, in_y0 - grow, in_x1 + grow, in_y1 + grow, plan_r_in + grow, h); }
 
 module slot_2d(len, w) { hull() for (s = [-1, 1]) translate([s * (len - w) / 2, 0]) circle(d = w); }
+
+// Slot i's length so its rounded ends stay inside a circle of grill_d.
+function grill_slot_y(i) = (i - (grill_slots - 1) / 2) * grill_pitch;
+function grill_slot_len(y) = let(r = grill_d / 2 - grill_margin - grill_w / 2) r > abs(y) ? 2 * (sqrt(r * r - y * y) + grill_w / 2) : 0;
+
+module grill_2d() {
+    for (i = [0 : grill_slots - 1]) let(y = grill_slot_y(i), l = min(grill_len, grill_slot_len(y)))
+        if (l > 2 * grill_w) translate([0, y]) slot_2d(l, grill_w);
+}
 
 module keyhole() {
     translate([0, 0, -floor_t - eps]) linear_extrude(floor_t + 2 * eps) {
@@ -190,12 +200,9 @@ module cover() {
         translate([pcb_w / 2, in_y0 - wall / 2, usb_z_c]) rotate([90, 0, 0])
             linear_extrude(wall * 3, center = true) offset(r = usb_cut_r) square([usb_cut_w - 2 * usb_cut_r, usb_cut_h - 2 * usb_cut_r], center = true);
         if (rev) translate([pcb_w / 2 - usb_cut_w / 2, in_y0 - 2 * wall, -eps]) cube([usb_cut_w, 3 * wall, usb_z_c]);
-        // lid grill over the mic: slots across the width, clipped to a circle, with a debossed ring
-        translate([each mic_s, in_h_c - 1]) intersection() {
-            for (i = [0 : grill_slots - 1])
-                translate([0, (i - (grill_slots - 1) / 2) * grill_pitch, 0]) linear_extrude(top_t + 2) slot_2d(grill_len, grill_w);
-            cylinder(d = grill_d, h = top_t + 2);
-        }
+        // lid grill over the mic: whole round-ended slots, each sized to stay inside the grill circle,
+        // inside a debossed ring (ring_gap of solid top between them)
+        translate([each mic_s, in_h_c - 1]) linear_extrude(top_t + 2) grill_2d();
         translate([each mic_s, cover_h - ring_depth]) difference() {
             cylinder(d = grill_d + 2 * (ring_gap + ring_w), h = ring_depth + 1);
             translate([0, 0, -1]) cylinder(d = grill_d + 2 * ring_gap, h = ring_depth + 3);
@@ -259,6 +266,8 @@ else if (part == "fitcheck") union() {
     if (rev) intersection() { base(); drop_in_path_rev(); }
     else intersection() { base(); drop_in_path(); }
 }
+else if (part == "grillcheck")   // must be empty: no slot reaches past grill_d, so none touches the ring
+    intersection() { linear_extrude(1) grill_2d(); difference() { cylinder(d = 100, h = 1); translate([0, 0, -1]) cylinder(d = grill_d + 0.001, h = 3); } }
 else if (part == "dims") echo(layout = layout, margin = margin, outer = [in_x1 - in_x0 + 2 * wall, in_y1 - in_y0 + 2 * wall, floor_t + cover_h], in_h = in_h_c, zc_rev = zc_rev, usb_z = usb_z_c, mic_top_rev = mic_top_rev);
 else {
     base();
