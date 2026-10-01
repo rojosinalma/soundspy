@@ -98,9 +98,9 @@ shelf_in      = 0.8;   // shelf reach under the carrier (0.33 clear of the board
 shelf_t       = 1.2;
 lip_win_clr   = 0.5;   // lip window beyond the clip, each end
 fx_clip_x     = [-shelf_in, clip_clr + clip_t];   // clip footprint across the edge: shelf's inner edge to the arm's outer face
-// far-end locating posts: the carrier's two far-end holes drop onto plain pins (no barb, no slit)
-post_pin_d    = 1.8;   // in a 2.2 hole: 0.2 per side
-post_pin_tip  = 1.0;   // pin above the carrier
+// far-end columns: the carrier's two far-end holes drop onto plain pins (no barb, no slit); a
+// press-on hat (fixture section) over each pin holds the board down. Pin size and height: pin_d /
+// pin_above in the fixture section.
 
 // --- Derived ---
 rev     = layout == "reversed";
@@ -225,9 +225,11 @@ module lip_windows() {
 module far_posts(zc) {
     for (h = far_holes) translate([each k2s(h), 0]) {
         cylinder(d = standoff_d, h = zc);
-        translate([0, 0, zc - eps]) plain_stud(post_pin_d);
+        cylinder(d = pin_d, h = zc + pcb_t + pin_above - 0.4);
+        translate([0, 0, zc + pcb_t + pin_above - 0.4]) cylinder(d1 = pin_d, d2 = pin_d - 0.8, h = 0.4);
     }
 }
+module hats(zc = zc_rev) { for (h = far_holes) translate([each k2s(h), zc + pcb_t + hat_lift]) fx_hat(); }
 
 // Clip cross-section (X = outboard from the carrier edge, Z up), extruded along the edge.
 // zc = carrier underside; hook = false gives a plain stand (shelf only).
@@ -336,8 +338,9 @@ fx_corner = "column";  // column | stud: what goes in the two far-end corner poc
 // Measured on the printed v5 tray (callipers): what the inserts are actually sized to.
 pk_round_d  = 6.4;          // far-end corner pockets
 pk_clip     = [3.3, 8.6];   // USB-end clip pockets: across the edge, along the edge
-pk_gap      = 0.05;         // foot under the pocket, per side
-rib_over    = 0.05;         // rib tip over the pocket wall, per side (the crush)
+pk_gap      = 0.10;         // foot under the pocket, per side
+rib_h       = 0.15;         // rib height from the foot: must be a real extrusion, 0.05 would be dropped by the slicer
+rib_over    = rib_h - pk_gap;   // rib tip over the pocket wall, per side (the crush): 0.05
 rib_w       = 0.6;
 
 // column: pin stands pin_above over the carrier; a hat presses down over it and sits on the carrier
@@ -345,7 +348,7 @@ pin_d       = 1.8;          // in the carrier's 2.2 hole
 pin_above   = 3.5;
 hat_d       = 5.0;
 hat_h       = pin_above + 0.6;   // bore to the pin tip + 0.6 roof
-hat_bore    = pin_d + 0.1;  // three ribs inside grip the pin
+hat_bore    = pin_d + 0.2;  // three ribs inside, rib_h tall, grip the pin: 1.7 across the ribs on a 1.8 pin
 
 // n ribs of height h on a cylinder of diameter d, from z0 to z1
 module ribs(d, h, n, z0, z1) {
@@ -380,8 +383,8 @@ module fx_side_insert(zc = fx_zc, type = fx_type) {
     translate([fx_clip_foot_x0, (clip_len - fx_clip_foot[1]) / 2, -fx_depth]) {
         cube([fx_clip_foot[0], fx_clip_foot[1], fx_depth + eps]);
         // crush ribs on the two long faces (across the edge); along the edge the foot is 0.05 under
-        for (x = [-rib_over, fx_clip_foot[0] - eps], y = [0.8, fx_clip_foot[1] - 0.8 - rib_w])
-            translate([x, y, 0]) cube([rib_over + eps, rib_w, fx_depth]);
+        for (x = [-rib_h, fx_clip_foot[0] - eps], y = [0.8, fx_clip_foot[1] - 0.8 - rib_w])
+            translate([x, y, 0]) cube([rib_h + eps, rib_w, fx_depth]);
     }
     clip_solid(zc, type == "clip");
 }
@@ -397,7 +400,10 @@ module fx_side_plate(site) {
 
 module fx_column(zc = fx_zc) {
     translate([0, 0, -fx_depth]) cylinder(d = fx_col_foot_d, h = fx_depth + fx_flange);
-    ribs(fx_col_foot_d, rib_over, 3, -fx_depth, 0);
+    ribs(fx_col_foot_d, rib_h, 3, -fx_depth, 0);
+    far_posts_one(zc);
+}
+module far_posts_one(zc) {   // one column's post + pin, at the origin
     cylinder(d = standoff_d, h = zc);
     cylinder(d = pin_d, h = zc + pcb_t + pin_above - 0.4);
     translate([0, 0, zc + pcb_t + pin_above - 0.4]) cylinder(d1 = pin_d, d2 = pin_d - 0.8, h = 0.4);
@@ -408,14 +414,14 @@ module fx_hat() {
         union() { cylinder(d = hat_d, h = hat_h - 0.3); translate([0, 0, hat_h - 0.3 - eps]) cylinder(d1 = hat_d, d2 = hat_d - 0.6, h = 0.3); }
         translate([0, 0, -eps]) difference() {
             cylinder(d = hat_bore, h = hat_h - 0.6);
-            ribs(hat_bore - 2 * (rib_over + 0.05), rib_over + 0.05 + eps, 3, -eps, hat_h);
+            ribs(hat_bore - 2 * rib_h, rib_h + eps, 3, -eps, hat_h);
         }
     }
 }
 
 module fx_corner_insert(h, zc = fx_zc, type = fx_corner) {
     translate([each k2s(h), 0]) {
-        if (type == "stud") { translate([0, 0, -fx_depth]) cylinder(d = fx_col_foot_d, h = fx_depth + fx_flange); ribs(fx_col_foot_d, rib_over, 3, -fx_depth, 0); }
+        if (type == "stud") { translate([0, 0, -fx_depth]) cylinder(d = fx_col_foot_d, h = fx_depth + fx_flange); ribs(fx_col_foot_d, rib_h, 3, -fx_depth, 0); }
         else fx_column(zc);
     }
     if (type == "stud") stud_standoffs([h], [h], zc);
@@ -440,6 +446,8 @@ module fx_inserts_plate() {
 
 // Fit numbers, asserted: feet under their pockets, rib tips over them by the crush.
 fx_clip_pocket_w = fx_clip_x[1] - fx_clip_x[0] + 2 * fx_clr;   // model: 3.3
+assert(fx_clip_foot[0] < pk_clip[0] && fx_clip_foot[0] + 2 * rib_h > pk_clip[0] && fx_col_foot_d < pk_round_d && fx_col_foot_d + 2 * rib_h > pk_round_d && hat_bore - 2 * rib_h < pin_d && hat_bore > pin_d,
+       "press fits: foot must be under the pocket and rib tips over it (hat: bore over the pin, ribs under)");
 assert(abs(fx_clip_pocket_w - pk_clip[0]) < 0.15 && abs(clip_len + 2 * fx_clr - pk_clip[1]) < 0.15 && abs(fx_post_w + 2 * fx_clr - pk_round_d) < 0.25,
        "measured pockets disagree with the tray model: check pk_* against fx_*");
 
@@ -462,18 +470,23 @@ else if (part == "fixture_exploded") { color("SteelBlue") fixture_tray(); color(
 else if (part == "fixture_column") { fx_column(); translate([9, 0, 0]) fx_hat(); }
 else if (part == "fixture_hat_cut") difference() { fx_hat(); translate([-10, 0, -1]) cube([20, 20, 10]); }
 else if (part == "fixture_check") union() {   // must be empty (ribs are meant to press: they are checked by the assert, not here)
-    intersection() { fixture_tray(); difference() { fx_inserts_in_place(); for (c = clip_sites) at_clip(c) translate([-5, -5, -fx_depth - 1]) cube([10, 20, fx_depth + 1 - eps]); for (h = far_holes) translate([each k2s(h), -fx_depth - 1]) cylinder(d = 20, h = fx_depth + 1 - eps); } }
-    intersection() { union() { fixture_tray(); fx_inserts_in_place(); cover(); } translate([0, 0, eps]) comps(); }
+    // inserts vs tray above the floor (the feet and ribs below it press into the pockets on purpose;
+    // their sizes are checked by the assert below)
+    intersection() { fixture_tray(); difference() { fx_inserts_in_place(false); translate([-50, -50, -10]) cube([200, 200, 10 + 2 * eps]); } }
+    intersection() { union() { fixture_tray(); fx_inserts_in_place(); cover(); } translate([0, 0, eps]) comps(); }   // with hats: they must clear the board
     intersection() { union() { fixture_tray(); fx_inserts_in_place(false); } drop_in_path_rev(); }
-    intersection() { union() { fixture_tray(); fx_inserts_in_place(); } translate([0, 0, eps]) cover(); }
-    // the hats must clear the lid and the mic
-    intersection() { for (h = far_holes) translate([each k2s(h), fx_zc + pcb_t + hat_lift]) fx_hat(); union() { translate([0, 0, 2 * hat_lift]) cover(); comps(); } }
+    intersection() { union() { fixture_tray(); fx_inserts_in_place(false); } translate([0, 0, eps]) cover(); }
+    // the hats must clear the lid, the mic and the inserts, apart from the pins they grip
+    intersection() { for (h = far_holes) translate([each k2s(h), fx_zc + pcb_t + hat_lift]) fx_hat();
+        union() { translate([0, 0, 2 * hat_lift]) cover(); comps();
+            difference() { fx_inserts_in_place(false); for (h = far_holes) translate([each k2s(h), -1]) cylinder(d = hat_bore + 0.3, h = 50); } } }
 }
 else if (part == "plate") plate();
 else if (part == "base") base();
 else if (part == "cover") cover_print();
 else if (part == "cover_inside") rotate([180, 0, 0]) cover();
 else if (part == "closed") { color("SteelBlue") base(); color("Gainsboro") cover(); }
+else if (part == "base_hats") { color("SteelBlue") base(); color("Gold") hats(); %comps(); }
 else if (part == "exploded") {
     base();
     %comps();
@@ -481,6 +494,9 @@ else if (part == "exploded") {
 }
 else if (part == "fitcheck") union() {
     intersection() { union() { base(); cover(); } translate([0, 0, eps]) comps(); }
+    // hats clear the lid, the mic and the base, apart from the pins they sit on
+    if (rev) intersection() { hats(); union() { translate([0, 0, 2 * hat_lift]) cover(); comps();
+        difference() { base(); for (h = far_holes) translate([each k2s(h), -1]) cylinder(d = hat_bore + 0.3, h = 50); } } }
     intersection() { base(); translate([0, 0, eps]) cover(); }   // closed case: nothing on the base may run into the cover (lifted: resting contact is fine)
     if (rev) intersection() { base(); drop_in_path_rev(); }
     else intersection() { base(); drop_in_path(); }
