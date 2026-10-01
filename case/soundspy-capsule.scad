@@ -320,18 +320,40 @@ module comps() { if (rev) components_rev(zc_rev); else components(screw_holes); 
 // ---------------------------------------------------------------------------------------------
 // Test fixture (reversed layout): the tray without mounts, with 1 mm-deep pockets where each
 // mount stands, and inserts that drop into them. Print the tray once; print only inserts to test
-// heights and mount types. Every fit here has print margins (0.16 mm STD).
+// heights and mount types.
+//
+// Lesson from the first run (2026-10-01): a 0.3 mm gap per side printed as exactly that and the
+// inserts fell over. A press fit here is a foot slightly UNDER the measured pocket plus small
+// crush ribs slightly OVER it: the ribs squash on the way in and hold whatever the pocket did.
 fx_depth  = 1.0;    // pocket depth into the 2 mm floor
-fx_clr    = 0.3;    // pocket to insert foot, per side
+fx_clr    = 0.3;    // pocket to the nominal mount footprint (tray as printed; keep for the tray geometry)
 fx_flange = 1.0;    // insert base above the floor, for a steadier seat
-fx_post_w = standoff_d + 1.0;   // corner pocket (square)
-// clip-site pocket, in the site frame: from the shelf's inner edge to the arm's outer face
+fx_post_w = standoff_d + 1.0;   // corner pocket nominal (round)
 fx_zc     = zc_rev;  // carrier underside for this insert set (vary to test heights)
-fx_type   = "clip";  // clip | stand: what goes in the four side pockets
-fx_corner = "post";  // post | stud: what goes in the two far-end corner pockets
+fx_type   = "clip";  // clip | stand: what goes in the USB-end side pockets
+fx_corner = "column";  // column | stud: what goes in the two far-end corner pockets
+
+// Measured on the printed v5 tray (callipers): what the inserts are actually sized to.
+pk_round_d  = 6.4;          // far-end corner pockets
+pk_clip     = [3.3, 8.6];   // USB-end clip pockets: across the edge, along the edge
+pk_gap      = 0.05;         // foot under the pocket, per side
+rib_over    = 0.05;         // rib tip over the pocket wall, per side (the crush)
+rib_w       = 0.6;
+
+// column: pin stands pin_above over the carrier; a hat presses down over it and sits on the carrier
+pin_d       = 1.8;          // in the carrier's 2.2 hole
+pin_above   = 3.5;
+hat_d       = 5.0;
+hat_h       = pin_above + 0.6;   // bore to the pin tip + 0.6 roof
+hat_bore    = pin_d + 0.1;  // three ribs inside grip the pin
+
+// n ribs of height h on a cylinder of diameter d, from z0 to z1
+module ribs(d, h, n, z0, z1) {
+    for (i = [0 : n - 1]) rotate(i * 360 / n) translate([d / 2 - eps, -rib_w / 2, z0]) cube([h + eps, rib_w, z1 - z0]);
+}
 
 module fx_clip_pocket(grow = 0) {
-    translate([fx_clip_x[0] - grow, -grow, -fx_depth - (grow > 0 ? 0 : 0)])
+    translate([fx_clip_x[0] - grow, -grow, -fx_depth])
         cube([fx_clip_x[1] - fx_clip_x[0] + 2 * grow, clip_len + 2 * grow, fx_depth + (grow > 0 ? eps : 0)]);
 }
 module fx_post_pocket(grow = 0) {   // round: a square one runs into the lip's rounded corner
@@ -348,33 +370,78 @@ module fixture_tray() {
     }
 }
 
-// Inserts, in place (their foot fills the pocket, less fx_clr per side).
+// --- Inserts (in place; the foot fills the measured pocket) ---
+fx_clip_foot = [pk_clip[0] - 2 * pk_gap, pk_clip[1] - 2 * pk_gap];   // 3.2 x 8.5
+fx_clip_foot_x0 = fx_clip_x[0] - fx_clr + pk_gap;                     // inboard face, site frame
+fx_col_foot_d   = pk_round_d - 2 * pk_gap;                            // 6.3
+
 module fx_side_insert(zc = fx_zc, type = fx_type) {
-    // overlapped by eps: faces that only touch come out non-manifold
-    translate([fx_clip_x[0] + eps, eps, -fx_depth]) cube([fx_clip_x[1] - fx_clip_x[0] - 2 * eps, clip_len - 2 * eps, fx_depth + fx_flange]);
+    // foot + base plate as one block (faces that only touch come out non-manifold)
+    translate([fx_clip_foot_x0, (clip_len - fx_clip_foot[1]) / 2, -fx_depth]) {
+        cube([fx_clip_foot[0], fx_clip_foot[1], fx_depth + eps]);
+        // crush ribs on the two long faces (across the edge); along the edge the foot is 0.05 under
+        for (x = [-rib_over, fx_clip_foot[0] - eps], y = [0.8, fx_clip_foot[1] - 0.8 - rib_w])
+            translate([x, y, 0]) cube([rib_over + eps, rib_w, fx_depth]);
+    }
     clip_solid(zc, type == "clip");
 }
-module fx_corner_insert(h, zc = fx_zc, type = fx_corner) {
-    translate([each k2s(h), 0]) {
-        fx_post_pocket();
-        cylinder(d = fx_post_w, h = fx_flange);
+
+// The side insert's base plate, trimmed to the lip's inner face (at the USB end it would
+// otherwise poke into the lip's rounded corner). Placed by at_clip(); needs the site to trim.
+module fx_side_plate(site) {
+    intersection() {
+        at_clip(site) translate([fx_clip_foot_x0, (clip_len - fx_clip_foot[1]) / 2, -eps]) cube([fx_clip_foot[0], fx_clip_foot[1], fx_flange + eps]);
+        inner_plan(fx_flange + 1, -lip_fit - lip_t - 0.1);
     }
-    if (type == "stud") stud_standoffs([h], [h], zc);
-    else translate([each k2s(h), 0]) { cylinder(d = standoff_d, h = zc); translate([0, 0, zc - eps]) plain_stud(post_pin_d); }
-}
-module fx_inserts_in_place() {
-    for (c = clip_sites) at_clip(c) fx_side_insert();
-    for (h = far_holes) fx_corner_insert(h);
 }
 
-// Print plate of one insert set: side inserts lying on their side (the arm then bends within its
-// layers, the strong way), corner inserts upright.
-module fx_inserts_plate() {
-    for (i = [0 : 3]) translate([i * 13, 0, clip_len]) rotate([-90, 0, 0])
-        translate([-fx_clip_x[0], 0, fx_depth]) fx_side_insert();
-    for (i = [0 : 1]) translate([4 * 13 + 4 + i * (fx_post_w + 4), fx_post_w / 2, fx_depth])
-        translate(-[each k2s(far_holes[i]), 0]) fx_corner_insert(far_holes[i]);
+module fx_column(zc = fx_zc) {
+    translate([0, 0, -fx_depth]) cylinder(d = fx_col_foot_d, h = fx_depth + fx_flange);
+    ribs(fx_col_foot_d, rib_over, 3, -fx_depth, 0);
+    cylinder(d = standoff_d, h = zc);
+    cylinder(d = pin_d, h = zc + pcb_t + pin_above - 0.4);
+    translate([0, 0, zc + pcb_t + pin_above - 0.4]) cylinder(d1 = pin_d, d2 = pin_d - 0.8, h = 0.4);
 }
+
+module fx_hat() {
+    difference() {
+        union() { cylinder(d = hat_d, h = hat_h - 0.3); translate([0, 0, hat_h - 0.3 - eps]) cylinder(d1 = hat_d, d2 = hat_d - 0.6, h = 0.3); }
+        translate([0, 0, -eps]) difference() {
+            cylinder(d = hat_bore, h = hat_h - 0.6);
+            ribs(hat_bore - 2 * (rib_over + 0.05), rib_over + 0.05 + eps, 3, -eps, hat_h);
+        }
+    }
+}
+
+module fx_corner_insert(h, zc = fx_zc, type = fx_corner) {
+    translate([each k2s(h), 0]) {
+        if (type == "stud") { translate([0, 0, -fx_depth]) cylinder(d = fx_col_foot_d, h = fx_depth + fx_flange); ribs(fx_col_foot_d, rib_over, 3, -fx_depth, 0); }
+        else fx_column(zc);
+    }
+    if (type == "stud") stud_standoffs([h], [h], zc);
+}
+
+hat_lift = 2 * eps;   // in the checks the hat rides a hair above the carrier: touching is not a collision
+module fx_inserts_in_place(hats = true) {
+    for (c = clip_sites) if (c[1] == clip_y0) { at_clip(c) fx_side_insert(); fx_side_plate(c); }   // USB end only; far-end pockets stay empty
+    for (h = far_holes) fx_corner_insert(h);
+    if (hats && fx_corner == "column") for (h = far_holes) translate([each k2s(h), fx_zc + pcb_t + hat_lift]) fx_hat();
+}
+
+// Print plate of one insert set: clips lying on their side (the arm then bends within its layers,
+// the strong way), columns and hats upright.
+module fx_inserts_plate() {
+    for (i = [0 : 1]) translate([i * 13, 0, clip_len]) rotate([-90, 0, 0])
+        translate([-fx_clip_foot_x0, 0, fx_depth]) { fx_side_insert(); translate([0, -clip_y0, 0]) fx_side_plate([0, clip_y0]); }
+    for (i = [0 : 1]) translate([4 * 13 - 22 + i * (fx_post_w + 4), fx_post_w / 2, fx_depth])
+        translate(-[each k2s(far_holes[i]), 0]) fx_corner_insert(far_holes[i]);
+    for (i = [0 : 1]) translate([4 * 13 - 22 + 2 * (fx_post_w + 4) + i * (hat_d + 3), hat_d / 2, 0]) fx_hat();
+}
+
+// Fit numbers, asserted: feet under their pockets, rib tips over them by the crush.
+fx_clip_pocket_w = fx_clip_x[1] - fx_clip_x[0] + 2 * fx_clr;   // model: 3.3
+assert(abs(fx_clip_pocket_w - pk_clip[0]) < 0.15 && abs(clip_len + 2 * fx_clr - pk_clip[1]) < 0.15 && abs(fx_post_w + 2 * fx_clr - pk_round_d) < 0.25,
+       "measured pockets disagree with the tray model: check pk_* against fx_*");
 
 plate_gap = 6;
 
@@ -390,13 +457,17 @@ module plate() {
 if (part == "none") {}   // for include-only use
 else if (part == "fixture_tray") fixture_tray();
 else if (part == "fixture_inserts") fx_inserts_plate();
-else if (part == "fixture_assembly") { color("SteelBlue") fixture_tray(); color("Orange") fx_inserts_in_place(); %comps(); }
-else if (part == "fixture_exploded") { color("SteelBlue") fixture_tray(); color("Orange") translate([0, 0, 18]) fx_inserts_in_place(); }
-else if (part == "fixture_check") union() {   // must be empty
-    intersection() { fixture_tray(); fx_inserts_in_place(); }                        // inserts clear their pockets
+else if (part == "fixture_assembly") { color("SteelBlue") fixture_tray(); color("Orange") fx_inserts_in_place(false); color("Gold") for (h = far_holes) translate([each k2s(h), fx_zc + pcb_t]) fx_hat(); %comps(); }
+else if (part == "fixture_exploded") { color("SteelBlue") fixture_tray(); color("Orange") translate([0, 0, 18]) fx_inserts_in_place(false); color("Gold") for (h = far_holes) translate([each k2s(h), fx_zc + pcb_t + 30]) fx_hat(); }
+else if (part == "fixture_column") { fx_column(); translate([9, 0, 0]) fx_hat(); }
+else if (part == "fixture_hat_cut") difference() { fx_hat(); translate([-10, 0, -1]) cube([20, 20, 10]); }
+else if (part == "fixture_check") union() {   // must be empty (ribs are meant to press: they are checked by the assert, not here)
+    intersection() { fixture_tray(); difference() { fx_inserts_in_place(); for (c = clip_sites) at_clip(c) translate([-5, -5, -fx_depth - 1]) cube([10, 20, fx_depth + 1 - eps]); for (h = far_holes) translate([each k2s(h), -fx_depth - 1]) cylinder(d = 20, h = fx_depth + 1 - eps); } }
     intersection() { union() { fixture_tray(); fx_inserts_in_place(); cover(); } translate([0, 0, eps]) comps(); }
-    intersection() { union() { fixture_tray(); fx_inserts_in_place(); } drop_in_path_rev(); }
+    intersection() { union() { fixture_tray(); fx_inserts_in_place(false); } drop_in_path_rev(); }
     intersection() { union() { fixture_tray(); fx_inserts_in_place(); } translate([0, 0, eps]) cover(); }
+    // the hats must clear the lid and the mic
+    intersection() { for (h = far_holes) translate([each k2s(h), fx_zc + pcb_t + hat_lift]) fx_hat(); union() { translate([0, 0, 2 * hat_lift]) cover(); comps(); } }
 }
 else if (part == "plate") plate();
 else if (part == "base") base();
