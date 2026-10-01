@@ -1,0 +1,3 @@
+# The TLS fleet check-in cannot allocate its handshake next to the audio buffers (mbedtls -0x7F00);
+# recovery updates for soundspy nodes happen from recovery boots instead.
+-DESP32_BASE_NO_UPDATE

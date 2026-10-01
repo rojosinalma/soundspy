@@ -1585,19 +1585,23 @@
             return (percentage / 100) * 10;
         }
 
-        function updateMicGain(nodeId, percentage) {
-            const gainValue = percentageToGain(percentage);
+        function gainToPercentage(gain) {
+            return (gain / 10) * 100;
+        }
 
-            // Update knob display with percentage
+        // Knob display only — the node's saved gain is the source of truth (node_status / hw_gain)
+        function showMicGain(nodeId, percentage) {
             const roundedPct = Math.round(percentage);
-            document.getElementById(`mic-gain-percent-${nodeId}`).textContent = roundedPct + '%';
+            const el = document.getElementById(`mic-gain-percent-${nodeId}`);
+            if (el) el.textContent = roundedPct + '%';
             const angle = (roundedPct / 100) * 300 - 150;
             const indicator = document.getElementById(`mic-knob-indicator-${nodeId}`);
-            if (indicator) {
-                indicator.style.transform = `rotate(${angle}deg)`;
-            } else {
-                console.warn(`Mic knob indicator not found for ${nodeId}`);
-            }
+            if (indicator) indicator.style.transform = `rotate(${angle}deg)`;
+        }
+
+        function updateMicGain(nodeId, percentage) {
+            const gainValue = percentageToGain(percentage);
+            showMicGain(nodeId, percentage);
 
             // Send gain control to ESP32 via MQTT (through backend)
             fetch('/api/control', {
@@ -2312,7 +2316,6 @@
                         <div class="node-header">
                             <div class="node-name">
                                 <span id="node-display-name-${nodeId}">${displayName}</span>
-                                <button class="node-edit-btn" onclick="renameNode('${nodeId}')" title="Rename node">✎</button>
                                 <div style="font-size: 0.65em; color: #6b9e7a; font-weight: 400; margin-top: 2px;">
                                     ${nodeId} | <span id="fw-version-${nodeId}">Unknown</span> | <span id="node-ip-${nodeId}">--</span>
                                 </div>
@@ -2417,7 +2420,6 @@
                             </div>
                         </div>
                         <div class="node-actions">
-                            <button class="audio-control" onclick="showOTADialog('${nodeId}')" title="Update Firmware"><span style="display:inline-block;transform:translateY(-1px)">↑</span> Update</button>
                             <button class="audio-control" onclick="rebootNode('${nodeId}')" title="Reboot Node">↻ Reboot</button>
                             <button class="audio-control" id="sleep-btn-${nodeId}" onclick="toggleSleep('${nodeId}')" title="Sleep / Wake">☾ Sleep</button>
                             <button class="audio-control" onclick="disconnectNode('${nodeId}')" title="Disconnect Node">✕ Disconnect</button>
@@ -2436,7 +2438,8 @@
 
                     // Set initial positions after DOM is ready
                     setTimeout(() => {
-                        updateMicGain(nodeId, DEFAULT_MIC_GAIN_PCT);
+                        const gain = nodesData[nodeId] && nodesData[nodeId].gain;
+                        showMicGain(nodeId, gain != null ? gainToPercentage(gain) : DEFAULT_MIC_GAIN_PCT);
                         updateBrowserVolume(nodeId, 50);  // Set initial volume to 50%
                         initThresholdControls(nodeId);  // Initialize threshold controls
                     }, 0);
@@ -3099,15 +3102,25 @@
         });
 
         socket.on('hw_gain', function(update) {
-            // Hardware potentiometer changed gain — update knob display only, don't send back
-            const pct = (update.gain / 10) * 100;
+            // The node reported its saved gain — update the knob display only, don't send it back
+            showMicGain(update.node_id, gainToPercentage(update.gain));
+        });
+
+        // Retained esp32-base status (online/LWT, sleeping, recovery, hostname, version, ip, gain)
+        socket.on('node_status', function(update) {
             const nodeId = update.node_id;
-            const roundedPct = Math.round(pct);
-            const el = document.getElementById(`mic-gain-percent-${nodeId}`);
-            if (el) el.textContent = roundedPct + '%';
-            const angle = (roundedPct / 100) * 300 - 150;
-            const indicator = document.getElementById(`mic-knob-indicator-${nodeId}`);
-            if (indicator) indicator.style.transform = `rotate(${angle}deg)`;
+            if (disconnectedNodes.has(nodeId)) return;
+            if (!nodesData[nodeId]) nodesData[nodeId] = { current: {}, last_update: null };
+            const node = nodesData[nodeId];
+            if (update.display_name) nodeDisplayNames[nodeId] = update.display_name;
+            node.online = update.online;
+            node.sleeping = update.sleeping;
+            node.in_recovery = update.in_recovery;
+            node.gain = update.gain;
+            if (update.firmware_version) node.firmware_version = update.firmware_version;
+            if (update.ip) node.current.ip = update.ip;
+            if (update.online) node.last_seen = Date.now();
+            updateSingleNode(nodeId, node);
         });
 
         setInterval(() => {

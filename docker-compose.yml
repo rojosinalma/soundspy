@@ -13,11 +13,5 @@ services:
     ports:
       - "${DASHBOARD_PORT}:8091"
     volumes:
-      - ./builds:/app/firmware
+      - ./dashboard:/app
       - ./data:/app/data
-      - ./dashboard/app.py:/app/app.py
-      - ./dashboard/db.py:/app/db.py
-      - ./dashboard/node_state.py:/app/node_state.py
-      - ./dashboard/notifications.py:/app/notifications.py
-      - ./dashboard/helpers.py:/app/helpers.py
-      - ./dashboard/templates:/app/templates

@@ -9,11 +9,10 @@ from collections import deque
 from threading import Thread
 
 import paho.mqtt.client as mqtt
-from flask import Flask, render_template, jsonify, request, send_from_directory
+from flask import Flask, render_template, jsonify, request
 from flask_socketio import SocketIO, emit
-from flask_sock import Sock
-from werkzeug.utils import secure_filename
 
+import audio_relay
 import db
 import node_state
 import notifications
@@ -22,29 +21,22 @@ MQTT_HOST = os.environ.get("MQTT_HOST", "localhost")
 MQTT_PORT = int(os.environ.get("MQTT_PORT", 1883))
 MQTT_USER = os.environ.get("MQTT_USER", "")
 MQTT_PASS = os.environ.get("MQTT_PASS", "")
-DASHBOARD_VERSION = "2.0.0"
+MQTT_PREFIX = os.environ.get("MQTT_PREFIX", "esp32")  # esp32-base topic prefix: <prefix>/<chip_id>/<leaf>
+DASHBOARD_VERSION = "2.1.0"
 
-TOPIC_DATA = "soundspy/+/data"
-TOPIC_VERSION = "soundspy/+/version"
-TOPIC_LOG = "soundspy/+/log"
-TOPIC_BOOT = "soundspy/+/boot"
-TOPIC_HEARTBEAT = "soundspy/+/heartbeat"
-TOPIC_GAIN = "soundspy/+/gain"
-TOPIC_OTA  = "soundspy/+/ota"
-TOPIC_RECOVERY = "soundspy/+/recovery"
+NODE_APP = "soundspy"  # esp32-base app name the nodes report in their status; other apps on the broker are ignored
+TOPIC_DATA = f"{MQTT_PREFIX}/+/data"
+TOPIC_STATUS = f"{MQTT_PREFIX}/+/status"
+TOPIC_LOG = f"{MQTT_PREFIX}/+/log"
+LOG_LEVELS = {"I": "info", "W": "warn", "E": "error"}
 
 MAX_SYSTEM_LOGS = 200
 system_logs: deque = deque(maxlen=MAX_SYSTEM_LOGS)
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "soundspy-secret"
-app.config["UPLOAD_FOLDER"] = "/app/firmware"
-app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
-sock = Sock(app)
-
-os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
 # --- MQTT ---
 
@@ -53,93 +45,82 @@ mqtt_client = mqtt.Client()
 
 def on_connect(client, userdata, flags, rc):
     print(f"Dashboard connected to MQTT broker (rc={rc})", flush=True)
-    for topic in [TOPIC_DATA, TOPIC_VERSION, TOPIC_LOG, TOPIC_BOOT, TOPIC_HEARTBEAT, TOPIC_GAIN, TOPIC_OTA, TOPIC_RECOVERY]:
+    for topic in [TOPIC_STATUS, TOPIC_DATA, TOPIC_LOG]:
         client.subscribe(topic)
+
+
+def cmd_topic(node_id: str) -> str:
+    return f"{MQTT_PREFIX}/{node_id}/cmd"
+
+
+def handle_status(node_id: str, payload: dict):
+    # The broker carries every esp32-base board; keep only soundspy nodes, plus a known node that
+    # dropped to recovery or went offline (LWT carries no app field).
+    is_ours = payload.get("app") == NODE_APP
+    if not is_ours and not node_state.is_known(node_id):
+        return
+    node_state.update_status(node_id, payload)
+    if payload.get("hostname"):
+        db.upsert_node(node_id, display_name=payload["hostname"])  # display names follow the board's hostname
+    else:
+        db.get_node_name(node_id)
+
+    status = node_state.get_node_status(node_id, db.get_all_nodes())
+    app_status = payload.get("app_status") or {}
+    audio_relay.update(node_id, status["ip"], app_status.get("stream_port", 0),
+                       active=bool(status["online"] and not status["sleeping"] and not status["in_recovery"]))
+    socketio.emit("node_status", {
+        "node_id": node_id,
+        "online": status["online"],
+        "sleeping": status["sleeping"],
+        "in_recovery": status["in_recovery"],
+        "display_name": status["display_name"],
+        "firmware_version": status["firmware_version"],
+        "ip": status["ip"],
+        "gain": status["gain"],
+    }, namespace="/")
+    if status["gain"] is not None:
+        socketio.emit("hw_gain", {"node_id": node_id, "gain": status["gain"]}, namespace="/")
+    print(f"[status] {node_id} ({status['display_name']}): online={status['online']} sleeping={status['sleeping']} "
+          f"recovery={status['in_recovery']} v{status['firmware_version']} ip={status['ip']}", flush=True)
+
+
+def handle_log(node_id: str, payload: dict, recv_time: float):
+    if not node_state.is_known(node_id):
+        return
+    entry = {
+        "node_id": node_id,
+        "type": "system",
+        "payload": {"level": LOG_LEVELS.get(payload.get("level"), payload.get("level", "info")),
+                    "msg": payload.get("text", ""), "uptime_ms": payload.get("ms"), "seq": payload.get("seq")},
+        "timestamp": recv_time,
+    }
+    system_logs.append(entry)
+    socketio.emit("node_log", entry, namespace="/")
 
 
 def on_message(client, userdata, msg):
     try:
         recv_time = time.time()
+        parts = msg.topic.split("/")
+        if len(parts) != 3:
+            return
+        _, node_id, leaf = parts
         payload = json.loads(msg.payload.decode("utf-8"))
-        node_id = payload.get("node", "unknown")
 
-        if msg.topic.endswith("/version"):
-            version = payload.get("firmware", "unknown")
-            build = payload.get("build", "")
-            node_state.update_firmware_version(node_id, version)
-            print(f"[version] {node_id}: firmware {version} build={build}", flush=True)
-            return
+        if leaf == "status":
+            return handle_status(node_id, payload)
+        if leaf == "log":
+            return handle_log(node_id, payload, recv_time)
+        if leaf != "data" or not node_state.is_known(node_id):
+            return  # data from a board whose status we have not accepted (not a soundspy node)
 
-        if msg.topic.endswith("/ota"):
-            status = payload.get("status", "unknown")
-            url = payload.get("url", "")
-            print(f"[ota] {node_id}: {status} — {url}", flush=True)
-            return
-
-        if msg.topic.endswith("/log"):
-            log_entry = {"node_id": node_id, "type": "system", "payload": payload, "timestamp": recv_time}
-            system_logs.append(log_entry)
-            socketio.emit("node_log", log_entry, namespace="/")
-            return
-
-        if msg.topic.endswith("/boot"):
-            log_entry = {
-                "node_id": node_id,
-                "type": "system",
-                "payload": {
-                    "level": "boot",
-                    "msg": f"Boot: partition={payload.get('partition','?')} reset={payload.get('reset_reason','?')} heap={payload.get('free_heap','?')}",
-                    **payload,
-                },
-                "timestamp": recv_time,
-            }
-            system_logs.append(log_entry)
-            socketio.emit("node_log", log_entry, namespace="/")
-            return
-
-        if msg.topic.endswith("/heartbeat"):
-            node_state.update_heartbeat(node_id, payload.get("sleeping", False))
-            return
-
-        if msg.topic.endswith("/recovery"):
-            node_state.update_recovery(node_id)
-            db.get_node_name(node_id)
-            db_nodes = db.get_all_nodes()
-            status = node_state.get_node_status(node_id, db_nodes)
-            socketio.emit("node_recovery", {
-                "node_id": node_id,
-                "display_name": status["display_name"],
-                "in_recovery": True,
-            }, namespace="/")
-            print(f"[recovery] {node_id}: in recovery mode", flush=True)
-            return
-
-        if msg.topic.endswith("/gain"):
-            gain = payload.get("gain")
-            if gain is not None:
-                socketio.emit("hw_gain", {"node_id": node_id, "gain": gain}, namespace="/")
-            return
-
-        # Data message
         overall_dbfs = payload.get("overall_dbfs")
-        bands = payload.get("bands", {})
-        if not bands:
-            freq_dbfs = payload.get("freq_dbfs")
-            if freq_dbfs is None:
-                return
-            bands = {"freq_band": freq_dbfs}
-        if overall_dbfs is None:
+        bands = payload.get("bands")
+        if overall_dbfs is None or not bands:
             return
 
-        firmware_version = payload.get("firmware")
-        node_state.update_node_data(
-            node_id, overall_dbfs, bands,
-            payload.get("seq"), payload.get("ts"),
-            recv_time, firmware_version,
-            payload.get("ip", "unknown"),
-        )
-
-        # Ensure node exists in DB (auto-names on first contact)
+        node_state.update_node_data(node_id, overall_dbfs, bands, payload.get("seq"), payload.get("ts"), recv_time)
         db.get_node_name(node_id)
 
         db_nodes = db.get_all_nodes()
@@ -164,14 +145,16 @@ def on_message(client, userdata, msg):
 
 @socketio.on("connect")
 def handle_connect():
-    print("Client connected to audio stream", flush=True)
+    audio_relay.listener_connected()
+    print("Browser connected", flush=True)
     for log_entry in list(system_logs):
         emit("node_log", log_entry)
 
 
 @socketio.on("disconnect")
 def handle_disconnect():
-    print("Client disconnected from audio stream", flush=True)
+    audio_relay.listener_disconnected()
+    print("Browser disconnected", flush=True)
 
 
 # --- REST API ---
@@ -231,6 +214,16 @@ def api_history(node_id):
     return jsonify({"node_id": node_id, "history": node_state.get_node_history(node_id)})
 
 
+def to_node_cmd(command: dict) -> dict | None:
+    """Map the UI's control payload to an esp32-base cmd message."""
+    if "gain" in command:
+        return {"cmd": "gain", "value": float(command["gain"])}
+    for flag in ("reboot", "sleep", "wake"):
+        if command.get(flag):
+            return {"cmd": flag}
+    return None
+
+
 @app.route("/api/control", methods=["POST"])
 def api_control():
     data = request.get_json()
@@ -238,9 +231,11 @@ def api_control():
     command = data.get("command", {})
     if not node_id:
         return jsonify({"error": "Missing node_id"}), 400
-    topic = f"soundspy/{node_id}/control"
-    mqtt_client.publish(topic, json.dumps(command))
-    return jsonify({"success": True})
+    cmd = to_node_cmd(command)
+    if cmd is None:
+        return jsonify({"error": f"Unknown command {command}"}), 400
+    mqtt_client.publish(cmd_topic(node_id), json.dumps(cmd))
+    return jsonify({"success": True, "cmd": cmd})
 
 
 @app.route("/api/disconnect", methods=["POST"])
@@ -251,36 +246,6 @@ def api_disconnect():
         return jsonify({"error": "Missing node_id"}), 400
     node_state.disconnect_node(node_id)
     return jsonify({"success": True})
-
-
-@app.route("/api/ota/upload", methods=["POST"])
-def api_ota_upload():
-    if "firmware" not in request.files:
-        return jsonify({"error": "No firmware file"}), 400
-    f = request.files["firmware"]
-    filename = secure_filename(f.filename or "soundspy_latest.bin")
-    save_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-    f.save(save_path)
-    host = request.host
-    url = f"http://{host}/firmware/{filename}"
-    return jsonify({"success": True, "filename": filename, "url": url})
-
-
-@app.route("/api/ota/trigger", methods=["POST"])
-def api_ota_trigger():
-    data = request.get_json()
-    node_id = data.get("node_id")
-    firmware_url = data.get("firmware_url")
-    if not node_id or not firmware_url:
-        return jsonify({"error": "Missing node_id or firmware_url"}), 400
-    topic = f"soundspy/{node_id}/control"
-    mqtt_client.publish(topic, json.dumps({"ota_url": firmware_url}))
-    return jsonify({"success": True})
-
-
-@app.route("/firmware/<path:filename>")
-def serve_firmware(filename):
-    return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
 
 
 # --- Notification / settings API ---
@@ -344,28 +309,9 @@ def api_alert_history():
     return jsonify(db.get_alert_history(limit))
 
 
-# --- WebSocket audio relay ---
-
-@sock.route("/ws/audio")
-def audio_websocket(ws):
-    print("ESP32 audio WebSocket connected", flush=True)
-    try:
-        while True:
-            data = ws.receive()
-            if data:
-                try:
-                    msg = json.loads(data)
-                    node_id = msg.get("node_id")
-                    audio_b64 = msg.get("audio")
-                    if node_id and audio_b64:
-                        socketio.emit("audio_data", {"node_id": node_id, "audio": audio_b64}, namespace="/")
-                        print(f"Relayed audio from {node_id}", flush=True)
-                except Exception as e:
-                    print(f"Audio processing error: {e}", flush=True)
-    except Exception as e:
-        print(f"ESP32 audio WebSocket error: {e}", flush=True)
-    finally:
-        print("ESP32 audio WebSocket disconnected", flush=True)
+@app.route("/api/relays")
+def api_relays():
+    return jsonify(audio_relay.status())
 
 
 # --- Startup ---
@@ -382,5 +328,6 @@ def start_mqtt():
 
 if __name__ == "__main__":
     db.init_db()
+    audio_relay.init(lambda event, data: socketio.emit(event, data, namespace="/"), log=lambda m: print(m, flush=True))
     Thread(target=start_mqtt, daemon=True).start()
     socketio.run(app, host="0.0.0.0", port=8091, debug=False, allow_unsafe_werkzeug=True)
