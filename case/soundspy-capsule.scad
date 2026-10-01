@@ -374,7 +374,10 @@ module fixture_tray() {
 }
 
 // --- Inserts (in place; the foot fills the measured pocket) ---
-fx_clip_foot = [pk_clip[0] - 2 * pk_gap, pk_clip[1] - 2 * pk_gap];   // 3.2 x 8.5
+// along the edge the foot is flush with the clip body: longer, it stands proud of the face the
+// clip lies on when printed and lifts the whole insert plate off the bed (the ribs across the
+// edge do the holding; 0.3 per side of play lengthwise does not matter to a clip)
+fx_clip_foot = [pk_clip[0] - 2 * pk_gap, clip_len];                    // 3.1 x 8.0
 fx_clip_foot_x0 = fx_clip_x[0] - fx_clr + pk_gap;                     // inboard face, site frame
 fx_col_foot_d   = pk_round_d - 2 * pk_gap;                            // 6.3
 
@@ -465,6 +468,10 @@ module plate() {
 if (part == "none") {}   // for include-only use
 else if (part == "fixture_tray") fixture_tray();
 else if (part == "fixture_inserts") fx_inserts_plate();
+else if (part == "fixture_plate") {   // tray + one insert set, all on the bed
+    translate([0, 0, floor_t]) fixture_tray();
+    translate([in_x1 + wall + plate_gap + 14.4, 0, 0]) rotate([0, 0, 90]) fx_inserts_plate();
+}
 else if (part == "fixture_assembly") { color("SteelBlue") fixture_tray(); color("Orange") fx_inserts_in_place(false); color("Gold") for (h = far_holes) translate([each k2s(h), fx_zc + pcb_t]) fx_hat(); %comps(); }
 else if (part == "fixture_exploded") { color("SteelBlue") fixture_tray(); color("Orange") translate([0, 0, 18]) fx_inserts_in_place(false); color("Gold") for (h = far_holes) translate([each k2s(h), fx_zc + pcb_t + 30]) fx_hat(); }
 else if (part == "fixture_column") { fx_column(); translate([9, 0, 0]) fx_hat(); }
