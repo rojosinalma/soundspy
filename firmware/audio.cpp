@@ -21,12 +21,12 @@ constexpr gpio_num_t PIN_SCK = GPIO_NUM_33;
 constexpr gpio_num_t PIN_WS  = GPIO_NUM_25;
 constexpr gpio_num_t PIN_SD  = GPIO_NUM_32;
 
-// Captured in stereo and the mic's slot picked in software: on the ESP32 the hardware mono slot
-// select has swapped meanings between driver generations, so this way the choice is a setting.
-constexpr uint32_t CHUNK_FRAMES      = 1024;   // frames per i2s read (~23 ms)
-constexpr uint32_t CHUNK_WORDS       = CHUNK_FRAMES * 2;
-constexpr uint32_t DMA_DESC_NUM      = 16;     // ~186 ms of ring at 44.1 kHz stereo
-constexpr uint32_t DMA_FRAME_NUM     = 511;    // 4088 bytes per buffer, under the driver's 4092 maximum
+// Mono capture of the slot the mic drives. Which hardware slot that is (left/right) is a runtime
+// setting, because on the ESP32 the mono slot select has swapped meanings between driver generations.
+constexpr uint32_t CHUNK_WORDS       = 1024;   // samples per i2s read (~23 ms)
+constexpr uint32_t DMA_DESC_NUM      = 4;      // ~93 ms of ring (16 KB of DMA RAM); the capture task drains it
+                                               // every 23 ms, and the heap is needed for the TLS fleet check-in
+constexpr uint32_t DMA_FRAME_NUM     = 1023;   // 4092 bytes per buffer, the driver's maximum
 constexpr uint32_t READ_TIMEOUT_MS   = 1000;
 constexpr int      I2S_24BIT_SHIFT   = 8;      // 24-bit sample, MSB-aligned in the 32-bit slot
 constexpr float    I2S_FULL_SCALE    = 8388608.0f;  // 2^23
@@ -42,7 +42,7 @@ constexpr uint8_t  MAX_REINITS       = 3;
 constexpr uint32_t REINIT_DELAY_MS   = 200;
 constexpr uint8_t  DISCARD_READS     = 4;
 
-constexpr uint32_t RING_SAMPLES      = 16384;  // power of two, ~370 ms of PCM for the stream
+constexpr uint32_t RING_SAMPLES      = 8192;   // power of two, ~185 ms of PCM; allocated only while a client streams
 constexpr uint32_t STREAM_CHUNK      = 2205;   // 50 ms per TCP write
 constexpr uint32_t CAPTURE_STACK     = 6144;
 constexpr uint32_t STREAM_STACK      = 6144;
@@ -86,7 +86,7 @@ uint32_t s_count = 0;
 
 i2s_chan_handle_t s_rx = nullptr;
 volatile bool s_restart = false;
-float    s_slotDb[2] = { -180.0f, -180.0f };  // last chunk, both slots, for finding the mic
+float    s_slotDb = -180.0f;                   // last chunk, unweighted level of the captured slot
 uint32_t s_nonzeroWords = 0;                   // last chunk, raw words != 0 (0 = nothing on SD)
 uint32_t s_rawSample[2] = { 0, 0 };           // last chunk, first raw word of each slot
 uint32_t s_graceUntil = 0;
@@ -95,10 +95,25 @@ uint8_t  s_reinits = 0;
 uint32_t s_totalReinits = 0;
 int32_t* s_raw = nullptr;
 
-int16_t* s_ring = nullptr;
+int16_t* volatile s_ring = nullptr;  // owned by the stream task; the capture task only writes while s_streaming
 volatile uint32_t s_head = 0, s_tail = 0;
 volatile bool s_streaming = false;
 String   s_streamClient;
+
+// The ring lives only while a client is connected, so an idle node keeps ~32 KB free for TLS.
+bool ringAcquire() {
+  if (!s_ring) s_ring = (int16_t*)malloc(RING_SAMPLES * sizeof(int16_t));
+  if (!s_ring) return false;
+  s_head = s_tail = 0;
+  return true;
+}
+
+void ringRelease() {
+  s_streaming = false;
+  delay(30);  // let a capture chunk in flight finish before the buffer goes away
+  free(s_ring);
+  s_ring = nullptr;
+}
 
 bool i2sStart() {
   i2s_chan_config_t chan = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
@@ -108,12 +123,13 @@ bool i2sStart() {
 
   i2s_std_config_t cfg = {
     .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(SAMPLE_RATE),
-    .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_32BIT, I2S_SLOT_MODE_STEREO),
+    .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_32BIT, I2S_SLOT_MODE_MONO),
     .gpio_cfg = {
       .mclk = I2S_GPIO_UNUSED, .bclk = PIN_SCK, .ws = PIN_WS, .dout = I2S_GPIO_UNUSED, .din = PIN_SD,
       .invert_flags = { .mclk_inv = false, .bclk_inv = false, .ws_inv = false },
     },
   };
+  cfg.slot_cfg.slot_mask = s_settings.slot ? I2S_STD_SLOT_RIGHT : I2S_STD_SLOT_LEFT;
   if (i2s_channel_init_std_mode(s_rx, &cfg) != ESP_OK || i2s_channel_enable(s_rx) != ESP_OK) {
     i2s_del_channel(s_rx);
     s_rx = nullptr;
@@ -153,23 +169,19 @@ inline float toFloat(int32_t word, float gain) {
 
 void processChunk(const int32_t* raw, uint32_t n) {
   const float gain = s_settings.gain;
-  const uint8_t slot = s_settings.slot & 1;
   const bool stream = s_streaming;
   double sum[BAND_COUNT + 1] = {};
-  double other = 0;
   uint32_t nonzero = 0;
 
   for (uint32_t i = 0; i < n; i++) {
-    nonzero += (raw[2 * i] != 0) + (raw[2 * i + 1] != 0);
-    float s = toFloat(raw[2 * i + slot], gain);
-    float o = toFloat(raw[2 * i + (slot ^ 1)], gain);
-    other += o * o;
+    nonzero += raw[i] != 0;
+    float s = toFloat(raw[i], gain);
     sum[BAND_COUNT] += s * s;
     for (uint8_t b = 0; b < BAND_COUNT; b++) {
       float y = s_filters[b][1].process(s_filters[b][0].process(s));
       sum[b] += y * y;
     }
-    if (stream && s_head - s_tail < RING_SAMPLES) {
+    if (stream && s_ring && s_head - s_tail < RING_SAMPLES) {
       s_ring[s_head & (RING_SAMPLES - 1)] = (int16_t)(s * PCM16_SCALE);
       s_head++;
     }
@@ -184,8 +196,7 @@ void processChunk(const int32_t* raw, uint32_t n) {
   s_rawSample[0] = (uint32_t)raw[0];
   s_rawSample[1] = (uint32_t)raw[1];
   float rms = sqrtf((float)(sum[BAND_COUNT] / n));
-  s_slotDb[slot] = 20.0f * log10f(rms + DBFS_EPSILON);
-  s_slotDb[slot ^ 1] = 20.0f * log10f(sqrtf((float)(other / n)) + DBFS_EPSILON);
+  s_slotDb = 20.0f * log10f(rms + DBFS_EPSILON);
   if (rms < LOCKUP_RMS) {
     noteLockup();
   } else {
@@ -220,11 +231,11 @@ void captureTask(void*) {
     }
     size_t got = 0;
     esp_err_t err = i2s_channel_read(s_rx, s_raw, CHUNK_WORDS * sizeof(int32_t), &got, READ_TIMEOUT_MS);
-    if (err != ESP_OK || got < 2 * sizeof(int32_t)) {
+    if (err != ESP_OK || got < sizeof(int32_t)) {
       noteLockup();
       continue;
     }
-    processChunk(s_raw, got / (2 * sizeof(int32_t)));
+    processChunk(s_raw, got / sizeof(int32_t));
   }
 }
 
@@ -244,7 +255,12 @@ void streamTask(void*) {
       client = incoming;
       client.setNoDelay(true);
       s_streamClient = client.remoteIP().toString();
-      s_tail = s_head;
+      if (!ringAcquire()) {
+        Base.error("stream: no memory for the PCM buffer, refusing %s", s_streamClient.c_str());
+        client.stop();
+        client = WiFiClient();
+        continue;
+      }
       s_streaming = true;
       client.printf("{\"format\":\"s16le\",\"rate\":%u,\"channels\":1,\"chip_id\":\"%s\"}\n", SAMPLE_RATE, baseChipId().c_str());
       Base.log("stream: client %s connected", s_streamClient.c_str());
@@ -262,7 +278,7 @@ void streamTask(void*) {
       if (client) {
         client.stop();
         client = WiFiClient();
-        s_streaming = false;
+        ringRelease();
         Base.log("stream: client %s disconnected", s_streamClient.c_str());
         s_streamClient = "";
       }
@@ -336,8 +352,7 @@ String Settings::apply(JsonObjectConst in) {
 
 void begin() {
   s_raw = (int32_t*)malloc(CHUNK_WORDS * sizeof(int32_t));
-  s_ring = (int16_t*)malloc(RING_SAMPLES * sizeof(int16_t));
-  if (!s_raw || !s_ring) {
+  if (!s_raw) {
     Base.error("audio: out of memory, capture disabled");
     return;
   }
@@ -382,10 +397,10 @@ void statusJson(JsonObject o) {
   o["i2s_running"]   = s_rx != nullptr;
   o["i2s_reinits"]   = s_totalReinits;
   o["slot"]          = s_settings.slot ? "right" : "left";
-  JsonObject sl = o["slot_dbfs"].to<JsonObject>();
-  sl["left"]  = serialized(String(s_slotDb[0], 1));
-  sl["right"] = serialized(String(s_slotDb[1], 1));
+  o["slot_dbfs"]     = serialized(String(s_slotDb, 1));
   o["raw_nonzero"] = s_nonzeroWords;
+  o["heap_free"] = ESP.getFreeHeap();
+  o["heap_max_alloc"] = ESP.getMaxAllocHeap();  // largest single allocation possible — what TLS actually needs
   char hex[24];
   snprintf(hex, sizeof(hex), "%08x %08x", s_rawSample[0], s_rawSample[1]);
   o["raw_first"] = hex;
