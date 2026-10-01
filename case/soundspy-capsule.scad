@@ -112,7 +112,7 @@ zc_rev  = esp_floor_clr + esp_side_rev;                       // carrier undersi
 mic_top_rev = zc_rev + pcb_t + mic_spacer_h + mic_h;          // mic module top
 in_h_c  = rev ? zc_rev + pcb_t + mic_side_rev + top_clr_rev : in_h;   // cover inside height: over the mic pins
 usb_z_c = rev ? usb_cut_z_rev : usb_z;
-clip_ys = [clip_y0, pcb_l - clip_y0_far - clip_len];
+clip_ys = [clip_y0];   // USB end only: the far end is held by the pin columns + hats (far-end clip site was pcb_l - clip_y0_far - clip_len)
 far_holes = [for (h = pcb_holes) if (mic_end_hole(h)) h];
 in_x0   = -margin;              in_x1 = pcb_w + margin;
 in_y0   = -margin;              in_y1 = pcb_l + margin;
@@ -463,6 +463,7 @@ module cover_print() { translate([0, 0, cover_h]) rotate([180, 0, 0]) translate(
 module plate() {
     translate([0, 0, floor_t]) base();
     translate([(in_x1 - in_x0) + 2 * wall + plate_gap, 0, 0]) cover_print();
+    if (rev) for (i = [0, 1]) translate([pcb_w / 2 + (i - 0.5) * (hat_d + 3), in_y0 - wall - 3 - hat_d / 2, 0]) fx_hat();
 }
 
 if (part == "none") {}   // for include-only use
