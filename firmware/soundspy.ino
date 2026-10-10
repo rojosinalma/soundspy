@@ -7,7 +7,7 @@
 #include <Esp32Base.h>
 #include "audio.h"
 
-#define APP_VERSION "2.1.0"
+#define APP_VERSION "2.1.1"
 
 static uint32_t s_seq = 0;
 static uint32_t s_lastPublish = 0;
