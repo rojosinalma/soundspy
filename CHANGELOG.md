@@ -14,6 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.3] - 2026-10-16
+
+### Added
+- `GET /health` on the dashboard: version, MQTT link state and node count; the container image declares a `HEALTHCHECK` against it.
+- Security policy, code of conduct, issue and pull request templates, Dependabot for the Python dependencies, the base image and the GitHub Actions.
+
+### Changed
+- The dashboard container runs as an unprivileged user (uid 1000). **Upgrade note:** the directory bound to `/app/data` must be writable by that uid (`chown -R 1000:1000 data`), or set `user:` in a compose override to the owner of your data directory.
+- README restructured (requirements with minimum versions, installation, usage, development); workflows carry run names and explicit permissions.
+- Licence label on the image is `AGPL-3.0-only` (the licence itself is unchanged).
+
 ## [2.1.2] - 2026-10-11
 
 ### Changed

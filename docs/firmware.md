@@ -4,7 +4,7 @@ Two sketches live in the repository:
 
 | Sketch | Version | Built with | Status |
 |---|---|---|---|
-| `firmware/` | `APP_VERSION` in `soundspy.ino` (2.1.2) | `./scripts/build_firmware.sh` (default target `current`) | Current firmware. Needs the **Esp32Base** Arduino library. |
+| `firmware/` | `APP_VERSION` in `soundspy.ino` (2.1.3) | `./scripts/build_firmware.sh` (default target `current`) | Current firmware. Needs the **Esp32Base** Arduino library. |
 | `node_firmware/` (+ `recovery_firmware/`) | `FIRMWARE_VERSION` (1.7.7) | `./scripts/build_firmware.sh legacy` | Standalone legacy firmware, public libraries only. Builds in CI. |
 
 Both publish the same `data` payload the dashboard understands; the topic layout differs (see below). Use `firmware/` for new nodes.
@@ -32,7 +32,7 @@ Without it, `build_firmware.sh` stops with a message and the legacy sketch remai
 ## Building
 
 ```bash
-./scripts/build_firmware.sh            # firmware/  -> builds/soundspy_v2.1.2.bin, soundspy_latest.bin, soundspy_v2.1.2_FULL_FLASH.bin
+./scripts/build_firmware.sh            # firmware/  -> builds/soundspy_v<version>.bin, soundspy_latest.bin, soundspy_v<version>_FULL_FLASH.bin
 ./scripts/build_firmware.sh legacy     # node_firmware/ -> builds/soundspy_v1.7.7.bin + soundspy_recovery_v1.0.0.bin
 ```
 
@@ -45,7 +45,7 @@ Without it, `build_firmware.sh` stops with a message and the legacy sketch remai
 Current firmware — write the merged image at address 0:
 
 ```bash
-esptool --chip esp32 --port /dev/ttyUSB0 --baud 921600 write-flash 0x0 builds/soundspy_v2.1.2_FULL_FLASH.bin
+esptool --chip esp32 --port /dev/ttyUSB0 --baud 921600 write-flash 0x0 builds/soundspy_v<version>_FULL_FLASH.bin
 # or, from WSL with the board attached through usbipd:
 ./scripts/flash_wsl.sh /dev/ttyUSB0
 ```
