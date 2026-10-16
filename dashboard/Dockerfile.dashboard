@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 LABEL org.opencontainers.image.source="https://github.com/rojosinalma/soundspy" \
       org.opencontainers.image.description="soundspy dashboard: MQTT ingest, live audio relay, alerts and web UI for ESP32 sound-level nodes" \
