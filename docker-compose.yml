@@ -1,17 +1,19 @@
 services:
-  soundspy-dashboard:
-    build:
-      context: ./dashboard
-      dockerfile: Dockerfile.dashboard
-    container_name: soundspy_dashboard
+  soundspy:
+    image: ghcr.io/rojosinalma/soundspy:latest
+    # To build from source instead of pulling the image, uncomment:
+    # build:
+    #   context: ./dashboard
+    #   dockerfile: Dockerfile.dashboard
+    container_name: soundspy
     restart: unless-stopped
     environment:
-      - MQTT_HOST=${MQTT_HOST}
-      - MQTT_PORT=${MQTT_PORT}
-      - MQTT_USER=${MQTT_USER}
-      - MQTT_PASS=${MQTT_PASS}
+      - MQTT_HOST=${MQTT_HOST:-mosquitto}
+      - MQTT_PORT=${MQTT_PORT:-1883}
+      - MQTT_USER=${MQTT_USER:-}
+      - MQTT_PASS=${MQTT_PASS:-}
+      - MQTT_PREFIX=${MQTT_PREFIX:-esp32}
     ports:
-      - "${DASHBOARD_PORT}:8091"
+      - "${DASHBOARD_PORT:-8091}:8091"
     volumes:
-      - ./dashboard:/app
       - ./data:/app/data

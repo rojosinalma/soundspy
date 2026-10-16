@@ -76,7 +76,7 @@ include <board.scad>
 
 /* [Reversed layout] */
 // v5: floor to the board's USB-C was 6.0 in the v4 tray; the carrier comes down rev_drop from
-// there. The USB cutout stays where v4 had it (the user's call): the connector still sits inside.
+// there. The USB cutout stays where v4 had it: the connector still sits inside.
 rev_usb_floor_v4 = 6.0;
 rev_drop      = 3.0;
 esp_floor_clr = rev_usb_floor_v4 - rev_drop;   // floor to the board's lowest point (its USB-C)

@@ -1,4 +1,4 @@
-name: Release
+name: release
 
 on:
   push:
@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: write
 
     steps:
       - uses: actions/checkout@v4
@@ -76,3 +77,12 @@ jobs:
           gh release create "v${{ steps.version.outputs.new }}" \
             --title "v${{ steps.version.outputs.new }}" \
             --notes-file /tmp/release_notes.md
+
+      # Tags pushed with GITHUB_TOKEN do not trigger workflows on their own, so start them here.
+      - name: Build firmware and image for the tag
+        if: steps.version.outputs.changed == 'true' && steps.check_tag.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run build-firmware.yml --ref "v${{ steps.version.outputs.new }}"
+          gh workflow run publish-image.yml --ref "v${{ steps.version.outputs.new }}"

@@ -22,7 +22,7 @@ MQTT_PORT = int(os.environ.get("MQTT_PORT", 1883))
 MQTT_USER = os.environ.get("MQTT_USER", "")
 MQTT_PASS = os.environ.get("MQTT_PASS", "")
 MQTT_PREFIX = os.environ.get("MQTT_PREFIX", "esp32")  # esp32-base topic prefix: <prefix>/<chip_id>/<leaf>
-DASHBOARD_VERSION = "2.1.0"
+DASHBOARD_VERSION = "2.1.2"
 
 NODE_APP = "soundspy"  # esp32-base app name the nodes report in their status; other apps on the broker are ignored
 TOPIC_DATA = f"{MQTT_PREFIX}/+/data"

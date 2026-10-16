@@ -1,26 +1,35 @@
 #!/usr/bin/env bash
-# Fit check + STL/PNG render of the enclosure through the shared openscad service (scad-render).
+# Fit check + STL/PNG render of the enclosure with the OpenSCAD CLI.
 # Usage: ./scripts/render_case.sh [-D 'param=value' ...]   (overrides passed to every render)
+# OPENSCAD (default: openscad on PATH) selects the binary, e.g. a container:
+#   OPENSCAD='docker run --rm -v $PWD:$PWD -w $PWD openscad/openscad:dev openscad'  (run from the repo root)
+# The fit check relies on OpenSCAD exiting non-zero for empty geometry; the script treats
+# "no geometry" (exit 3 on recent builds, or an empty STL) as "no collisions".
 set -euo pipefail
 
 CASE="$(cd "$(dirname "$0")/../case" && pwd)"
 SCAD="$CASE/soundspy-case.scad"
 OVERRIDES=("$@")
+read -ra OPENSCAD_CMD <<< "${OPENSCAD:-openscad}"   # split on spaces: a plain binary or a container command line
 
-render() { scad-render "$SCAD" "${OVERRIDES[@]}" "$@"; }
+render() { "${OPENSCAD_CMD[@]}" "$SCAD" "${OVERRIDES[@]}" "$@"; }
 
 mkdir -p "$CASE/stl" "$CASE/preview"
 
 echo "Fit check..."
+FIT=/tmp/soundspy-fitcheck.stl
+rm -f "$FIT"
 set +e
-render -D 'part="fitcheck"' -o /tmp/soundspy-fitcheck.stl >/dev/null 2>&1
+render -D 'part="fitcheck"' -o "$FIT" >/dev/null 2>&1
 rc=$?
 set -e
-case $rc in
-    3) echo "  OK: no collisions" ;;
-    0) echo "  FAIL: case intersects board components (render part=\"fitcheck\" to see where)" >&2; exit 1 ;;
-    *) echo "  ERROR: fit check render failed (exit $rc)" >&2; exit 1 ;;
-esac
+if [ $rc -eq 3 ] || { [ $rc -eq 0 ] && ! grep -q 'vertex' "$FIT" 2>/dev/null; }; then
+    echo "  OK: no collisions"
+elif [ $rc -eq 0 ]; then
+    echo "  FAIL: case intersects board components (render part=\"fitcheck\" to see where)" >&2; exit 1
+else
+    echo "  ERROR: fit check render failed (exit $rc)" >&2; exit 1
+fi
 
 for part in base lid tray test_usb tray_studs test_studs; do
     render -D "part=\"$part\"" -o "$CASE/stl/soundspy-case-$part.stl"

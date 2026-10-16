@@ -106,7 +106,7 @@ echo "=========================================="
 
 # Wait for OTA success confirmation and version reconnect
 # Snapshot current log line count so we only watch new entries
-LOG_OFFSET=$(docker logs soundspy_dashboard 2>&1 | wc -l)
+LOG_OFFSET=$(docker logs soundspy 2>&1 | wc -l)
 CONFIRMED=false
 TIMEOUT=120
 ELAPSED=0
@@ -115,7 +115,7 @@ while [ $ELAPSED -lt $TIMEOUT ]; do
     sleep 3
     ELAPSED=$((ELAPSED + 3))
 
-    NEW_LOGS=$(docker logs soundspy_dashboard 2>&1 | tail -n +$LOG_OFFSET)
+    NEW_LOGS=$(docker logs soundspy 2>&1 | tail -n +$LOG_OFFSET)
 
     OTA_LOG=$(echo "$NEW_LOGS" | grep "\[ota\] $CHIP_ID" | tail -1)
     VERSION_LOG=$(echo "$NEW_LOGS" | grep "\[version\] $CHIP_ID" | grep "build=" | tail -1)
@@ -141,4 +141,4 @@ done
 
 echo ""
 echo "Timeout — check dashboard logs manually:"
-echo "  docker logs -f soundspy_dashboard"
+echo "  docker logs -f soundspy"

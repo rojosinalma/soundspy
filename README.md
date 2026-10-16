@@ -7,93 +7,40 @@
 
 ---
 
-ESP32 nodes with I2S microphones sample audio, perform 6-band frequency analysis, and publish to a web dashboard via MQTT. Designed to monitor when audio production might be disturbing neighbors through shared walls.
-
-## Requirements
-
-**Hardware (per node)**
-- ESP32 development board
-- ICS-43434 or INMP441 I2S MEMS microphone
-
-**Software**
-- Docker + Docker Compose
-- An MQTT broker (e.g. Mosquitto) that both the dashboard and the nodes can reach — the stack no longer ships its own
-- Arduino CLI (for firmware builds) — or Arduino IDE
-
-## Setup
-
-**1. Configure environment**
-```bash
-cp .env.example .env
-# Edit .env with your WiFi credentials, broker address/credentials and server IP
-```
-
-**2. Start services**
-```bash
-docker compose up -d
-```
-Dashboard: `http://<server-ip>:8091`
-
-**3. Build and flash firmware**
-```bash
-./scripts/build_firmware.sh
-# Initial flash via USB:
-arduino-cli upload -p /dev/ttyUSB0 --fqbn esp32:esp32:esp32 \
-  --input-file builds/soundspy_latest.bin
-```
-Subsequent updates can be done via OTA from the dashboard.
-
-**Hardware wiring (I2S mic → ESP32)**
-
-| Mic Pin | ESP32 GPIO |
-|---------|------------|
-| VDD     | 3.3V       |
-| GND     | GND        |
-| SD      | GPIO32     |
-| WS      | GPIO25     |
-| SCK     | GPIO33     |
-| L/R     | GND        |
-
-## Development
-
-**Project structure**
-```
-node_firmware/node_firmware.ino   — ESP32 firmware
-dashboard/dashboard.py            — Flask + SocketIO backend
-dashboard/templates/dashboard.html — Web UI
-dashboard/threshold_monitor.py    — Alert service
-scripts/build_firmware.sh         — Build script
-scripts/deploy_ota.sh             — OTA deploy script
-```
-
-**OTA deploy to a node**
-```bash
-./scripts/deploy_ota.sh <chip_id>
-# chip_id visible in dashboard or serial output on boot
-```
-
-**Useful commands**
-```bash
-docker logs -f soundspy_dashboard   # Dashboard logs
-docker logs -f soundspy_monitor     # Alert service logs
-```
-
-## Documentation
-
-Full documentation is available on the [project wiki](https://github.com/rojosinalma/soundspy/wiki):
-
-- [Architecture](https://github.com/rojosinalma/soundspy/wiki/Architecture)
-- [Hardware Wiring](https://github.com/rojosinalma/soundspy/wiki/Hardware-Wiring)
-- [Firmware Setup](https://github.com/rojosinalma/soundspy/wiki/Firmware-Setup)
-- [Dashboard](https://github.com/rojosinalma/soundspy/wiki/Dashboard)
-- [Adding Nodes](https://github.com/rojosinalma/soundspy/wiki/Adding-Nodes)
-- [Troubleshooting](https://github.com/rojosinalma/soundspy/wiki/Troubleshooting)
-
-## Screenshot
+ESP32 nodes with I2S MEMS microphones sample audio, meter it in six frequency bands plus an overall level, and publish the readings over MQTT. The dashboard discovers the nodes, shows live meters, spectrum and an hour of history per node, relays live audio from any node to the browser, and sends alerts (Telegram, Discord, ntfy, Pushover, email) when a configurable rule fires. One application is keeping an eye on how much of a rehearsal or a mix makes it through a shared wall; the same setup works for any room you want to listen to from elsewhere.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/rojosinalma/soundspy/main/assets/screenshot.png" alt="soundspy dashboard" width="100%"/>
 </p>
+
+Hardware, firmware, dashboard, enclosure and design notes are documented in `docs/`.
+
+## Requirements
+
+**Hardware (per node)**
+- ESP32 development board (38-pin DevKit with 4 MB flash)
+- ICS-43434 or INMP441 I2S MEMS microphone (optionally on the carrier PCB in `pcb/`)
+
+**Software**
+- Docker + Docker Compose for the dashboard
+- An MQTT broker (for example Mosquitto) reachable by both the dashboard and the nodes
+- Arduino CLI with the `esp32:esp32` core (3.x) to build the firmware
+
+## Setup
+
+**1. Configure and start the dashboard**
+```bash
+cp .env.example .env     # broker address and credentials, dashboard port
+docker compose up -d
+```
+The dashboard listens on `http://<host>:8091`.
+
+**2. Build and flash a node**
+```bash
+./scripts/init_arduino.sh                     # ESP32 core + libraries (once)
+ESP32_BASE_DIR=/path/to/Esp32Base ./scripts/build_firmware.sh
+```
+Flash `builds/soundspy_latest.bin` over USB the first time, then join the node's WiFi setup portal and enter your network and broker settings. The node appears on the dashboard as soon as it publishes. Flashing, OTA updates and the standalone legacy firmware are covered in [docs/firmware.md](docs/firmware.md); wiring in [docs/hardware.md](docs/hardware.md).
 
 ## License
 

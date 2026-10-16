@@ -1,7 +1,11 @@
 #!/bin/bash
 
 # Initialize Arduino CLI with required cores and libraries for soundspy
-# This script installs ESP32 core and all required libraries
+# This script installs the ESP32 core and the libraries both firmwares need.
+#
+# firmware/ (current) additionally builds against the Esp32Base library. Point ESP32_BASE_DIR
+# at a checkout of that library (the folder holding its library.properties) and it is linked
+# into the Arduino libraries folder; build_firmware.sh also accepts it directly.
 
 set -e
 
@@ -68,6 +72,23 @@ for lib in "${LIBRARIES[@]}"; do
     fi
 done
 
+# Esp32Base (firmware/ only)
+if [ -n "${ESP32_BASE_DIR:-}" ]; then
+    if [ ! -f "$ESP32_BASE_DIR/library.properties" ]; then
+        echo "Error: ESP32_BASE_DIR=$ESP32_BASE_DIR has no library.properties"
+        exit 1
+    fi
+    LIB_DIR="$("$ARDUINO_CLI" config get directories.user 2>/dev/null)/libraries"
+    mkdir -p "$LIB_DIR"
+    echo ""
+    echo "Linking Esp32Base from $ESP32_BASE_DIR into $LIB_DIR"
+    ln -sfn "$(cd "$ESP32_BASE_DIR" && pwd)" "$LIB_DIR/Esp32Base"
+else
+    echo ""
+    echo "ESP32_BASE_DIR not set: only the legacy node_firmware/ can be built."
+    echo "firmware/ needs the Esp32Base library; see docs/firmware.md."
+fi
+
 echo ""
 echo "=========================================="
 echo "Initialization complete!"
@@ -79,4 +100,5 @@ echo ""
 "$ARDUINO_CLI" lib list | grep -E "PubSubClient|WebSockets|ArduinoJson"
 echo ""
 echo "You can now build firmware with:"
-echo "  ./scripts/build_firmware.sh 1"
+echo "  ./scripts/build_firmware.sh            # firmware/ (needs Esp32Base)"
+echo "  ./scripts/build_firmware.sh legacy     # node_firmware/ + recovery"

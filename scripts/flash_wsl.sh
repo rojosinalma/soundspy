@@ -1,6 +1,6 @@
 #!/bin/bash
 # Flash soundspy full firmware image from WSL.
-# Run from the project root on the Windows desktop PC.
+# Run from the project root inside a WSL shell with the board attached through usbipd.
 # Usage: ./scripts/flash_wsl.sh [port]
 #   port defaults to /dev/ttyUSB0 (check Device Manager for COM# then use /dev/ttyUSBx or /dev/ttyS<n>)
 

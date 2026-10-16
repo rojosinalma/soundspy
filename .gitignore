@@ -1,16 +1,7 @@
 # Local config overrides
 docker-compose.override.yml
+compose.override.yaml
 .env
-
-# Claude Code local files (centralized in claude-configs, symlinked here)
-.claude
-CONTEXT.md
-
-# ntfy runtime data
-ntfy/cache/*
-ntfy/etc/*
-!ntfy/cache/.gitkeep
-!ntfy/etc/.gitkeep
 
 # Python
 __pycache__/

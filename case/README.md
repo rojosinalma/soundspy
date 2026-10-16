@@ -14,7 +14,7 @@ Outer size: **40.4 × 78.4 × 20.85 mm**, including the corner screw towers (the
 | `stl/soundspy-case-tray.stl` | Test tray: the base's floor, standoffs and outline with 6 mm walls. Printed: the carrier fits |
 | `stl/soundspy-case-test_usb.stl` | Test slice: the USB end wall on its side with 3 mm of floor. About 9.5 min on Standard; checks the USB-C cutout height against the real board |
 
-Regenerate after changing a parameter: `./scripts/render_case.sh` (renders through the shared `openscad` service with `scad-render`). It runs the fit check first and fails if the case would collide with any board part, **or if anything overhangs the board's drop-in path** (the check that would have caught the first version's corner posts). You can also override values without editing, e.g. `./scripts/render_case.sh -D usb_bottom_tbl=12.5`.
+Regenerate after changing a parameter: `./scripts/render_case.sh` (needs the `openscad` CLI, 2021.01 or newer; or set `OPENSCAD` to a container command line such as `docker run --rm -v $PWD:$PWD -w $PWD openscad/openscad:dev openscad`). It runs the fit check first and fails if the case would collide with any board part, **or if anything overhangs the board's drop-in path** (the check that would have caught the first version's corner posts). You can also override values without editing, e.g. `./scripts/render_case.sh -D usb_bottom_tbl=12.5`.
 
 ## Hardware
 
@@ -24,7 +24,7 @@ Regenerate after changing a parameter: `./scripts/render_case.sh` (renders throu
 
 ## Print
 
-- PLA, no supports. Final parts use the Bambuddy "X2D 0.4 HQ" pipeline (base: 46 min); prototypes use "X2D 0.4 STD" (0.16 mm, base: 39 min).
+- PLA, no supports, 0.4 mm nozzle. Prototypes print fine at 0.16–0.2 mm layers (base: about 40 min); final parts at a finer quality profile (base: about 46 min).
 - Pilot holes are 1.7 mm (`m2_pilot`). If screws are too tight or loose on your printer, adjust that value and re-render.
 
 ## Assembly

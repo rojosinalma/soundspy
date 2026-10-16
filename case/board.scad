@@ -123,7 +123,7 @@ module stud_slit(h, sh = standoff_h) {
     translate([0, 0, z0]) rotate([90, 0, 0]) cylinder(d = slit_relief_d, h = 2 * standoff_d, center = true);
 }
 
-// barbed_holes get barbed split studs (all four corners, the user's choice after the v2 base: the
+// barbed_holes get barbed split studs (all four corners, my choice after the v2 base: the
 // USB-end ones sit under the ESP32, so the board comes off by pulling rather than pinching there);
 // any others get locating pins, split and preloaded when usb_pin_split is set.
 module stud_standoffs(barbed_holes = pcb_holes, holes = pcb_holes, sh = standoff_h) {

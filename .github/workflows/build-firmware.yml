@@ -1,0 +1,72 @@
+name: build-firmware
+
+# Compiles the standalone firmware (node_firmware/ and its recovery image) with arduino-cli.
+# firmware/ depends on the Esp32Base library, which is not on a public index yet, so it is
+# built locally with ./scripts/build_firmware.sh (see docs/firmware.md).
+# On a v* tag (or a dispatch on one) the binaries are attached to that tag's release.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths-ignore: ["docs/**", "*.md", "case/**", "pcb/**"]
+  pull_request:
+    paths: ["node_firmware/**", "scripts/**", "partitions.csv", ".github/workflows/build-firmware.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  ESP32_CORE: esp32:esp32@3.3.12
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: arduino/setup-arduino-cli@v2
+        with:
+          version: "1.x"
+
+      - name: Cache ESP32 core
+        uses: actions/cache@v4
+        with:
+          path: ~/.arduino15
+          key: arduino-${{ runner.os }}-${{ env.ESP32_CORE }}
+
+      - name: Install ESP32 core and libraries
+        run: |
+          arduino-cli config init --overwrite
+          arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install "$ESP32_CORE"
+          arduino-cli lib install PubSubClient WebSockets ArduinoJson
+
+      - name: Build node_firmware (legacy) + recovery
+        run: |
+          cp .env.example .env   # placeholder defaults for the NVS fallbacks
+          ./scripts/build_firmware.sh legacy
+          cd builds
+          for f in soundspy_v*.bin; do mv "$f" "soundspy-legacy_${f#soundspy_}"; done
+          ls -la
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: |
+            builds/soundspy-legacy_v*.bin
+            builds/soundspy_recovery_v*.bin
+          if-no-files-found: error
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" builds/soundspy-legacy_v*.bin builds/soundspy_recovery_v*.bin --clobber
+          else
+            echo "No release for $GITHUB_REF_NAME yet; the binaries stay in the workflow artifact."
+          fi

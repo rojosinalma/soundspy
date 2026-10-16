@@ -14,6 +14,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.2] - 2026-10-11
+
+### Changed
+- Firmware built against Esp32Base 2.4.0.
+- One release version for the repository: `VERSION`, the firmware `APP_VERSION` and the dashboard `DASHBOARD_VERSION` all read 2.1.2 (`scripts/bump_version.sh` keeps them in step).
+
+## [2.1.1] - 2026-10-10
+
+### Changed
+- Firmware on Esp32Base 2.3.2.
+
+## [2.1.0] - 2026-10-10
+
+### Changed
+- Firmware moved to the single-slot partition layout (recovery in the factory slot, one app slot): firmware updates are written by the recovery image instead of alternating A/B slots.
+
+## [2.0.9] - 2026-10-10
+
+### Changed
+- Firmware on Esp32Base 2.2.2.
+
+## [2.0.8] - 2026-10-08
+
+### Changed
+- Firmware on Esp32Base 2.1.9: the system portal shows the configured WiFi/MQTT credentials to a logged-in admin.
+
+## [2.0.7] - 2026-10-01
+
+### Changed
+- Mono I2S capture (left slot by default, `slot` setting selects right).
+- PCM ring buffer allocated only while a client streams; nothing is buffered on an idle node.
+- Fleet update client back in the firmware.
+
+## [2.0.4] - 2026-10-01
+
+### Changed
+- Firmware rewritten on Esp32Base (`firmware/`): NVS configuration, captive portal, boot guard with recovery fallback, HTTP OTA, MQTT over mqtt/mqtts/ws/wss come from the library; the sketch only meters audio and publishes.
+- MQTT topic layout is now `<prefix>/<chip_id>/{status,data,log,cmd}` (prefix `esp32` by default, `MQTT_PREFIX` on the dashboard); the retained `status` message and its LWT replace the old heartbeat/boot topics.
+- Live audio is pulled: each node serves raw s16le PCM on a TCP port (`stream_port`, default 8181) and the dashboard relays it to browsers over Socket.IO only while a browser is connected. The nodes no longer push a WebSocket stream.
+- Node settings (`gain`, `publish_ms`, `stream_port`, `awake`, `slot`) are persisted on the node and editable over MQTT `cmd` or `GET/POST /api/audio`.
+- Dashboard shows node names from the board hostname and marks nodes in recovery mode.
+- The compose stack no longer bundles an MQTT broker or ntfy; point `MQTT_HOST` at an existing broker.
+- The legacy standalone firmware stays available as `node_firmware/` (1.7.7).
+
+## [2.0.0] - 2026-08-01
+
+### Added
+- Settings page (`/settings`): notification channels (Telegram, Discord, ntfy, Pushover, email), alert rules (global or per node, per band or overall; instant / sustained / repeated conditions; time- or count-based cooldown; urgency) and alert history.
+- SQLite persistence (`data/soundspy.db`) for node names, thresholds, channels, rules and alert history; existing `node_names.json` / `node_thresholds.json` are migrated on first start.
+- System log: pause auto-scroll by scrolling, clear button, fullscreen mode.
+- `scripts/serial_monitor.sh` to follow several USB serial ports at once; `scripts/flash_wsl.sh` to write a full flash image from WSL.
+- Recovery partition: a factory recovery image with a crash counter and MQTT-triggered OTA, custom 4 MB partition table (`partitions.csv`), `scripts/flash_initial.sh` for the first USB flash.
+
+### Changed
+- Dashboard split into modules (`app.py`, `db.py`, `node_state.py`, `audio_relay.py`, `notifications.py`); the separate threshold monitor service is gone, alerts are evaluated in the dashboard.
+- Heartbeat every 10 s, reported to serial and the dashboard log.
+- 3D-printable enclosure (`case/`, OpenSCAD) and carrier PCB rev 1.2.
+
+### Removed
+- BOOT button recovery and the button/potentiometer hardware controls.
+- Dead code across the dashboard and firmware.
+
 ## [1.6.0] - 2026-07-31
 
 ### Added
