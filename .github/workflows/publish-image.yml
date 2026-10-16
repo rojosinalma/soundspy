@@ -1,4 +1,5 @@
 name: publish-image
+run-name: "${{ github.ref_name }} · ${{ github.event.head_commit.message || github.event.release.name || github.actor }}"
 
 on:
   push:

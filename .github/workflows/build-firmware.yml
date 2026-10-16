@@ -1,4 +1,5 @@
 name: build-firmware
+run-name: "${{ github.ref_name }} · ${{ github.event.pull_request.title || github.event.head_commit.message || github.actor }}"
 
 # Compiles the standalone firmware (node_firmware/ and its recovery image) with arduino-cli.
 # firmware/ depends on the Esp32Base library, which is not on a public index yet, so it is

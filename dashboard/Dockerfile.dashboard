@@ -2,7 +2,7 @@ FROM python:3.12-slim
 
 LABEL org.opencontainers.image.source="https://github.com/rojosinalma/soundspy" \
       org.opencontainers.image.description="soundspy dashboard: MQTT ingest, live audio relay, alerts and web UI for ESP32 sound-level nodes" \
-      org.opencontainers.image.licenses="AGPL-3.0"
+      org.opencontainers.image.licenses="AGPL-3.0-only"
 
 WORKDIR /app
 COPY requirements.txt .
@@ -10,6 +10,17 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY *.py ./
 COPY templates/ templates/
 
+# Unprivileged runtime user; /app/data is the state volume (bind it to a directory this uid can write).
+RUN groupadd --gid 1000 soundspy \
+    && useradd --uid 1000 --gid soundspy --no-create-home --shell /usr/sbin/nologin soundspy \
+    && mkdir -p /app/data \
+    && chown -R soundspy:soundspy /app
+USER soundspy
+
 ENV PYTHONUNBUFFERED=1
+EXPOSE 8091
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD ["python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8091/health', timeout=4).status == 200 else 1)"]
 
 CMD ["python", "-u", "app.py"]

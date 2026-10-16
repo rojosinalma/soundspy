@@ -59,6 +59,7 @@ Rules (`/settings` → Rules): scope *global* or one node; band *overall* or one
 | `GET/POST /api/rules`, `DELETE /api/rules/<id>` | Alert rules (`channel_ids` list on POST) |
 | `GET /api/alert-history?limit=100` | Fired alerts |
 | `GET /api/relays` | Audio relay state |
+| `GET /health` | Liveness: `{status, version, mqtt_connected, nodes}` — always 200 while the server answers; the container `HEALTHCHECK` uses it |
 
 Socket.IO events to the browser: `node_status`, `sensor_data`, `hw_gain`, `node_log`, `audio_data`.
 

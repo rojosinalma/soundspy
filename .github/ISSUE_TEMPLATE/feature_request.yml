@@ -1,0 +1,40 @@
+name: Feature request
+description: Propose a change or an addition
+title: "feat: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do that soundspy does not let you do today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: How should it work? A dashboard control, an alert condition, a node setting, a notification channel…
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - Dashboard / UI
+        - Alerts / notification channels
+        - Live audio
+        - HTTP API / MQTT topics
+        - Firmware / DSP
+        - Hardware (PCB, enclosure)
+        - Docker / deployment
+        - Other
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues.
+        - label: A firmware change keeps the MQTT payloads compatible with the current dashboard, or the proposal says what changes.

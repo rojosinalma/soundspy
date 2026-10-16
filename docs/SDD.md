@@ -89,6 +89,7 @@ Today soundspy runs with ESP32-WROOM DevKits and I2S MEMS mics, one MQTT broker,
 ## Operations
 
 - **Logs.** `docker logs -f soundspy`: broker connection, every accepted status (`[status] …`), relay events (`[relay] …`), alert dispatch and MQTT errors. Node logs arrive in the dashboard's log panel and on `/sys` → logs on the node.
-- **Health.** `GET /api/nodes` lists the nodes and their online state; `GET /api/relays` the audio relays. A node answers `GET /` with its version.
+- **Health.** `GET /health` returns 200 with the version, the MQTT link state and the node count (the image's `HEALTHCHECK` polls it every 30 s). `GET /api/nodes` lists the nodes and their online state; `GET /api/relays` the audio relays. A node answers `GET /` with its version.
 - **Persistence and backup.** Everything persistent is `data/soundspy.db`; copy that file.
+- **Container user.** The image runs as uid 1000 (`soundspy`), so the directory bound to `/app/data` must be writable by that uid (`chown -R 1000:1000 data`), or set `user:` in compose to the owner of your data directory.
 - **Upgrade.** `docker compose pull && docker compose up -d` for the dashboard (the schema is additive, migrations run on start); upload the new `.bin` to each node's `/sys` portal for the firmware. Versions: `VERSION`, `APP_VERSION`, `DASHBOARD_VERSION` are bumped together by `scripts/bump_version.sh`; a changed `VERSION` on `main` creates the tag and the GitHub release and triggers the firmware and image builds for it.

@@ -1,0 +1,56 @@
+name: Bug report
+description: Something does not work as documented
+title: "bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for the report. Remove WiFi passwords, broker credentials and notification tokens from logs before pasting.
+  - type: input
+    id: version
+    attributes:
+      label: soundspy version
+      description: From `GET /health` (`version`), the dashboard footer or the node's status message.
+      placeholder: 2.1.3 / ghcr.io/rojosinalma/soundspy:latest
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      multiple: true
+      options:
+        - Dashboard (web UI, API, alerts)
+        - Live audio relay
+        - Firmware (firmware/, Esp32Base)
+        - Legacy firmware (node_firmware/)
+        - Carrier PCB / enclosure
+        - Build scripts / CI
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, what you got.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Flash a node with …
+        2. Open the dashboard and …
+        3. …
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant `docker logs soundspy` lines, node serial output or the dashboard log panel. Secrets redacted.
+      render: text
+  - type: input
+    id: setup
+    attributes:
+      label: Board, microphone, broker, browser
+      placeholder: ESP32 DevKit 38-pin, ICS-43434, Mosquitto 2.0, Firefox 140 on Linux

@@ -13,7 +13,7 @@ To work on the dashboard source, add a git-ignored `compose.override.yaml` with 
 
 There is no automated test suite yet. Before opening a PR:
 
-- `python -m py_compile dashboard/*.py` and a run against a broker with at least one node (or `mosquitto_pub` of a `status` + `data` message on `esp32/<id>/…`).
+- `python -m py_compile dashboard/*.py`, `GET /health` on the running container, and a run against a broker with at least one node (or `mosquitto_pub` of a `status` + `data` message on `esp32/<id>/…`).
 - `./scripts/build_firmware.sh legacy` must compile; CI (`build-firmware`) runs the same build on every push and PR touching `node_firmware/`, `scripts/` or `partitions.csv`.
 - `bash -n scripts/*.sh` for shell changes.
 
@@ -28,6 +28,7 @@ There is no automated test suite yet. Before opening a PR:
 ## Commits and PRs
 
 - Plain, descriptive commit messages in the imperative (`Fix relay reconnect after node sleep`), one logical change per commit.
+- Every commit is GPG- or SSH-signed (`git config commit.gpgsign true`); unsigned commits are not merged.
 - Firmware version bumps go through `./scripts/bump_version.sh` and a `CHANGELOG.md` entry in the same commit.
 - PRs describe what changed and how it was verified (which board, which broker, what you saw in the dashboard).
 
@@ -45,6 +46,7 @@ There is no automated test suite yet. Before opening a PR:
 | `docs/development.md` | Repository layout, dev loop, releasing |
 | `case/README.md`, `pcb/inmp441/DESIGN.md` | Enclosure and PCB specifics |
 | `CHANGELOG.md` | Keep a Changelog, one section per version |
+| `SECURITY.md`, `CODE_OF_CONDUCT.md` | Vulnerability reporting, community rules |
 
 A change in behaviour comes with the matching doc change in the same PR.
 

@@ -22,7 +22,7 @@ MQTT_PORT = int(os.environ.get("MQTT_PORT", 1883))
 MQTT_USER = os.environ.get("MQTT_USER", "")
 MQTT_PASS = os.environ.get("MQTT_PASS", "")
 MQTT_PREFIX = os.environ.get("MQTT_PREFIX", "esp32")  # esp32-base topic prefix: <prefix>/<chip_id>/<leaf>
-DASHBOARD_VERSION = "2.1.2"
+DASHBOARD_VERSION = "2.1.3"
 
 NODE_APP = "soundspy"  # esp32-base app name the nodes report in their status; other apps on the broker are ignored
 TOPIC_DATA = f"{MQTT_PREFIX}/+/data"
@@ -312,6 +312,18 @@ def api_alert_history():
 @app.route("/api/relays")
 def api_relays():
     return jsonify(audio_relay.status())
+
+
+@app.route("/health")
+def health():
+    # 200 while the web server answers; the MQTT link is reported, not required, so a broker
+    # outage does not restart the container.
+    return jsonify({
+        "status": "ok",
+        "version": DASHBOARD_VERSION,
+        "mqtt_connected": mqtt_client.is_connected(),
+        "nodes": len(node_state.get_all_nodes()),
+    })
 
 
 # --- Startup ---
